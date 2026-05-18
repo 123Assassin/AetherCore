@@ -1,0 +1,11 @@
+{
+  "name": "@package/eslint-config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./next": "./next.js",
+    "./nest": "./nest.js",
+    "./library": "./library.js",
+    "./db-init": "./db-init.js"
+  }
+}

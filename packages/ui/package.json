@@ -1,0 +1,27 @@
+{
+  "name": "@package/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:types": "tsc --emitDeclarationOnly",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.4.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@package/eslint-config": "workspace:*",
+    "@types/react": "^19.2.2",
+    "typescript": "^5.9.3"
+  }
+}

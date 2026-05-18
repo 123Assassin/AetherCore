@@ -1,0 +1,19 @@
+{
+  "name": "@package/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:types": "tsc --emitDeclarationOnly",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@package/eslint-config": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@package/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:types": "tsc --emitDeclarationOnly",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trpc/client": "^11.7.2",
+    "@trpc/server": "^11.7.2"
+  },
+  "devDependencies": {
+    "@package/eslint-config": "workspace:*",
+    "typescript": "^5.9.3"
+  }
+}

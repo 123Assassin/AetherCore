@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@package/db": ["../../packages/db/src"],
+      "@package/db/*": ["../../packages/db/src/*"],
+      "@package/shared": ["../../packages/shared/src"]
+    }
+  },
+  "include": ["src"]
+}

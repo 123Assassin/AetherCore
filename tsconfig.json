@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "web/*": ["apps/web/src/*"],
+      "admin/*": ["apps/admin/src/*"],
+      "server/*": ["apps/server/src/*"],
+      "@package/api": ["packages/api/src"],
+      "@package/db": ["packages/db/src"],
+      "@package/db/*": ["packages/db/src/*"],
+      "@package/auth": ["packages/auth/src"],
+      "@package/shared": ["packages/shared/src"],
+      "@package/shared/*": ["packages/shared/src/*"],
+      "@package/ui": ["packages/ui/src"],
+      "@package/eslint-config": ["packages/eslint-config"],
+      "@package/tailwindcss-config": ["packages/tailwindcss-config"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "**/test/**", "**/__tests__/**", "next-env.d.ts"]
+}

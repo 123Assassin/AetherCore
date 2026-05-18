@@ -1,0 +1,29 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev -p 3001",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "next start -p 3001",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@package/api": "workspace:*",
+    "@package/shared": "workspace:*",
+    "@package/ui": "workspace:*",
+    "next": "^16.0.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@package/eslint-config": "workspace:*",
+    "@package/tailwindcss-config": "workspace:*",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "^5.9.3"
+  }
+}

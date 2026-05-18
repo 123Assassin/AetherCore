@@ -1,0 +1,28 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["tsconfig.json", ".env.*", "pnpm-lock.yaml"],
+  "tasks": {
+    "db:generate": { "cache": false, "env": ["DATABASE_URL"] },
+    "db:push": { "cache": false, "env": ["DATABASE_URL"] },
+    "db:migrate": { "cache": false, "env": ["DATABASE_URL"] },
+    "db:seed": { "cache": false, "env": ["DATABASE_URL"] },
+    "db:studio": { "cache": false, "env": ["DATABASE_URL"] },
+    "db:init": { "cache": false, "env": ["DATABASE_URL"] },
+    "db:full": {
+      "cache": false,
+      "env": ["DATABASE_URL"],
+      "dependsOn": ["db:generate", "db:migrate", "db:seed"]
+    },
+    "build": {
+      "dependsOn": ["db:generate", "^build"],
+      "outputs": ["dist/**", ".next/**"],
+      "env": ["DATABASE_URL", "APP_HTTP_URL", "REDIS_URL"]
+    },
+    "build:types": { "outputs": ["dist/**/*.d.ts"] },
+    "type-check": { "dependsOn": ["build:types"] },
+    "dev": { "persistent": true, "interactive": true, "cache": false },
+    "lint": { "cache": false },
+    "lint:fix": { "cache": false }
+  }
+}

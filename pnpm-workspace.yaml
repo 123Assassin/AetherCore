@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+overrides:
+  tmp: "^0.2.3"
+  lodash: "^4.17.21"

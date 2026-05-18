@@ -1,0 +1,31 @@
+{
+  "name": "server",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "node dist/main.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.20",
+    "@nestjs/core": "^10.4.20",
+    "@nestjs/platform-fastify": "^10.4.20",
+    "@package/api": "workspace:*",
+    "@package/auth": "workspace:*",
+    "@package/db": "workspace:*",
+    "@package/shared": "workspace:*",
+    "@trpc/server": "^11.7.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.9",
+    "@package/eslint-config": "workspace:*",
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3"
+  }
+}

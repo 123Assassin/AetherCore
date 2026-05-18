@@ -1,0 +1,31 @@
+{
+  "name": "@package/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "build": "tsc",
+    "build:types": "tsc --emitDeclarationOnly",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.7",
+    "drizzle-zod": "^0.8.3",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@package/eslint-config": "workspace:*",
+    "@types/pg": "^8.15.6",
+    "drizzle-kit": "^0.31.6",
+    "typescript": "^5.9.3"
+  }
+}

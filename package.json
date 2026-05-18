@@ -1,0 +1,74 @@
+{
+  "name": "aethercore",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "setup:local:env": "cp .env.example .env",
+    "db:generate": "dotenv -e .env -- turbo run db:generate",
+    "db:push": "dotenv -e .env -- turbo run db:push",
+    "db:migrate": "dotenv -e .env -- turbo run db:migrate",
+    "db:seed": "dotenv -e .env -- turbo run db:seed",
+    "db:init": "dotenv -e .env -- turbo run db:init",
+    "db:full": "dotenv -e .env -- turbo run db:full",
+    "db:studio": "dotenv -e .env -- turbo run db:studio",
+    "build": "dotenv -e .env -- turbo run build",
+    "build:packages": "dotenv -e .env -- turbo run build:types --filter='./packages/*'",
+    "build:server": "dotenv -e .env -- turbo run build --filter=server",
+    "build:web": "dotenv -e .env -- turbo run build --filter=web",
+    "build:admin": "dotenv -e .env -- turbo run build --filter=admin",
+    "build:db-init": "dotenv -e .env -- turbo run build --filter=db-init",
+    "dev": "dotenv -e .env -- turbo run dev",
+    "dev:server": "dotenv -e .env -- turbo run dev --filter=server",
+    "dev:web": "dotenv -e .env -- turbo run dev --filter=web",
+    "dev:admin": "dotenv -e .env -- turbo run dev --filter=admin",
+    "start:server": "dotenv -e .env -- turbo run start --filter=server",
+    "start:web": "dotenv -e .env -- turbo run start --filter=web",
+    "start:admin": "dotenv -e .env -- turbo run start --filter=admin",
+    "lint": "dotenv -e .env -- turbo run lint",
+    "lint:fix": "dotenv -e .env -- turbo run lint:fix",
+    "type-check": "dotenv -e .env -- turbo run type-check",
+    "format": "prettier --write .",
+    "clean": "del-cli node_modules **/node_modules .next .turbo dist coverage",
+    "clean:cache": "turbo clean",
+    "deep-clean": "pnpm run clean && pnpm run clean:cache && del-cli pnpm-lock.yaml",
+    "cz": "cz",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "^9.39.1",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "del-cli": "^6.0.0",
+    "dotenv-cli": "^8.0.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-unused-imports": "^4.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4"
+  }
+}

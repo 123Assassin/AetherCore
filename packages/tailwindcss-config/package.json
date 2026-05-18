@@ -1,0 +1,22 @@
+{
+  "name": "@package/tailwindcss-config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./src/base.ts",
+    "./web": "./src/web.ts",
+    "./admin": "./src/admin.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:types": "tsc --emitDeclarationOnly",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@package/eslint-config": "workspace:*",
+    "tailwindcss": "^4.1.16",
+    "typescript": "^5.9.3"
+  }
+}
