@@ -3,6 +3,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { seedAdmin } from './seed-admin.js';
 import { seedData } from './seed-data.js';
+import { resolveMigrationsFolder } from './utils.js';
 
 async function main() {
   const seedOnly = process.argv.includes('--seed-only');
@@ -10,7 +11,7 @@ async function main() {
   try {
     if (!seedOnly) {
       console.log('Running migrations...');
-      await migrate(db, { migrationsFolder: '../../packages/db/drizzle' });
+      await migrate(db, { migrationsFolder: await resolveMigrationsFolder() });
       console.log('Migrations complete');
     }
 

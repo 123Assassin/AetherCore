@@ -3,9 +3,15 @@ import { users } from '@package/db/schema';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 
+export function getAdminSeedConfig() {
+  return {
+    email: process.env.ADMIN_EMAIL || 'admin',
+    password: process.env.ADMIN_PASSWORD || 'admin@123',
+  };
+}
+
 export async function seedAdmin(db: Database) {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'changeme123';
+  const { email: adminEmail, password: adminPassword } = getAdminSeedConfig();
 
   const [existing] = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
 

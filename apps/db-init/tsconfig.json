@@ -9,10 +9,12 @@
     "rootDir": "./src",
     "paths": {
       "@/*": ["./src/*"],
-      "@package/db": ["../../packages/db/src"],
+      "@package/db": ["../../packages/db/src/index.ts"],
+      "@package/db/schema": ["../../packages/db/src/schema/index.ts"],
       "@package/db/*": ["../../packages/db/src/*"],
-      "@package/shared": ["../../packages/shared/src"]
+      "@package/shared": ["../../packages/shared/src/index.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

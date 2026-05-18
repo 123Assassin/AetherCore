@@ -5,6 +5,7 @@
   "scripts": {
     "db:init": "dotenv -e ../../.env -- tsx src/index.ts",
     "db:seed": "dotenv -e ../../.env -- tsx src/index.ts --seed-only",
+    "test": "tsx --test src/**/*.test.ts",
     "build": "tsc",
     "build:types": "tsc --emitDeclarationOnly",
     "lint": "eslint .",

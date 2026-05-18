@@ -1,0 +1,2180 @@
+[
+  {
+    "id": "physics",
+    "name": "物理",
+    "children": [
+      {
+        "id": "motion",
+        "name": "运动",
+        "children": [
+          {
+            "id": "collision-lab",
+            "name": "碰撞实验室",
+            "thumbnail": "collision-lab.png",
+            "src": "collision-lab_en.html",
+            "isable": true,
+            "topics": ["碰撞", "能量守恒", "动量守恒", "弹力"],
+            "sample_learning_goals": [
+              "得出碰撞前后的图片。",
+              "构建碰撞前后动量的矢量表示。",
+              "动量守恒定律在解决碰撞问题中的应用。",
+              "解释在某些碰撞中能量为什么是不守恒的。",
+              "确定在变“弹性”碰撞中力学能量的变化。",
+              "“弹性”是什么意思？"
+            ]
+          },
+          {
+            "id": "energy-skate-park",
+            "name": "能量滑板竞技场",
+            "thumbnail": "energy-skate-park.png",
+            "src": "energy-skate-park_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "动能", "势能", "热能", "摩擦力", "能量"],
+            "sample_learning_goals": ["通过运用动能和重力势能来解释能量守恒定律的概念。"]
+          },
+          {
+            "id": "vector-addition",
+            "name": "向量相加",
+            "thumbnail": "vector-addition.png",
+            "src": "vector-addition_en.html",
+            "isable": true,
+            "topics": ["向量", "向量分量", "向量加法", "方程"],
+            "sample_learning_goals": ["用自己的话解释向量表示", "将向量的角的形式转化为分量形式。"]
+          },
+          {
+            "id": "gravity-force-lab-basics",
+            "name": "引力实验室：基础",
+            "thumbnail": "gravity-force-lab-basics.png",
+            "src": "gravity-force-lab-basics_en.html",
+            "isable": true,
+            "topics": ["万有引力", "平方反比定律", "一对力", "牛顿第三定律"],
+            "sample_learning_goals": [
+              "将万有引力与物体的质量和物体间的距离联系起来。",
+              "解释牛顿第三定律在引力作用中的应用。",
+              "使用测量来确定万有引力常数。"
+            ]
+          },
+          {
+            "id": "masses-and-springs-basics",
+            "name": "质量与弹簧：基础",
+            "thumbnail": "masses-and-springs-basics.png",
+            "src": "masses-and-springs-basics_en.html",
+            "isable": true,
+            "topics": ["尺寸", "周期运动", "胡克定律"],
+            "sample_learning_goals": [
+              "用你自己的话描述自然长度和平衡位置。",
+              "找出质量、弹簧强度(弹簧常数)和拉伸(位移)之间的关系。",
+              "设计一个实验来确定一个神秘物体的质量",
+              "开发一种测量周期的方法。",
+              "确定影响振荡周期的因素。",
+              "将行星X的重力与已知基准进行比较。",
+              "描述速度和加速度矢量之间的关系，以及它们与运动在振荡过程中不同点的关系。"
+            ]
+          },
+          {
+            "id": "masses-and-springs",
+            "name": "质量和弹簧",
+            "thumbnail": "masses-and-springs.png",
+            "src": "masses-and-springs_en.html",
+            "isable": true,
+            "topics": ["周期运动", "胡克定律", "能量守恒", "牛顿定律", "尺寸", "向量"],
+            "sample_learning_goals": [
+              "确定影响振荡周期的因素",
+              "求行星X上的g值",
+              "设计一个实验来确定一个未知物体的质量",
+              "描述速度和加速度矢量之间的关系，以及它们与运动在振荡过程中不同点的关系",
+              "解释质量在振荡过程中其自由体图如何变化",
+              "解释机械能守恒，使用动能、弹性势能、重力势能和热能"
+            ]
+          },
+          {
+            "id": "pendulum-lab",
+            "name": "钟摆实验",
+            "thumbnail": "pendulum-lab.png",
+            "src": "pendulum-lab_en.html",
+            "isable": true,
+            "topics": ["周期运动", "简谐运动", "能量守恒", "周期", "摆"],
+            "sample_learning_goals": [
+              "设计实验来描述变量是如何影响单摆运动的。",
+              "利用光栅定时器来定量描述单摆周期是怎么依赖你所描述的变量的。",
+              "确定X星球的重力加速度。",
+              "用动能和重力势能解释机械能守恒。",
+              "从位置或速度确定时描述相应能量谱。"
+            ]
+          },
+          {
+            "id": "projectile-motion",
+            "name": "斜抛运动",
+            "thumbnail": "projectile-motion.png",
+            "src": "projectile-motion_en.html",
+            "isable": true,
+            "topics": ["运动力学", "空气阻力", "抛物线", "向量", "阻力", "抛物运动"],
+            "sample_learning_goals": [
+              "预测不同的初始条件如何影响一个弹丸路径（各种物体，角度，初始速度，质量，直径，初始高度，有和没有空气阻力）。",
+              "使用推理来解释预测。",
+              "用他们自己的语言来讲解释普通弹丸的运动。 （发射角，初速度，初始高度，范围，最终高度，时间）。",
+              "说明为什么利用仿真是研究弹丸的好方法。"
+            ]
+          },
+          {
+            "id": "gravity-and-orbits",
+            "name": "重力和轨道",
+            "thumbnail": "gravity-and-orbits.png",
+            "src": "gravity-and-orbits_en.html",
+            "isable": true,
+            "topics": ["万有引力", "圆周运动", "天文学"],
+            "sample_learning_goals": [
+              "描述太阳、地球、月球和空间站之间的轨道和位置关系。",
+              "描述太阳、地球、月球和空间站的大小和距离。",
+              "解释引力如何控制我们太阳系的运动。",
+              "确定影响引力强度的变量。",
+              "预测重力变强或变弱后物体将如何运动。"
+            ]
+          },
+          {
+            "id": "hookes-law",
+            "name": "胡克定律",
+            "thumbnail": "hookes-law.png",
+            "src": "hookes-law_en.html",
+            "isable": true,
+            "topics": ["弹簧", "力", "势能", "胡克定律", "向量", "弹性系数"],
+            "sample_learning_goals": [
+              "解释作用力、弹簧力、弹簧常数、位移和势能之间的关系。描述串联或并联两个弹簧的连接方式如何影响有效弹簧常数和弹簧力。预测在弹簧常数和位移变化的弹簧中存储的潜在能量。"
+            ]
+          },
+          {
+            "id": "energy-skate-park-basics",
+            "name": "能量滑板竞技场: 基础",
+            "thumbnail": "energy-skate-park-basics.png",
+            "src": "energy-skate-park-basics_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "动能", "势能", "热能", "能量", "摩擦力"],
+            "sample_learning_goals": [
+              "通过运用动能和重力势能来解释能量守恒定律的概念。",
+              "描述能量条和圆饼图是如何与位置和对应速度相关联的。",
+              "解释滑板者质量的改变如何影响能量。",
+              "解释轨道摩擦力的改变如何影响能量。",
+              "通过能量条和圆饼图预测位置以及估计对应速度。",
+              "通过一个不同位置的信息计算速度和高度。",
+              "通过一个不同位置的信息计算动能和势能。",
+              "通过运用机械能和能量守恒定律的概念设计一个滑板公园。"
+            ]
+          },
+          {
+            "id": "balancing-act",
+            "name": "平衡探究实验",
+            "thumbnail": "balancing-act.png",
+            "src": "balancing-act_en.html",
+            "isable": true,
+            "topics": ["平衡", "比例推理", "扭距", "杠杆臂", "转动平衡"],
+            "sample_learning_goals": [
+              "预测不同的物体可以用来制造木板的平衡。",
+              "预测如何改变物体在木板上的位置来影响木板的运动。",
+              "撰写预测当把物体放在木板上，它将向哪一边倾斜的规则。",
+              "使用你的规则来解决关于平衡的难题。"
+            ]
+          },
+          {
+            "id": "friction",
+            "name": "摩擦力",
+            "thumbnail": "friction.png",
+            "src": "friction_en.html",
+            "isable": true,
+            "topics": ["摩擦力", "热力学", "热"],
+            "sample_learning_goals": [
+              "从分子层面描述一种摩擦力的模型。",
+              "从分子运动的角度描述物质。描述应包括：支撑描述的图表；解释温度如何影响图像，固体、液体和气体之间微粒运动方式有何异同；日常生活中的物体与气体分子的大小和运动速度有何联系。"
+            ]
+          },
+          {
+            "id": "forces-and-motion-basics",
+            "name": "力和运动：基础",
+            "thumbnail": "forces-and-motion-basics.png",
+            "src": "forces-and-motion-basics_en.html",
+            "isable": true,
+            "topics": ["力", "运动", "摩擦力", "速度", "牛顿第一定律"],
+            "sample_learning_goals": [
+              "确定当力的平衡与不平衡。确定力之和（净力）与一个以上的力量在它的对象。与零净力预测物体的运动。运动方向预测的结合力。"
+            ]
+          },
+          {
+            "id": "gravity-force-lab",
+            "name": "万有引力实验",
+            "thumbnail": "gravity-force-lab.png",
+            "src": "gravity-force-lab_en.html",
+            "isable": true,
+            "topics": ["万有引力", "平方反比定律", "一对力", "牛顿第三定律"],
+            "sample_learning_goals": [
+              "将引力与物体之间的质量和物体之间的距离联系起来。",
+              "将牛顿第三定律应用于引力。",
+              "设计实验，让你得到一个涉及质量，距离和引力的方程。",
+              "用测量来确定万有引力常数。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sound-and-waves",
+        "name": "声音、振动和波",
+        "children": [
+          {
+            "id": "waves-intro",
+            "name": "波动入门",
+            "thumbnail": "waves-intro.png",
+            "src": "waves-intro_en.html",
+            "isable": true,
+            "topics": ["频率", "振幅", "波速", "波长", "水", "声音", "光"],
+            "sample_learning_goals": [
+              "利用水、声音和光制造波，观察它们之间的关联。",
+              "使用常用词汇讨论波的特性。",
+              "解释改变频率和振幅如何影响波的特性。",
+              "设计一个实验来测量波的速度。"
+            ]
+          },
+          {
+            "id": "wave-interference",
+            "name": "波的干涉",
+            "thumbnail": "wave-interference.png",
+            "src": "wave-interference_en.html",
+            "isable": true,
+            "topics": ["干扰", "双缝", "衍射", "波"],
+            "sample_learning_goals": [""]
+          },
+          {
+            "id": "wave-on-a-string",
+            "name": "绳波",
+            "thumbnail": "wave-on-a-string.png",
+            "src": "wave-on-a-string_en.html",
+            "isable": true,
+            "topics": ["波", "频率", "振幅", "衰减"],
+            "sample_learning_goals": [
+              "用通用词汇讨论波动的性质。",
+              "预测通过变化介质和反射端点的波的行为。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "work-energy-and-power",
+        "name": "功、能量和功率",
+        "children": [
+          {
+            "id": "energy-skate-park",
+            "name": "能量滑板竞技场",
+            "thumbnail": "energy-skate-park.png",
+            "src": "energy-skate-park_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "动能", "势能", "热能", "摩擦力", "能量"],
+            "sample_learning_goals": ["通过运用动能和重力势能来解释能量守恒定律的概念。"]
+          },
+          {
+            "id": "gas-properties",
+            "name": "气体性质",
+            "thumbnail": "gas-properties.png",
+            "src": "gas-properties_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "分子运动论", "漫射", "PV 功", "麦克斯韦-玻尔兹曼分布"],
+            "sample_learning_goals": [
+              "预测PVT变量之间如何变化，数量如何影响其他气体性质。",
+              "预测温度变化将如何影响分子的速度。",
+              "基于大量相关分子对处于热平衡分子的速度进行排名。"
+            ]
+          },
+          {
+            "id": "energy-forms-and-changes",
+            "name": "能量的形式和转换",
+            "thumbnail": "energy-forms-and-changes.png",
+            "src": "energy-forms-and-changes_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "能源系统", "能量转移", "能量转换", "热传导"],
+            "sample_learning_goals": [
+              "预测物体在加热或冷却时，或在接触不同温度下的物体时能量会怎样传递。",
+              "描述不同类型的能量，并给出日常生活的例子。",
+              "描述能量是如何转化的。",
+              "解释现实生活中的能量守恒现象。",
+              "设计一个能量系统，开关，和用电器描述能量流动和变化成另一种形态的能量。",
+              "讲述真实生活中的能量故事。"
+            ]
+          },
+          {
+            "id": "masses-and-springs",
+            "name": "质量和弹簧",
+            "thumbnail": "masses-and-springs.png",
+            "src": "masses-and-springs_en.html",
+            "isable": true,
+            "topics": ["周期运动", "胡克定律", "能量守恒", "牛顿定律", "尺寸", "向量"],
+            "sample_learning_goals": [
+              "确定影响振荡周期的因素",
+              "求行星X上的g值",
+              "设计一个实验来确定一个未知物体的质量",
+              "描述速度和加速度矢量之间的关系，以及它们与运动的关系，在振荡过程中的各个点",
+              "解释质量在振荡过程中其自由体图如何变化",
+              "解释机械能守恒，使用动能、弹性势能、重力势能和热能"
+            ]
+          },
+          {
+            "id": "pendulum-lab",
+            "name": "钟摆实验",
+            "thumbnail": "pendulum-lab.png",
+            "src": "pendulum-lab_en.html",
+            "isable": true,
+            "topics": ["周期运动", "简谐运动", "能量守恒", "周期", "摆"],
+            "sample_learning_goals": [
+              "设计实验来描述变量是如何影响单摆运动的。",
+              "利用光栅定时器来定量描述单摆周期是怎么依赖你所描述的变量的。",
+              "确定X星球的重力加速度。",
+              "用动能和重力势能解释机械能守恒。",
+              "从位置或速度确定时描述相应能量谱。"
+            ]
+          },
+          {
+            "id": "hookes-law",
+            "name": "胡克定律",
+            "thumbnail": "hookes-law.png",
+            "src": "hookes-law_en.html",
+            "isable": true,
+            "topics": ["弹簧", "力", "势能", "胡克定律", "向量", "弹性系数"],
+            "sample_learning_goals": [
+              "解释作用力、弹簧力、弹簧常数、位移和势能之间的关系。描述串联或并联两个弹簧的连接方式如何影响有效弹簧常数和弹簧力。预测在弹簧常数和位移变化的弹簧中存储的潜在能量。"
+            ]
+          },
+          {
+            "id": "energy-skate-park-basics",
+            "name": "能量滑板竞技场: 基础",
+            "thumbnail": "energy-skate-park-basics.png",
+            "src": "energy-skate-park-basics_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "动能", "势能", "热能", "能量", "摩擦力"],
+            "sample_learning_goals": [
+              "通过运用动能和重力势能来解释能量守恒定律的概念。",
+              "描述能量条和圆饼图是如何与位置和对应速度相关联的。",
+              "解释滑板者质量的改变如何影响能量。",
+              "解释轨道摩擦力的改变如何影响能量。",
+              "通过能量条和圆饼图预测位置以及估计对应速度。",
+              "通过一个不同位置的信息计算速度和高度。",
+              "通过一个不同位置的信息计算动能和势能。",
+              "通过运用机械能和能量守恒定律的概念设计一个滑板公园。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "heat-and-thermodynamics",
+        "name": "热学",
+        "children": [
+          {
+            "id": "diffusion",
+            "name": "扩散",
+            "thumbnail": "diffusion.png",
+            "src": "diffusion_en.html",
+            "isable": true,
+            "topics": ["气体", "漫射", "热力学"],
+            "sample_learning_goals": [
+              "解释两种气体如何混合。",
+              "设计一个实验来找出影响扩散速率的因素。"
+            ]
+          },
+          {
+            "id": "gases-intro",
+            "name": "气体基础",
+            "thumbnail": "gases-intro.png",
+            "src": "gases-intro_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "压力压强", "量", "温度"],
+            "sample_learning_goals": [
+              "描述盒子中气体粒子的行为。",
+              "确定压强、体积、温度和气体分子数之间的关系。",
+              "描述粒子与壁面碰撞和压力之间的关系。",
+              "预测改变温度如何影响分子的速度。"
+            ]
+          },
+          {
+            "id": "gas-properties",
+            "name": "气体性质",
+            "thumbnail": "gas-properties.png",
+            "src": "gas-properties_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "分子运动论", "漫射", "PV 功", "麦克斯韦-玻尔兹曼分布"],
+            "sample_learning_goals": [
+              "预测PVT变量之间如何变化，数量如何影响其他气体性质。",
+              "预测温度变化将如何影响分子的速度。",
+              "基于大量相关分子对处于热平衡分子的速度进行排名。"
+            ]
+          },
+          {
+            "id": "energy-forms-and-changes",
+            "name": "能量的形式和转换",
+            "thumbnail": "energy-forms-and-changes.png",
+            "src": "energy-forms-and-changes_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "能源系统", "能量转移", "能量转换", "热传导"],
+            "sample_learning_goals": [
+              "预测物体在加热或冷却时，或在接触不同温度下的物体时能量会怎样传递。",
+              "描述不同类型的能量，并给出日常生活的例子。",
+              "描述能量是如何转化的。",
+              "解释现实生活中的能量守恒现象。",
+              "设计一个能量系统，开关，和用电器描述能量流动和变化成另一种形态的能量。",
+              "讲述真实生活中的能量故事。"
+            ]
+          },
+          {
+            "id": "states-of-matter-basics",
+            "name": "物质状态：基础",
+            "thumbnail": "states-of-matter-basics.png",
+            "src": "states-of-matter-basics_en.html",
+            "isable": true,
+            "topics": ["原子", "分子", "物态"],
+            "sample_learning_goals": [
+              "观察固、液、气三种物质状态的特征。",
+              "预测变化的温度和压强如何改变粒子行为。",
+              "对比三相中的粒子。",
+              "在分子水平解释熔化和凝固现象。",
+              "认识到不同的物质有不同的属性，包括熔点、凝固点和沸点。"
+            ]
+          },
+          {
+            "id": "states-of-matter",
+            "name": "物质状态",
+            "thumbnail": "states-of-matter.png",
+            "src": "states-of-matter_en.html",
+            "isable": true,
+            "topics": ["原子成键", "相互作用势", "物态", "偶极"],
+            "sample_learning_goals": [
+              "描述固体、液体、气体的分子模型。",
+              "将这个模型扩展到相变。",
+              "描述加热和冷却如何改变分子行为。",
+              "描述体积变化如何影响温度、压强和状态。",
+              "画出压强-温度随分子行为改变的图像。",
+              "解释原子间势能图像。",
+              "描述作用在原子上的力与相互作用势能的关系。",
+              "描述伦纳德-琼斯势能中参数的物理意义，以及它与分子行为的关系。"
+            ]
+          },
+          {
+            "id": "plinko-probability",
+            "name": "二项分布弹珠台几率",
+            "thumbnail": "plinko-probability.png",
+            "src": "plinko-probability_en.html",
+            "isable": true,
+            "topics": ["概率", "统计学", "直方图"],
+            "sample_learning_goals": [
+              "预测单个球可能落入的箱子",
+              "重复100个球的试验并比较结果。",
+              "统计箱子中球的数量，并将其与落入该箱子的概率联系起来。",
+              "比较和解释经验统计与理论统计",
+              "将plinko模拟作为模型应用到存在加权统计的其他场景中"
+            ]
+          },
+          {
+            "id": "atomic-interactions",
+            "name": "原子的相互作用",
+            "thumbnail": "atomic-interactions.png",
+            "src": "atomic-interactions_en.html",
+            "isable": true,
+            "topics": [
+              "相互作用势",
+              "原子成键",
+              "范德华引力",
+              "泡利排斥",
+              "伦纳德-琼斯势",
+              "原子的相互作用"
+            ],
+            "sample_learning_goals": [
+              "解释引力和斥力是如何控制原子间的交互作用。",
+              "描述势井的深度对原子的交互作用的效果。",
+              "从能量的角度描述原子的粘合过程。"
+            ]
+          },
+          {
+            "id": "friction",
+            "name": "摩擦力",
+            "thumbnail": "friction.png",
+            "src": "friction_en.html",
+            "isable": true,
+            "topics": ["摩擦力", "热力学", "热"],
+            "sample_learning_goals": [
+              "从分子层面描述一种摩擦力的模型。",
+              "从分子运动的角度描述物质。描述应包括：支撑描述的图表；解释温度如何影响图像，固体、液体和气体之间微粒运动方式有何异同；日常生活中的物体与气体分子的大小和运动速度有何联系。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "quantum-phenomena",
+        "name": "量子现象",
+        "children": [
+          {
+            "id": "blackbody-spectrum",
+            "name": "黑体辐射",
+            "thumbnail": "blackbody-spectrum.png",
+            "src": "blackbody-spectrum_en.html",
+            "isable": true,
+            "topics": ["黑体", "普朗克定律", "维恩定律", "电磁辐射", "量子力学", "天文学"],
+            "sample_learning_goals": [
+              "描述一下当你提高温度的时候黑体光谱发生了什么。曲线以及曲线的高峰的形状发生了什么？",
+              "当你提高温度的时候黑体光谱发生了什么？",
+              "将温度设置到一个电灯泡能发光的程度（3000K左右）。基于这个信息，灯泡似乎有效吗？为什么灯泡会变热？",
+              "想象一下你看见了两个发热、发光的物体：一个是发橙色光，另外一个是发蓝色光。哪一个更热？"
+            ]
+          },
+          {
+            "id": "rutherford-scattering",
+            "name": "卢瑟福散射",
+            "thumbnail": "rutherford-scattering.png",
+            "src": "rutherford-scattering_en.html",
+            "isable": true,
+            "topics": ["原子核", "原子结构", "量子力学"],
+            "sample_learning_goals": [
+              "描述原子的核式结构模型与枣糕模型之间的本质区别。",
+              "对于带电原子核，定性描述偏转角如何随着入射粒子的能量、碰撞参数及原子核电荷量的变化而变化。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "light-and-radiation",
+        "name": "光和辐射",
+        "children": [
+          {
+            "id": "geometric-optics",
+            "name": "几何光学",
+            "thumbnail": "geometric-optics.png",
+            "src": "geometric-optics_en.html",
+            "isable": true,
+            "topics": ["光学", "透镜", "镜子", "焦距"],
+            "sample_learning_goals": [
+              "解释如何通过使用射线的透镜会聚构成图像。",
+              "如何改变透镜（半径，指数和直径）影响该图像的显示位置和它的外观（倍率，亮度和倒置）。"
+            ]
+          },
+          {
+            "id": "waves-intro",
+            "name": "波动入门",
+            "thumbnail": "waves-intro.png",
+            "src": "waves-intro_en.html",
+            "isable": true,
+            "topics": ["频率", "振幅", "波速", "波长", "水", "声音", "光"],
+            "sample_learning_goals": [
+              "利用水、声音和光制造波，看看它们之间有何关联。",
+              "使用常用词汇讨论波的特性。",
+              "解释改变频率和振幅如何影响波的特性。",
+              "设计一个实验来测量波的速度。"
+            ]
+          },
+          {
+            "id": "blackbody-spectrum",
+            "name": "黑体辐射",
+            "thumbnail": "blackbody-spectrum.png",
+            "src": "blackbody-spectrum_en.html",
+            "isable": true,
+            "topics": ["黑体", "普朗克定律", "维恩定律", "电磁辐射", "量子力学", "天文学"],
+            "sample_learning_goals": [
+              "描述一下当你提高温度的时候黑体光谱发生了什么。曲线以及曲线的高峰的形状发生了什么？",
+              "当你提高温度的时候黑体光谱发生了什么？",
+              "将温度设置到一个电灯泡能发光的程度（3000K左右）。基于这个信息，灯泡似乎有效吗？为什么灯泡会变热？",
+              "想象一下你看见了两个发热、发光的物体：一个是发橙色光，另外一个是发蓝色光。哪一个更热？"
+            ]
+          },
+          {
+            "id": "wave-interference",
+            "name": "波的干涉",
+            "thumbnail": "wave-interference.png",
+            "src": "wave-interference_en.html",
+            "isable": true,
+            "topics": ["干扰", "双缝", "衍射", "波"],
+            "sample_learning_goals": []
+          },
+          {
+            "id": "bending-light",
+            "name": "光的折射",
+            "thumbnail": "bending-light.png",
+            "src": "bending-light_en.html",
+            "isable": true,
+            "topics": ["折射定律", "折射", "反射", "光学", "棱镜", "透镜", "光"],
+            "sample_learning_goals": [
+              "解释在两种介质的交界处光是如何折射的以及是什么决定折射的角度。",
+              "将斯涅耳定律应用于发生在介质交界处的一束激光折射。",
+              "描述在不同介质中速度以及光的波长是如何变化的。",
+              "描述波长的变化对折射角的影响效果。",
+              "解释一个棱镜是如何产生彩虹的。"
+            ]
+          },
+          {
+            "id": "molecules-and-light",
+            "name": "分子与光",
+            "thumbnail": "molecules-and-light.png",
+            "src": "molecules-and-light_en.html",
+            "isable": true,
+            "topics": ["分子", "光子", "吸收", "光"],
+            "sample_learning_goals": [
+              "探索大气层中分子与光线是如何相互作用的。",
+              "理解：光的吸收取决于分子和光的类型",
+              "找出光的能量与引发的运动状况之间的关系",
+              "明确从微波到紫外线，能量逐渐递增、根据分子吸收的光线，预测其运动情况、明确分子的结构如何影响其与光线的相互作用。"
+            ]
+          },
+          {
+            "id": "color-vision",
+            "name": "光的混合",
+            "thumbnail": "color-vision.png",
+            "src": "color-vision_en.html",
+            "isable": true,
+            "topics": ["光子", "单色光", "白光", "彩虹"],
+            "sample_learning_goals": [
+              "判别红光、绿光和蓝光的不同组合中人眼能看到什么颜色。",
+              "描述透过不同颜色的滤光器的分别是什么颜色的光。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "electricity-magnets-and-circuits",
+        "name": "电场、磁场和电路",
+        "children": [
+          {
+            "id": "circuit-construction-kit-ac",
+            "name": "电路构建工具包：交流电",
+            "thumbnail": "circuit-construction-kit-ac.png",
+            "src": "circuit-construction-kit-ac_en.html",
+            "isable": true,
+            "topics": ["RLC电路", "交流电路", "基尔霍夫定律", "欧姆定律"],
+            "sample_learning_goals": [""]
+          },
+          {
+            "id": "circuit-construction-kit-ac-virtual-lab",
+            "name": "交流虚拟实验室",
+            "thumbnail": "circuit-construction-kit-ac-virtual-lab.png",
+            "src": "circuit-construction-kit-ac-virtual-lab_en.html",
+            "isable": true,
+            "topics": ["RLC电路", "交流电路", "基尔霍夫定律", "欧姆定律"],
+            "sample_learning_goals": [
+              "解释基础的电学关系。",
+              "按照示意图建立回路。",
+              "使用电流表和电压表在回路中读数据。",
+              "提供去解释回路中测量和关系的原因。",
+              "讨论基础的在串联和并联回路中的电学关系。",
+              "提供去解释回路中测量的原因。",
+              "找出在“大杂烩”中一般物体的电阻。",
+              "讨论回路中电容是如何充电和放电的。",
+              "讨论回路中电感器的行为表现。"
+            ]
+          },
+          {
+            "id": "coulombs-law",
+            "name": "库仑定律",
+            "thumbnail": "coulombs-law.png",
+            "src": "coulombs-law_en.html",
+            "isable": true,
+            "topics": ["静电", "电力", "一对力", "库仑定律"],
+            "sample_learning_goals": [
+              "描述静电力的大小与电荷以及它们之间距离的关系",
+              "解释牛顿第三定律关于静电力的",
+              "使用测量确定库仑常数",
+              "确定什么使力具有吸引力或排斥力"
+            ]
+          },
+          {
+            "id": "capacitor-lab-basics",
+            "name": "电容器实验:基础",
+            "thumbnail": "capacitor-lab-basics.png",
+            "src": "capacitor-lab-basics_en.html",
+            "isable": true,
+            "topics": ["平行板电容器", "电容", "RC电路", "电路"],
+            "sample_learning_goals": [
+              "解释电压、电荷、储存能量和电容之间的关系",
+              "预测当极板面积或极板间距变化时，电容如何变化",
+              "描述电荷如何从电容器流失到灯泡中"
+            ]
+          },
+          {
+            "id": "circuit-construction-kit-dc-virtual-lab",
+            "name": "电路组建实验:直流虚拟实验室",
+            "thumbnail": "circuit-construction-kit-dc-virtual-lab.png",
+            "src": "circuit-construction-kit-dc-virtual-lab_en.html",
+            "isable": true,
+            "topics": ["串联电路", "并联电路", "欧姆定律", "基尔霍夫定律"],
+            "sample_learning_goals": [
+              "解释基本的电学关系。",
+              "按照示意图建立回路。",
+              "使用电流表和电压表在回路中读数据。",
+              "提供分析推理来解释测量结果和基本电力关系。",
+              "讨论串联和并联电路的基本电力关系。",
+              "对测量结果提供解释。",
+              "找出在“大杂烩”中一般物体的电阻。"
+            ]
+          },
+          {
+            "id": "circuit-construction-kit-dc",
+            "name": "电路组建实验:直流",
+            "thumbnail": "circuit-construction-kit-dc.png",
+            "src": "circuit-construction-kit-dc_en.html",
+            "isable": true,
+            "topics": ["串联电路", "并联电路", "欧姆定律", "基尔霍夫定律"],
+            "sample_learning_goals": [
+              "解释基本的电学关系。",
+              "按照示意图建立回路。",
+              "使用电流表和电压表在回路中读数据。",
+              "提供分析推理来解释测量结果和基本电力关系。",
+              "讨论串联和并联电路的基本电力关系。",
+              "对测量结果提供解释。",
+              "找出在“大杂烩”中一般物体的电阻。"
+            ]
+          },
+          {
+            "id": "charges-and-fields",
+            "name": "电荷与电场",
+            "thumbnail": "charges-and-fields.png",
+            "src": "charges-and-fields_en.html",
+            "isable": true,
+            "topics": ["电场", "静电", "等电位的", "静电位", "电荷", "电压"],
+            "sample_learning_goals": [
+              "找出那些影响带电体如何相互作用的变量。",
+              "预测带电体会如何相互作用。",
+              "描述带电体周围电场的强度和电场方向。",
+              "用自由体受力图和矢量加法来帮助解释它们之间的相互作用。"
+            ]
+          },
+          {
+            "id": "faradays-law",
+            "name": "法拉第定律",
+            "thumbnail": "faradays-law.png",
+            "src": "faradays-law_en.html",
+            "isable": true,
+            "topics": ["法拉第定律", "磁场", "磁铁"],
+            "sample_learning_goals": [
+              "解释磁铁以不同的速度通过线圈移动时发生的现象，以及它是如何影响灯泡亮度和电压大小的；电压的符号。解释在右侧与左侧的线圈之间移动磁铁时产生的区别。解释在大线圈与较小的线圈之间移动产生的区别。"
+            ]
+          },
+          {
+            "id": "john-travoltage",
+            "name": "静电电压",
+            "thumbnail": "john-travoltage.png",
+            "src": "john-travoltage_en.html",
+            "isable": true,
+            "topics": ["静电"],
+            "sample_learning_goals": [
+              "描述和绘制常见的静电概念模型(如电荷的转移,吸引、排斥和接地)。"
+            ]
+          },
+          {
+            "id": "balloons-and-static-electricity",
+            "name": "气球和静电（摩擦起电）",
+            "thumbnail": "balloons-and-static-electricity.png",
+            "src": "balloons-and-static-electricity_en.html",
+            "isable": true,
+            "topics": ["静电", "电荷", "电力"],
+            "sample_learning_goals": [
+              "描述和画关于生活中常见的与静电有关的静电知识（电荷的转移、感应、吸引、排斥和接地）",
+              "做一个关于不同带点量的电荷在一定距离上产生的作用力的估计。"
+            ]
+          },
+          {
+            "id": "ohms-law",
+            "name": "部分电路欧姆定律",
+            "thumbnail": "ohms-law.png",
+            "src": "ohms-law_en.html",
+            "isable": true,
+            "topics": ["欧姆定律", "电路", "直流", "电阻", "电压"],
+            "sample_learning_goals": [
+              "当电阻固定时，预测电流会如何根据电压的变化而变化。",
+              "当电压固定时，预测电流会如何根据电阻的变化而变化。"
+            ]
+          },
+          {
+            "id": "resistance-in-a-wire",
+            "name": "电线的电阻",
+            "thumbnail": "resistance-in-a-wire.png",
+            "src": "resistance-in-a-wire_en.html",
+            "isable": true,
+            "topics": ["电阻率", "电阻", "电路"],
+            "sample_learning_goals": [
+              "预测改变各个变量时，电阻会如何改变。",
+              "解释电阻和电阻率的区别。"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math",
+    "name": "数学",
+    "children": [
+      {
+        "id": "mathconcepts",
+        "name": "数学概念",
+        "children": [
+          {
+            "id": "number-compare",
+            "name": "数字比较",
+            "thumbnail": "number-compare.png",
+            "src": "number-compare_en.html",
+            "isable": true,
+            "topics": ["数字", "数量", "基数"],
+            "sample_learning_goals": [
+              "协调数字的多种表示方式：文字/口头表达、数字符号、十格框架、个位和实物。",
+              "识别一组中的物体数量。",
+              "比较最多到10的数字和数量，使用分组、快速识别、计数或数轴等策略。",
+              "比较十格中的数量。"
+            ]
+          },
+          {
+            "id": "number-play",
+            "name": "数字游戏",
+            "thumbnail": "number-play.png",
+            "src": "number-play_en.html",
+            "isable": true,
+            "topics": ["数字", "数量", "基数", "快速识别"],
+            "sample_learning_goals": [
+              "协调数字的多种表示方式：文字/口头表达、数字符号、十格框架、个位和实物。",
+              "瞬间识别到5个",
+              "瞬间识别到10个",
+              "预测序列中的下一个数字。",
+              "识别一组中的物体数量。",
+              "给定一个1-20之间的数字，数出相应数量的物体。",
+              "确定一组或十帧中有多少个物体，最多到20个。"
+            ]
+          },
+          {
+            "id": "number-line-distance",
+            "name": "数轴：距离",
+            "thumbnail": "number-line-distance.png",
+            "src": "number-line-distance_en.html",
+            "isable": true,
+            "topics": ["数轴", "整数", "减法", "绝对值"],
+            "sample_learning_goals": [
+              "使用减法计算两个整数之间的差值",
+              "将整数的减法表示为整数之间的距离",
+              "从数位和有向距离的角度思考整数减法",
+              "证明两个整数在数轴上的距离是它们差的绝对值",
+              "识别并生成整数差值的等价类（例如，5 - 2 = 6 - 3）"
+            ]
+          },
+          {
+            "id": "ratio-and-proportion",
+            "name": "比率和比例",
+            "thumbnail": "ratio-and-proportion.png",
+            "src": "ratio-and-proportion_en.html",
+            "isable": true,
+            "topics": ["比率", "比例推理"],
+            "sample_learning_goals": [
+              "理解比例的概念，并使用比例语言描述两只手高度之间的比例关系。",
+              "理解与比率 a:b 相关的单位比率 a/b 的概念，并在比率关系的背景下使用比率语言。",
+              "识别并表示手高之间的比例关系。"
+            ]
+          },
+          {
+            "id": "number-line-operations",
+            "name": "数轴：运算",
+            "thumbnail": "number-line-operations.png",
+            "src": "number-line-operations_en.html",
+            "isable": true,
+            "topics": ["操作", "数轴", "整数"],
+            "sample_learning_goals": [
+              "在水平数轴上表示整数的加法和减法",
+              "从数位角度思考整数的加法和减法",
+              "用逻辑必然性来推理加法与减法具有相反的效果，或者加上（或减去）一个负整数与加上（或减去）一个正整数具有相反的效果。",
+              "识别和生成整数和与差的等价类",
+              "证明一个数及其加法逆数（相反数）的和为0",
+              "使用净资产背景，描述具有正数总和或差额、负数总和或差额以及零总和或差额的情况",
+              "将添加负数视为等同于减去正数，并解释为什么这种关系在净资产等情境中是有意义的。",
+              "将减去一个负数视为等同于加上一个正数，并解释为什么这种关系在净资产等情境中是有意义的。",
+              "将数轴模型应用于加法和减法的新情境中。"
+            ]
+          },
+          {
+            "id": "number-line-integers",
+            "name": "数轴：整数",
+            "thumbnail": "number-line-integers.png",
+            "src": "number-line-integers_en.html",
+            "isable": true,
+            "topics": ["数轴", "整数", "绝对值"],
+            "sample_learning_goals": [
+              "使用正数和负数来表示多种情境下的数量。",
+              "解释正数、负数和零在不同语境下的含义。",
+              "描述一个点在数轴上相对于另一个数的位置。",
+              "描述一个点在数轴上相对于其相反数的位置",
+              "将一个数的绝对值定义为它到零的距离。",
+              "将不等式陈述理解为关于两个整数在数轴图上相对位置的陈述。"
+            ]
+          },
+          {
+            "id": "vector-addition-equations",
+            "name": "向量的和：等式",
+            "thumbnail": "vector-addition-equations.png",
+            "src": "vector-addition-equations_en.html",
+            "isable": true,
+            "topics": ["方程式", "向量", "向量分量", "向量加法"],
+            "sample_learning_goals": [
+              "描述向量乘以标量时会发生什么",
+              "图形化地排列向量以表示向量加法或减法",
+              "比较每个向量方程的结果"
+            ]
+          },
+          {
+            "id": "vector-addition",
+            "name": "向量相加",
+            "thumbnail": "vector-addition.png",
+            "src": "vector-addition_en.html",
+            "isable": true,
+            "topics": ["向量", "向量分量", "向量加法", "方程式"],
+            "sample_learning_goals": ["用自己的话解释向量表示", "将向量的角的形式转化为分量形式。"]
+          },
+          {
+            "id": "fractions-mixed-numbers",
+            "name": "分数：带分数",
+            "thumbnail": "fractions-mixed-numbers.png",
+            "src": "fractions-mixed-numbers_en.html",
+            "isable": true,
+            "topics": ["分数", "等值分数", "带分数", "数轴"],
+            "sample_learning_goals": [
+              "预测并解释改变分数的分子如何影响分数的值",
+              "预测并解释改变分数的分母如何影响分数的值",
+              "在分数的图片、假分数和带分数之间转换",
+              "使用数字和图片构建匹配的分数"
+            ]
+          },
+          {
+            "id": "fractions-intro",
+            "name": "分数：入门",
+            "thumbnail": "fractions-intro.png",
+            "src": "fractions-intro_en.html",
+            "isable": true,
+            "topics": ["分数", "等值分数", "可约分数", "数轴"],
+            "sample_learning_goals": [
+              "预测和解释如何改变分数的分子来影响分数的值。",
+              "预测和解释如何改变分数的分母来影响分数的值。",
+              "在一个分数找、数字部分的一个图像和一个在数轴上点之间进行转换。",
+              "使用数字和图片出匹配的分数。",
+              "使用不同的数字使分数等值。",
+              "在不同的图像模式中匹配分数。",
+              "使用数字和图片匹配分数。"
+            ]
+          },
+          {
+            "id": "build-a-fraction",
+            "name": "构建一个分数",
+            "thumbnail": "build-a-fraction.png",
+            "src": "build-a-fraction_en.html",
+            "isable": true,
+            "topics": ["分数", "等值分数", "带分数"],
+            "sample_learning_goals": [
+              "用数字和图片建立相等的分数",
+              "用数字和图案比较分数",
+              "熟悉相同的简化之后的分数和没有化简的分数",
+              "注意：建立一个分数的方法在分数介绍和分数匹配程序里都有详细叙述或者可以用独立的工具。"
+            ]
+          },
+          {
+            "id": "fractions-equality",
+            "name": "分数：等式",
+            "thumbnail": "fractions-equality.png",
+            "src": "fractions-equality_en.html",
+            "isable": true,
+            "topics": ["等值分数", "数轴", "可约分数", "方程式", "不等式"],
+            "sample_learning_goals": [
+              "使用不同的数字制作等价分数",
+              "匹配不同图片模式中的分数",
+              "在数轴上比较分数"
+            ]
+          },
+          {
+            "id": "graphing-quadratics",
+            "name": "二次函数图像",
+            "thumbnail": "graphing-quadratics.png",
+            "src": "graphing-quadratics_en.html",
+            "isable": true,
+            "topics": ["绘图", "抛物线", "二次函数", "顶点"],
+            "sample_learning_goals": [
+              "描述二次函数的系数如何改变函数的图像。",
+              "预测当系数或常数变化时，抛物线的图形将如何变化。",
+              "确定二次方程图像的顶点、对称轴、根和准线。",
+              "使用二次函数的顶点形式来描述该函数的图像。",
+              "描述焦点、准线和所得抛物线之间的关系",
+              "给定一个焦点和准线，预测抛物线的图像。"
+            ]
+          },
+          {
+            "id": "equality-explorer-two-variables",
+            "name": "等式探索:两个变量",
+            "thumbnail": "equality-explorer-two-variables.png",
+            "src": "equality-explorer-two-variables_en.html",
+            "isable": true,
+            "topics": ["方程式", "不等式", "方程组"],
+            "sample_learning_goals": [
+              "通过为变量代入不同值来解决和操作代数方程",
+              "使用平衡模型解方程求未知数，并证明你的解题策略",
+              "建立方程组",
+              "求解一个方程组的解集"
+            ]
+          },
+          {
+            "id": "equality-explorer-basics",
+            "name": "等式探索:基础",
+            "thumbnail": "equality-explorer-basics.png",
+            "src": "equality-explorer-basics_en.html",
+            "isable": true,
+            "topics": ["方程式", "不等式", "比例推理"],
+            "sample_learning_goals": [
+              "使用平衡模型解方程求未知数，并证明你的解题策略",
+              "使用比例推理来确定单个物体的价值"
+            ]
+          },
+          {
+            "id": "equality-explorer",
+            "name": "等式探索",
+            "thumbnail": "equality-explorer.png",
+            "src": "equality-explorer_en.html",
+            "isable": true,
+            "topics": ["解方程", "不等式", "逆运算"],
+            "sample_learning_goals": [
+              "通过应用实数的性质（特别是加法和乘法的逆性质）和等式的性质来求解和操作代数方程",
+              "通过为一个变量代入不同的值来解决和操作代数方程",
+              "使用平衡模型解方程求未知数，并证明你的解题策略",
+              "仅使用通用运算解方程"
+            ]
+          },
+          {
+            "id": "area-model-algebra",
+            "name": "面积模型代数",
+            "thumbnail": "area-model-algebra.png",
+            "src": "area-model-algebra_en.html",
+            "isable": true,
+            "topics": ["多项式", "因素", "产品"],
+            "sample_learning_goals": [
+              "制定并论证一种使用面积模型来确定单项式与二项式的乘积或两个二项式的乘积的方法。",
+              "分解表达式，包括包含变量的表达式。",
+              "认识到面积代表两个数的乘积，并且是可加的。",
+              "将乘法问题表示为矩形的面积，可以按比例表示或使用一般面积。",
+              "制定并论证一种策略，通过将乘积表示为一个面积或多个面积之和，来确定两个多位数的乘积。"
+            ]
+          },
+          {
+            "id": "area-model-decimals",
+            "name": "面积模型：小数",
+            "thumbnail": "area-model-decimals.png",
+            "src": "area-model-decimals_en.html",
+            "isable": true,
+            "topics": ["增殖", "小数", "面积模型", "因素", "部分积"],
+            "sample_learning_goals": [
+              "认识到面积代表两个数的乘积并且是可加的。",
+              "制定并证明一种使用面积模型来简化小数乘法问题的策略。",
+              "制定一个策略，通过将乘积表示为一个面积或多个面积之和，来确定两个有理数（或一个整数和一个有理数）的乘积。",
+              "使用面积模型来理解为什么将一个给定数字乘以小于1的小数会导致结果小于该给定数字。",
+              "使用十进制方块解释两个有理数的乘积"
+            ]
+          },
+          {
+            "id": "area-model-multiplication",
+            "name": "面积模型乘法",
+            "thumbnail": "area-model-multiplication.png",
+            "src": "area-model-multiplication_en.html",
+            "isable": true,
+            "topics": ["部分积", "因素", "增殖", "面积模型"],
+            "sample_learning_goals": [
+              "认识到面积代表两个数的乘积，并且是可加的。",
+              "将乘法问题表示为矩形的面积，可以按比例表示或使用一般面积。",
+              "制定并论证一种策略，通过将乘积表示为一个区域或多个区域的面积，来确定两个多位数的乘积。"
+            ]
+          },
+          {
+            "id": "area-model-introduction",
+            "name": "面积模型入门",
+            "thumbnail": "area-model-introduction.png",
+            "src": "area-model-introduction_en.html",
+            "isable": true,
+            "topics": ["因素", "产品", "面积模型", "增殖", "部分积"],
+            "sample_learning_goals": [
+              "认识到面积代表两个数的乘积。",
+              "制定并论证一种使用面积模型来简化乘法问题的策略。",
+              "将乘法问题表示为矩形的比例面积。",
+              "在总面积计算中寻找模式"
+            ]
+          },
+          {
+            "id": "expression-exchange",
+            "name": "表达式变换",
+            "thumbnail": "expression-exchange.png",
+            "src": "expression-exchange_en.html",
+            "isable": true,
+            "topics": ["等价表达式", "表达式求值", "简化表达式"],
+            "sample_learning_goals": [
+              "通过合并同类项来简化表达式",
+              "将系数与同类/不同类项置于上下文中",
+              "解释一个表达式在抽象和具体表示中的含义",
+              "构建一个与目标等价的表达式"
+            ]
+          },
+          {
+            "id": "graphing-slope-intercept",
+            "name": "绘图:斜率与截距",
+            "thumbnail": "graphing-slope-intercept.png",
+            "src": "graphing-slope-intercept_en.html",
+            "isable": true,
+            "topics": ["斜截式", "图形的线性方程组"],
+            "sample_learning_goals": [
+              "根据斜截式方程绘制一条直线",
+              "根据已绘制的直线，写出斜截式方程。",
+              "预测改变线性方程中的数值将如何影响图形化的直线。",
+              "预测改变图形化的线将如何影响方程式。"
+            ]
+          },
+          {
+            "id": "function-builder-basics",
+            "name": "函数构造器:基础",
+            "thumbnail": "function-builder-basics.png",
+            "src": "function-builder-basics_en.html",
+            "isable": true,
+            "topics": ["函数", "转换", "序偶"],
+            "sample_learning_goals": [
+              "定义一个函数作为一种规则，将每个输入关联到恰好一个输出，并可预测地作用于输入",
+              "使用给定输入预测函数的输出",
+              "组合函数以创建新函数",
+              "确定哪些函数是几何变换"
+            ]
+          },
+          {
+            "id": "proportion-playground",
+            "name": "比例游乐场",
+            "thumbnail": "proportion-playground.png",
+            "src": "proportion-playground_en.html",
+            "isable": true,
+            "topics": ["比率", "比例推理", "单位比率"],
+            "sample_learning_goals": [
+              "使用比率作为描述性特征",
+              "比较比率在不同语境中的含义",
+              "使用缩放来构建比例或在比例中查找缺失值",
+              "简化比例以构建比例或在比例中找出缺失值",
+              "使用乘法推理解决问题"
+            ]
+          },
+          {
+            "id": "unit-rates",
+            "name": "单位价格",
+            "thumbnail": "unit-rates.png",
+            "src": "unit-rates_en.html",
+            "isable": true,
+            "topics": ["比率", "比例推理", "双数线", "单位比率"],
+            "sample_learning_goals": [
+              "解释混合单位的比率（例如：美元/磅）",
+              "定义单位比率并确定一种计算它的方法",
+              "预测改变比率中的分子或分母会如何影响单位比率",
+              "使用双数轴来推理比率和解决现实世界的问题",
+              "制定策略使用单位比率解决问题",
+              "比较两种同时情况下的单位比率"
+            ]
+          },
+          {
+            "id": "make-a-ten",
+            "name": "获得一个10",
+            "thumbnail": "make-a-ten.png",
+            "src": "make-a-ten_en.html",
+            "isable": true,
+            "topics": ["位值", "加法", "减法", "算术"],
+            "sample_learning_goals": [
+              "通过使用不同大小的纸张来表示个位、十位和百位，以提高对位值的理解。",
+              "在拆分和组合数字时培养心算策略。",
+              "在进行计数和加法时，使用凑十法策略。",
+              "建立一个关于数字基本属性的心智模型，包括交换性、结合性和封闭性。"
+            ]
+          },
+          {
+            "id": "plinko-probability",
+            "name": "二项分布弹珠台几率",
+            "thumbnail": "plinko-probability.png",
+            "src": "plinko-probability_en.html",
+            "isable": true,
+            "topics": ["概率", "统计学", "直方图"],
+            "sample_learning_goals": [
+              "预测单个球可能落入的箱子",
+              "重复试验100个球并比较结果",
+              "计算箱子中的球数，并将其与落入该箱子的概率联系起来",
+              "比较和解释经验统计与理论统计",
+              "将plinko模拟作为模型应用到存在加权统计的其他场景中"
+            ]
+          },
+          {
+            "id": "function-builder",
+            "name": "建立方程",
+            "thumbnail": "function-builder.png",
+            "src": "function-builder_en.html",
+            "isable": true,
+            "topics": ["函数", "序偶", "转换", "线性方程"],
+            "sample_learning_goals": [
+              "定义一个函数作为规则，使得每个输入恰好只有一个输出，且保证函数对输入的作用是可预测的",
+              "给定一个函数的不同输入，预测其输出",
+              "将多个函数组合为一个新的函数",
+              "解释一个代数函数的多种表达方式，并进行比对、转换。"
+            ]
+          },
+          {
+            "id": "trig-tour",
+            "name": "三角函数之旅",
+            "thumbnail": "trig-tour.png",
+            "src": "trig-tour_en.html",
+            "isable": true,
+            "topics": ["三角函数", "单位圆", "正弦", "余弦", "切线"],
+            "sample_learning_goals": [
+              "定义范围是负角和大于90度角的三角函数。",
+              "变换三角函数的多种形式:直角三角形的边内切于一个单位圆，函数图像以及角度，数值。",
+              "不使用计算器，用单位圆的概念推出任意角的三角函数的符号。",
+              "用单位圆的概念估算任意角的三角函数。",
+              "使用角度和弧度定义精确的特殊角的三角函数用于角度测量。"
+            ]
+          },
+          {
+            "id": "arithmetic",
+            "name": "四则运算",
+            "thumbnail": "arithmetic.png",
+            "src": "arithmetic_en.html",
+            "isable": true,
+            "topics": ["增殖", "除法", "因式分解"],
+            "sample_learning_goals": [
+              "解释乘法表是如何促进乘法、因子以及分解的理解。提高乘法、因子分解、除法的精确度。"
+            ]
+          },
+          {
+            "id": "least-squares-regression",
+            "name": "一次线性函数的拟合",
+            "thumbnail": "least-squares-regression.png",
+            "src": "least-squares-regression_en.html",
+            "isable": true,
+            "topics": ["线性回归", "相关性", "残差", "异常值", "材料,数据"],
+            "sample_learning_goals": [
+              "随着数据点被添加、移动或删除，解释r（相关系数）",
+              "人为拟合曲线时，解释其残差平方和",
+              "随着数据点被添加、移动或删除，解释最佳拟合线的残差平方和",
+              "比较人为拟合曲线何最佳拟合曲线的残差平方和",
+              "确定线性拟合是否合适"
+            ]
+          },
+          {
+            "id": "area-builder",
+            "name": "区域建造者",
+            "thumbnail": "area-builder.png",
+            "src": "area-builder_en.html",
+            "isable": true,
+            "topics": ["面积", "周长", "分数区域", "比例因子"],
+            "sample_learning_goals": [
+              "通过数格子计算出图形面积",
+              "描述面积和周长的关系",
+              "用给定的面积或周长构建一个图形",
+              "将不规则图形分解成小的规则图形（比如：矩形、三角形、正方形……）来计算面积",
+              "确定相似性的比例系数",
+              "归纳当按比例缩放图形时，面积和周长如何变化"
+            ]
+          },
+          {
+            "id": "graphing-lines",
+            "name": "直线图形",
+            "thumbnail": "graphing-lines.png",
+            "src": "graphing-lines_en.html",
+            "isable": true,
+            "topics": ["图形的线性方程组", "线条", "倾斜"],
+            "sample_learning_goals": [
+              "说明一个画直线的斜率可以计算。图线斜率截距给出的是点或坡形方程。用斜率截距或斜率一点方程的形式给出一个画线。预测如何改变变量的线性方程，将影响绘制线。"
+            ]
+          },
+          {
+            "id": "fraction-matcher",
+            "name": "分数配对",
+            "thumbnail": "fraction-matcher.png",
+            "src": "fraction-matcher_en.html",
+            "isable": true,
+            "topics": ["分数", "等值分数", "带分数"],
+            "sample_learning_goals": [
+              "查找匹配使用数字和图片找到匹配的分数。",
+              "使用不同的数字给出相同的分数。",
+              "在不同的图像模式中匹配不同的分数。",
+              "使用数字和模式比较分数。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mathapplications",
+        "name": "数学的应用",
+        "children": [
+          {
+            "id": "curve-fitting",
+            "name": "曲线拟合",
+            "thumbnail": "curve-fitting.png",
+            "src": "curve-fitting_en.html",
+            "isable": true,
+            "topics": ["多项式", "误差分析", "材料,数据"],
+            "sample_learning_goals": [
+              "说明数据点的范围、不确定性和个数是如何影响相关系数和幂指数的。",
+              "说明如何利用相关系数和幂指数来解释曲线和数据的关系。",
+              "应用曲线拟合的理解去设计实验。"
+            ]
+          },
+          {
+            "id": "masses-and-springs",
+            "name": "质量和弹簧",
+            "thumbnail": "masses-and-springs.png",
+            "src": "masses-and-springs_en.html",
+            "isable": true,
+            "topics": ["周期运动", "胡克定律", "能量守恒", "牛顿定律", "尺寸", "向量"],
+            "sample_learning_goals": [
+              "确定影响振荡周期的因素",
+              "求行星X上的g值",
+              "设计一个实验来确定一个未知物体的质量",
+              "描述速度和加速度矢量之间的关系，以及它们与运动的关系，在振荡过程中的各个点",
+              "解释质量在振荡过程中其自由体图如何变化",
+              "使用动能、弹性势能、重力势能和热能解释机械能守恒"
+            ]
+          },
+          {
+            "id": "pendulum-lab",
+            "name": "钟摆实验",
+            "thumbnail": "pendulum-lab.png",
+            "src": "pendulum-lab_en.html",
+            "isable": true,
+            "topics": ["周期运动", "简谐运动", "能量守恒", "周期", "摆"],
+            "sample_learning_goals": [
+              "设计实验来描述变量是如何影响单摆运动的。",
+              "利用光栅定时器来定量描述单摆周期是怎么依赖你所描述的变量的。",
+              "确定X星球的重力加速度。",
+              "用动能和重力势能解释机械能守恒。",
+              "从位置或速度确定时描述相应能量谱。"
+            ]
+          },
+          {
+            "id": "projectile-motion",
+            "name": "斜抛运动",
+            "thumbnail": "projectile-motion.png",
+            "src": "projectile-motion_en.html",
+            "isable": true,
+            "topics": ["运动力学", "空气阻力", "抛物线", "向量", "阻力", "抛物运动"],
+            "sample_learning_goals": [
+              "预测不同的初始条件如何影响一个弹丸路径（各种物体，角度，初始速度，质量，直径，初始高度，有和没有空气阻力）。",
+              "使用推理来解释预测。",
+              "用他们自己的语言来讲解释普通弹丸的运动。 （发射角，初速度，初始高度，范围，最终高度，时间）。",
+              "说明为什么利用仿真是研究弹丸的好方法。"
+            ]
+          },
+          {
+            "id": "wave-on-a-string",
+            "name": "绳波",
+            "thumbnail": "wave-on-a-string.png",
+            "src": "wave-on-a-string_en.html",
+            "isable": true,
+            "topics": ["波", "频率", "振幅", "衰减"],
+            "sample_learning_goals": [
+              "用通用词汇讨论波动的性质。",
+              "预测通过变化介质和反射端点的波的行为。"
+            ]
+          },
+          {
+            "id": "balancing-act",
+            "name": "平衡探究实验",
+            "thumbnail": "balancing-act.png",
+            "src": "balancing-act_en.html",
+            "isable": true,
+            "topics": ["平衡", "比例推理", "扭距", "杠杆臂", "转动平衡"],
+            "sample_learning_goals": [
+              "预测不同的物体可以用来制造木板的平衡。",
+              "预测如何改变物体在木板上的位置来影响木板的运动。",
+              "撰写预测当把物体放在木板上，它将向哪一边倾斜的规则。",
+              "使用你的规则来解决关于平衡的难题。"
+            ]
+          },
+          {
+            "id": "ohms-law",
+            "name": "部分电路欧姆定律",
+            "thumbnail": "ohms-law.png",
+            "src": "ohms-law_en.html",
+            "isable": true,
+            "topics": ["欧姆定律", "电路", "直流", "电阻", "电压"],
+            "sample_learning_goals": [
+              "当电阻固定时，预测电流会如何根据电压的变化而变化。",
+              "当电压固定时，预测电流会如何根据电阻的变化而变化。"
+            ]
+          },
+          {
+            "id": "resistance-in-a-wire",
+            "name": "电线的电阻",
+            "thumbnail": "resistance-in-a-wire.png",
+            "src": "resistance-in-a-wire_en.html",
+            "isable": true,
+            "topics": ["电阻率", "电阻", "电路"],
+            "sample_learning_goals": [
+              "预测改变各个变量时，电阻会如何改变。",
+              "解释电阻和电阻率的区别。"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "chemistry",
+    "name": "化学",
+    "children": [
+      {
+        "id": "general",
+        "name": "普通化学",
+        "children": [
+          {
+            "id": "density",
+            "name": "密度",
+            "thumbnail": "density.png",
+            "src": "density_en.html",
+            "isable": true,
+            "topics": ["密度", "质量", "量", "阿基米德原理"],
+            "sample_learning_goals": [
+              "描述密度的概念与物体的质量和体积有何关联。",
+              "解释大量的类似质量的物体如何可以有不同的体积，以及类似体积的物体，怎么能有不同的质量。",
+              "解释为什么改变对象的质量或体积不影响其密度（即，理解密度为密集属性）。",
+              "通过观察它置换流体的量测量一个物体的体积。",
+              "通过计算其密度识别未知材料并比较已知密度的列表。"
+            ]
+          },
+          {
+            "id": "build-a-molecule",
+            "name": "创造一个分子",
+            "thumbnail": "build-a-molecule.png",
+            "src": "build-a-molecule_en.html",
+            "isable": true,
+            "topics": ["分子式", "分子结构", "同分异构体", "分子"],
+            "sample_learning_goals": [
+              "描述一个原子跟一个分子之间的区别。",
+              "利用原子建构简单的分子。",
+              "认识到分子式中的下标代表着分子中的原子的数目。",
+              "认识到系数代表着分子的总数目。",
+              "将常用的分子名称与多重表达式联系起来。"
+            ]
+          },
+          {
+            "id": "diffusion",
+            "name": "扩散",
+            "thumbnail": "diffusion.png",
+            "src": "diffusion_en.html",
+            "isable": true,
+            "topics": ["气体", "漫射", "热力学"],
+            "sample_learning_goals": [
+              "解释两种气体如何混合。",
+              "设计一个实验来找出影响扩散速率的因素。"
+            ]
+          },
+          {
+            "id": "gases-intro",
+            "name": "气体基础",
+            "thumbnail": "gases-intro.png",
+            "src": "gases-intro_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "压力压强", "量", "温度"],
+            "sample_learning_goals": [
+              "描述盒子中气体粒子的行为。",
+              "确定压力、体积、温度和气体分子数量之间的关系。",
+              "描述粒子-壁碰撞与压力之间的关系。",
+              "预测温度变化将如何影响分子的速度。"
+            ]
+          },
+          {
+            "id": "gas-properties",
+            "name": "气体性质",
+            "thumbnail": "gas-properties.png",
+            "src": "gas-properties_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "分子运动理论", "漫射", "PV 功", "麦克斯韦-玻尔兹曼分布"],
+            "sample_learning_goals": [
+              "预测PVT变量之间如何变化，数量如何影响其他气体性质。",
+              "预测温度变化将如何影响分子的速度。",
+              "基于大量相关分子对处于热平衡分子的速度进行排名。"
+            ]
+          },
+          {
+            "id": "energy-forms-and-changes",
+            "name": "能量的形式和转换",
+            "thumbnail": "energy-forms-and-changes.png",
+            "src": "energy-forms-and-changes_en.html",
+            "isable": true,
+            "topics": ["能量守恒", "能源系统", "能量转移", "能量转换", "热传导"],
+            "sample_learning_goals": [
+              "预测物体在加热或冷却时，或在接触不同温度下的物体时能量会怎样传递。",
+              "描述不同类型的能量，并给出日常生活的例子。",
+              "描述能量是如何转化的。",
+              "解释现实生活中的能量守恒现象。",
+              "设计一个能量系统，开关，和用电器描述能量流动和变化成另一种形态的能量。",
+              "讲述真实生活中的能量故事。"
+            ]
+          },
+          {
+            "id": "coulombs-law",
+            "name": "库仑定律",
+            "thumbnail": "coulombs-law.png",
+            "src": "coulombs-law_en.html",
+            "isable": true,
+            "topics": ["静电", "电力", "一对力", "库仑定律"],
+            "sample_learning_goals": [
+              "描述静电力的大小与电荷以及它们之间距离的关系",
+              "解释牛顿第三定律关于静电力",
+              "通过测量确定库仑常数",
+              "确定什么使力具有吸引力或排斥力"
+            ]
+          },
+          {
+            "id": "molecule-polarity",
+            "name": "分子极性",
+            "thumbnail": "molecule-polarity.png",
+            "src": "molecule-polarity_en.html",
+            "isable": true,
+            "topics": ["极性", "电负性", "债券", "部分电荷", "偶极"],
+            "sample_learning_goals": [
+              "通过电负性数值，预测键的极性。",
+              "通过极性箭头或者部分电荷来标识极性。",
+              "按照极性的顺序对键进行排序。",
+              "通过键的极性和分子的形状预测分子的极性。"
+            ]
+          },
+          {
+            "id": "states-of-matter-basics",
+            "name": "物质状态：基础",
+            "thumbnail": "states-of-matter-basics.png",
+            "src": "states-of-matter-basics_en.html",
+            "isable": true,
+            "topics": ["原子", "分子", "物态"],
+            "sample_learning_goals": [
+              "观察固、液、气三种物质状态的特征。",
+              "预测变化的温度和压强如何改变粒子行为。",
+              "对比三相中的粒子。",
+              "在分子水平解释熔化和凝固现象。",
+              "认识到不同的物质有不同的属性，包括熔点、凝固点和沸点。"
+            ]
+          },
+          {
+            "id": "states-of-matter",
+            "name": "物质状态",
+            "thumbnail": "states-of-matter.png",
+            "src": "states-of-matter_en.html",
+            "isable": true,
+            "topics": ["原子成键", "相互作用势", "物态", "偶极"],
+            "sample_learning_goals": [
+              "描述固体、液体、气体的分子模型。",
+              "将这个模型扩展到相变。",
+              "描述加热和冷却如何改变分子行为。",
+              "描述体积变化如何影响温度、压强和状态。",
+              "画出压强-温度随分子行为改变的图像。",
+              "解释原子间势能图像。",
+              "描述作用在原子上的力与相互作用势能的关系。",
+              "描述伦纳德-琼斯势能中参数的物理意义，以及它与分子行为的关系。"
+            ]
+          },
+          {
+            "id": "atomic-interactions",
+            "name": "原子的相互作用",
+            "thumbnail": "atomic-interactions.png",
+            "src": "atomic-interactions_en.html",
+            "isable": true,
+            "topics": [
+              "相互作用势",
+              "原子成键",
+              "范德华引力",
+              "泡利排斥",
+              "伦纳德-琼斯势",
+              "原子的相互作用"
+            ],
+            "sample_learning_goals": [
+              "解释引力和斥力是如何控制原子间的交互作用。",
+              "描述势井的深度对原子的交互作用的效果。",
+              "从能量的角度描述原子的粘合过程。"
+            ]
+          },
+          {
+            "id": "rutherford-scattering",
+            "name": "卢瑟福散射",
+            "thumbnail": "rutherford-scattering.png",
+            "src": "rutherford-scattering_en.html",
+            "isable": true,
+            "topics": ["原子核", "原子结构", "量子力学"],
+            "sample_learning_goals": [
+              "描述原子的核式结构模型与枣糕模型之间的本质区别。",
+              "对于带电原子核，定性描述偏转角如何随着入射粒子的能量、碰撞参数及原子核电荷量的变化而变化。"
+            ]
+          },
+          {
+            "id": "isotopes-and-atomic-mass",
+            "name": "同位素和原子的质量",
+            "thumbnail": "isotopes-and-atomic-mass.png",
+            "src": "isotopes-and-atomic-mass_en.html",
+            "isable": true,
+            "topics": ["同位素", "原子质量"],
+            "sample_learning_goals": [
+              "使用质量数、原子序数以质子数、中子数和电子数定义“同位素”。",
+              "给出元素相关信息，找出一种同位素的质量和名称。",
+              "提供证据来支持或者反驳下述观点：从本质上来说，发现某种元素的同位素的概率与发现所有同位素的概率一样。",
+              "给出一种元素的同位素的丰度和质量，找出其平均原子质量。",
+              "给出质子、中子和电子的数量变化，预测同位素的质量和名称将如何变化。",
+              "给出一种元素的同位素的丰度变化，预测其平均原子质量如何变化。"
+            ]
+          },
+          {
+            "id": "molecules-and-light",
+            "name": "分子与光",
+            "thumbnail": "molecules-and-light.png",
+            "src": "molecules-and-light_en.html",
+            "isable": true,
+            "topics": ["分子", "光子", "吸收", "光"],
+            "sample_learning_goals": [
+              "探索大气层中分子与光线是如何相互作用的。",
+              "理解：光的吸收取决于分子和光的类型",
+              "找出光的能量与引发的运动状况之间的关系",
+              "明确从微波到紫外线，能量逐渐递增",
+              "根据分子吸收的光线，预测其运动情况",
+              "明确分子的结构如何影响其与光线的相互作用。"
+            ]
+          },
+          {
+            "id": "molecule-shapes",
+            "name": "分子形状",
+            "thumbnail": "molecule-shapes.png",
+            "src": "molecule-shapes_en.html",
+            "isable": true,
+            "topics": [
+              "价电子对互斥理论",
+              "孤电子对",
+              "债券",
+              "键角",
+              "分子",
+              "分子几何",
+              "电子几何"
+            ],
+            "sample_learning_goals": [
+              "明确分子的几何构型取决于电子对之间的斥力。",
+              "明确电子和分子几何构型之间的差异。",
+              "针对由六个以上的电子基团围绕一个中心原子构成的分子，给分子和电子几何构型命名。"
+            ]
+          },
+          {
+            "id": "molecule-shapes-basics",
+            "name": "分子形状:基础",
+            "thumbnail": "molecule-shapes-basics.png",
+            "src": "molecule-shapes-basics_en.html",
+            "isable": true,
+            "topics": ["分子几何", "债券", "价电子对互斥理论", "键角", "分子"],
+            "sample_learning_goals": [
+              "明确：分子的形状与原子之间的斥力有关。",
+              "明确：分子的键不是固定的，而是会随斥力来回旋转。"
+            ]
+          },
+          {
+            "id": "reactants-products-and-leftovers",
+            "name": "反应物，生成物及未反应物",
+            "thumbnail": "reactants-products-and-leftovers.png",
+            "src": "reactants-products-and-leftovers_en.html",
+            "isable": true,
+            "topics": ["化学反应", "限制反应物"],
+            "sample_learning_goals": [
+              "认识到原子的化学反应过程中是保留着的。",
+              "使用混凝土日常经验（如制作三明治）来描述在化学反应中反应限制物有什么意义。",
+              "识别中的化学反应的反应限制物。",
+              "根据该平衡化学方程式中的分子的反应物和比率的量预测化学反应后的产物和剩余物。",
+              "使用限制的反应物的概念根据生成物和剩余物的量预测反应物的初始量。",
+              "把物质的分子（图案）翻译成从象征性的（化学式）表示。"
+            ]
+          },
+          {
+            "id": "ph-scale-basics",
+            "name": "pH值:基础",
+            "thumbnail": "ph-scale-basics.png",
+            "src": "ph-scale-basics_en.html",
+            "isable": true,
+            "topics": ["pH（酸碱度）", "酸", "基础", "稀释"],
+            "sample_learning_goals": [
+              "确定溶液是酸性的，碱性的还是中性的。",
+              "按相对酸度或碱度的顺序排列酸或碱。",
+              "连接液体色与相应的pH。",
+              "预测溶液体积或用水稀释将如何影响pH值的酸或碱。"
+            ]
+          },
+          {
+            "id": "wave-on-a-string",
+            "name": "绳波",
+            "thumbnail": "wave-on-a-string.png",
+            "src": "wave-on-a-string_en.html",
+            "isable": true,
+            "topics": ["波", "频率", "振幅", "衰减"],
+            "sample_learning_goals": [
+              "用通用词汇讨论波动的性质。",
+              "预测通过变化介质和反射端点的波的行为。"
+            ]
+          },
+          {
+            "id": "ph-scale",
+            "name": "PH值",
+            "thumbnail": "ph-scale.png",
+            "src": "ph-scale_en.html",
+            "isable": true,
+            "topics": ["pH（酸碱度）", "稀释", "浓度", "酸", "基础"],
+            "sample_learning_goals": [
+              "确定液体是酸性，碱性还是中性的。",
+              "根据相对顺序排列酸或碱。",
+              "描述在分子尺度，插图，水平衡随pH如何变化。",
+              "据给定pH确定氢氧化物、水合氢离子和水的浓度。",
+              "关联液体色至相应的pH。",
+              "预测（定性，定量地）稀释和量将如何影响氢氧化物，水合氢离子和水的pH值和浓度。"
+            ]
+          },
+          {
+            "id": "balancing-chemical-equations",
+            "name": "配平化学方程式",
+            "thumbnail": "balancing-chemical-equations.png",
+            "src": "balancing-chemical-equations_en.html",
+            "isable": true,
+            "topics": ["化学方程式", "质量守恒定律"],
+            "sample_learning_goals": [
+              "配平一个化学方程式。",
+              "每一个元素的原子数量在一个化学反应里面都是守恒的。",
+              "描述化学反应中的系数与下标的不同。",
+              "将象征性的符号转换为物质的分子形式。"
+            ]
+          },
+          {
+            "id": "acid-base-solutions",
+            "name": "酸碱溶液",
+            "thumbnail": "acid-base-solutions.png",
+            "src": "acid-base-solutions_en.html",
+            "isable": true,
+            "topics": ["酸", "基础", "平衡", "分离", "溶液剂"],
+            "sample_learning_goals": [
+              "给定相同浓度的酸或碱，通过以下的理解来证明酸和碱的强度：1.酸或碱的强度在某种程度上跟它们在水中电离的程度相关 2.鉴别给定酸或碱溶液中的所有分子和离子 3.对比分子和离子在弱对强酸中的相对浓度（或者是碱溶液中）4.描述强酸与弱酸（或是弱碱与强碱）之间的异同点",
+              "通过以下的理解来证明溶液的浓度：1.描述高浓度溶液与稀释溶液之间的异同点.2.对比高浓度溶液与一种特殊酸或是碱的稀释溶液中的所有分子与离子的浓度.",
+              "运用酸或碱的强度以及它们溶液的浓度是为了：1.采用文字和图片（图像或是分子图式）的形式描述它的意思，如果你有：弱（强）酸（碱）的高浓度溶液或者是其它混合物。2.研究不同强度/浓度的混合物导致相同的pH值。",
+              "描述通用的工具（pH值、传导率、pH试纸）是如何帮助鉴别一种溶液是酸还是碱，是强还是弱，是高浓度的还是稀释的。"
+            ]
+          },
+          {
+            "id": "concentration",
+            "name": "浓度",
+            "thumbnail": "concentration.png",
+            "src": "concentration_en.html",
+            "isable": true,
+            "topics": ["溶液剂", "浓度", "饱和度", "摩尔浓度", "鼹鼠", "量", "溶解度"],
+            "sample_learning_goals": [
+              "描述溶液浓度中容量与溶质数量的关系。",
+              "解释溶液颜色与浓度有怎样的关联。",
+              "预测随着增加或消减水、溶质或者溶液动作（或动作组）的发生溶液浓度会发生怎样的变化，并解释为什么。",
+              "设计出使得溶液到达给定的浓度的一个程序。",
+              "设计并整理出使得溶液由一个浓度转变为另一个浓度的一个程序。",
+              "识别溶液何时饱和并预测随着水或者溶质的改变溶液浓度会有什么变化。"
+            ]
+          },
+          {
+            "id": "balloons-and-static-electricity",
+            "name": "气球和静电（摩擦起电）",
+            "thumbnail": "balloons-and-static-electricity.png",
+            "src": "balloons-and-static-electricity_en.html",
+            "isable": true,
+            "topics": ["静电", "电荷", "电力"],
+            "sample_learning_goals": [
+              "描述和画关于生活中常见的与静电有关的静电知识（电荷的转移、感应、吸引、排斥和接地）",
+              "做一个关于不同带点量的电荷在一定距离上产生的作用力的估计。"
+            ]
+          },
+          {
+            "id": "beers-law-lab",
+            "name": "比尔定律实验",
+            "thumbnail": "beers-law-lab.png",
+            "src": "beers-law-lab_en.html",
+            "isable": true,
+            "topics": [
+              "比尔定律",
+              "溶液剂",
+              "浓度",
+              "摩尔浓度",
+              "光",
+              "吸光度",
+              "透光率",
+              "分光光度法"
+            ],
+            "sample_learning_goals": [
+              "定性解释溶液颜色与浓度间的关系。",
+              "预测并解释增减水、溶质或溶剂时，溶液浓度如何变化。",
+              "以摩尔浓度（mol/L）为单位计算溶液浓度。",
+              "设计一个程序：给定浓度时，配制出相应溶液。",
+              "分辨饱和溶液并预测增减水、溶质或溶液时，浓度如何变化。",
+              "描述光的吸收率、及传播率与溶液浓度间的关系。",
+              "描述吸光度、摩尔吸光系数、路径长度及比尔定律浓度间的关系。",
+              "预测并解释溶液类型、溶液浓度、容器宽度、光源如何影响光的吸收和传播。"
+            ]
+          },
+          {
+            "id": "molarity",
+            "name": "摩尔浓度",
+            "thumbnail": "molarity.png",
+            "src": "molarity_en.html",
+            "isable": true,
+            "topics": ["溶液剂", "摩尔浓度", "鼹鼠", "量", "溶解度", "饱和度"],
+            "sample_learning_goals": [
+              "描述溶质的量和溶液体积与浓度的关系。",
+              "解释为什么溶液的颜色和浓度有关。",
+              "以摩尔浓度（mol/L）为单位，计算溶液的浓度。",
+              "使用摩尔浓度来计算溶液的稀释度。",
+              "比较不同溶质的溶解度。"
+            ]
+          },
+          {
+            "id": "build-an-atom",
+            "name": "原子模型",
+            "thumbnail": "build-an-atom.png",
+            "src": "build-an-atom_en.html",
+            "isable": true,
+            "topics": ["原子", "原子结构", "同位素标志", "原子核"],
+            "sample_learning_goals": [
+              "使用质子、中子以及电子的数目来画出原子的模型，确定元素，决定质量以及电荷。",
+              "预测增加或是减少一个质子、中子或是电子将会改变元素、电荷、质量。",
+              "使用元素名、质量以及电荷来确定质子、中子以及电子的数量。",
+              "定义质子、中子、电子、原子以及离子。"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "quantum",
+        "name": "量子化学",
+        "children": [
+          {
+            "id": "blackbody-spectrum",
+            "name": "黑体辐射",
+            "thumbnail": "blackbody-spectrum.png",
+            "src": "blackbody-spectrum_en.html",
+            "isable": true,
+            "topics": ["黑体", "普朗克定律", "维恩定律", "电磁辐射", "量子力学", "天文学"],
+            "sample_learning_goals": [
+              "描述一下当你提高温度的时候黑体光谱发生了什么。曲线以及曲线的高峰的形状发生了什么？",
+              "当你提高温度的时候黑体光谱发生了什么？",
+              "将温度设置到一个电灯泡能发光的程度（3000K左右）。基于这个信息，灯泡似乎有效吗？为什么灯泡会变热？",
+              "想象一下你看见了两个发热、发光的物体：一个是发橙色光，另外一个是发蓝色光。哪一个更热？"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "geography",
+    "name": "地理",
+    "children": [
+      {
+        "id": "earth-and-space",
+        "name": "地球科学",
+        "children": [
+          {
+            "id": "density",
+            "name": "密度",
+            "thumbnail": "density.png",
+            "src": "density_en.html",
+            "isable": true,
+            "topics": ["密度", "质量", "量", "阿基米德原理"],
+            "sample_learning_goals": [
+              "描述密度的概念与物体的质量和体积有何关联。",
+              "解释大量的类似质量的物体如何可以有不同的体积，以及类似体积的物体，怎么能有不同的质量。",
+              "解释为什么改变对象的质量或体积不影响其密度（即，理解密度为密集属性）。",
+              "通过观察它置换流体的量测量一个物体的体积。",
+              "通过计算其密度识别未知材料并比较已知密度的列表。"
+            ]
+          },
+          {
+            "id": "gravity-force-lab-basics",
+            "name": "引力实验室：基础",
+            "thumbnail": "gravity-force-lab-basics.png",
+            "src": "gravity-force-lab-basics_en.html",
+            "isable": true,
+            "topics": ["万有引力", "平方反比定律", "一对力", "牛顿第三定律"],
+            "sample_learning_goals": [
+              "描述引力与物体质量及物体间距离的关系。",
+              "解释牛顿第三定律在引力方面的应用。",
+              "使用测量来确定万有引力常数。"
+            ]
+          },
+          {
+            "id": "waves-intro",
+            "name": "波动入门",
+            "thumbnail": "waves-intro.png",
+            "src": "waves-intro_en.html",
+            "isable": true,
+            "topics": ["频率", "振幅", "波速", "波长", "水", "声音", "光"],
+            "sample_learning_goals": [
+              "用水、声音和光制造波，看看它们之间有何关联。",
+              "使用常用词汇讨论波的性质。",
+              "解释改变频率和振幅如何影响波的特性。",
+              "设计一个实验来测量波的速度。"
+            ]
+          },
+          {
+            "id": "diffusion",
+            "name": "扩散",
+            "thumbnail": "diffusion.png",
+            "src": "diffusion_en.html",
+            "isable": true,
+            "topics": ["气体", "漫射", "热力学"],
+            "sample_learning_goals": [
+              "解释两种气体如何混合。",
+              "设计一个实验，找出影响扩散速率的因素。"
+            ]
+          },
+          {
+            "id": "gases-intro",
+            "name": "气体基础",
+            "thumbnail": "gases-intro.png",
+            "src": "gases-intro_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "压力压强", "量", "温度"],
+            "sample_learning_goals": [
+              "描述盒子里的气体粒子的行为。",
+              "确定压强、体积、温度和气体分子数之间的关系。",
+              "描述粒子与壁面碰撞和压力之间的关系。",
+              "预测改变温度如何影响分子的速度。"
+            ]
+          },
+          {
+            "id": "gas-properties",
+            "name": "气体性质",
+            "thumbnail": "gas-properties.png",
+            "src": "gas-properties_en.html",
+            "isable": true,
+            "topics": ["理想气体定律", "分子动理论", "漫射", "PV 功", "麦克斯韦-玻尔兹曼分布"],
+            "sample_learning_goals": [
+              "预测PVT变量之间如何变化，数量如何影响其他气体性质。",
+              "预测温度变化将如何影响分子的速度。",
+              "基于大量相关分子对处于热平衡分子的速度进行排名。"
+            ]
+          },
+          {
+            "id": "blackbody-spectrum",
+            "name": "黑体辐射",
+            "thumbnail": "blackbody-spectrum.png",
+            "src": "blackbody-spectrum_en.html",
+            "isable": true,
+            "topics": ["黑体", "普朗克定律", "维恩定律", "电磁辐射", "量子力学", "天文学"],
+            "sample_learning_goals": [
+              "描述一下当你提高温度的时候黑体光谱发生了什么。曲线以及曲线的高峰的形状发生了什么？",
+              "当你提高温度的时候黑体光谱发生了什么？",
+              "将温度设置到一个电灯泡能发光的程度（3000K左右）。基于这个信息，灯泡似乎有效吗？为什么灯泡会变热？",
+              "想象一下你看见了两个发热、发光的物体：一个是发橙色光，另外一个是发蓝色光。哪一个更热？"
+            ]
+          },
+          {
+            "id": "wave-interference",
+            "name": "波的干涉",
+            "thumbnail": "wave-interference.png",
+            "src": "wave-interference_en.html",
+            "isable": true,
+            "topics": ["干扰", "双缝", "衍射", "波"],
+            "sample_learning_goals": [""]
+          },
+          {
+            "id": "gravity-and-orbits",
+            "name": "重力和轨道",
+            "thumbnail": "gravity-and-orbits.png",
+            "src": "gravity-and-orbits_en.html",
+            "isable": true,
+            "topics": ["万有引力", "圆周运动", "天文学"],
+            "sample_learning_goals": [
+              "描述太阳、地球、月球和空间站之间的轨道和位置关系。",
+              "描述太阳、地球、月球和空间站的大小和距离。",
+              "解释引力如何控制我们太阳系的运动。",
+              "确定影响引力强度的变量。",
+              "预测重力变强或变弱后物体将如何运动。"
+            ]
+          },
+          {
+            "id": "molecules-and-light",
+            "name": "分子与光",
+            "thumbnail": "molecules-and-light.png",
+            "src": "molecules-and-light_en.html",
+            "isable": true,
+            "topics": ["分子", "光子", "吸收", "光"],
+            "sample_learning_goals": [
+              "探索大气层中分子与光线是如何相互作用的。",
+              "理解：光的吸收取决于分子和光的类型",
+              "找出光的能量与引发的运动状况之间的关系",
+              "明确从微波到紫外线，能量逐渐递增",
+              "根据分子吸收的光线，预测其运动情况",
+              "明确分子的结构如何影响其与光线的相互作用。"
+            ]
+          },
+          {
+            "id": "wave-on-a-string",
+            "name": "绳波",
+            "thumbnail": "wave-on-a-string.png",
+            "src": "wave-on-a-string_en.html",
+            "isable": true,
+            "topics": ["波", "频率", "振幅", "衰减"],
+            "sample_learning_goals": [
+              "用通用词汇讨论波动的性质。",
+              "预测通过变化介质和反射端点的波的行为。"
+            ]
+          },
+          {
+            "id": "ph-scale",
+            "name": "PH值",
+            "thumbnail": "ph-scale.png",
+            "src": "ph-scale_en.html",
+            "isable": true,
+            "topics": ["pH（酸碱度）", "稀释", "浓度", "酸", "基础"],
+            "sample_learning_goals": [
+              "确定液体是酸性，碱性还是中性的。",
+              "根据相对顺序排列酸或碱。",
+              "描述在分子尺度，插图，水平衡随pH如何变化。",
+              "据给定pH确定氢氧化物、水合氢离子和水的浓度。",
+              "关联液体色至相应的pH。",
+              "预测（定性，定量地）稀释和量将如何影响氢氧化物，水合氢离子和水的pH值和浓度。"
+            ]
+          },
+          {
+            "id": "under-pressure",
+            "name": "受到压力",
+            "thumbnail": "under-pressure.png",
+            "src": "under-pressure_en.html",
+            "isable": true,
+            "topics": ["压力压强", "流体", "密度"],
+            "sample_learning_goals": [
+              "以深度为函数描述在空气和水中压力是如何变化的。",
+              "描述哪些变量影响压力。",
+              "预测在不同情况下的压力。"
+            ]
+          },
+          {
+            "id": "gravity-force-lab",
+            "name": "万有引力实验",
+            "thumbnail": "gravity-force-lab.png",
+            "src": "gravity-force-lab_en.html",
+            "isable": true,
+            "topics": ["万有引力", "平方反比定律", "一对力", "牛顿第三定律"],
+            "sample_learning_goals": [
+              "将引力与物体之间的质量和物体之间的距离联系起来。",
+              "将牛顿第三定律应用于引力。",
+              "设计实验，让你得到一个涉及质量，距离和引力的方程。",
+              "用测量来确定万有引力常数。"
+            ]
+          },
+          {
+            "id": "balloons-and-static-electricity",
+            "name": "气球和静电（摩擦起电）",
+            "thumbnail": "balloons-and-static-electricity.png",
+            "src": "balloons-and-static-electricity_en.html",
+            "isable": true,
+            "topics": ["静电", "电荷", "电力"],
+            "sample_learning_goals": [
+              "描述和画关于生活中常见的与静电有关的静电知识（电荷的转移、感应、吸引、排斥和接地）",
+              "做一个关于不同带点量的电荷在一定距离上产生的作用力的估计。"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "biology",
+    "name": "生物",
+    "children": [
+      {
+        "id": "biology",
+        "name": "生物科学",
+        "children": [
+          {
+            "id": "density",
+            "name": "密度",
+            "thumbnail": "density.png",
+            "src": "density_en.html",
+            "isable": true,
+            "topics": ["密度", "质量", "量", "阿基米德原理"],
+            "sample_learning_goals": [
+              "描述密度的概念与物体的质量和体积有何关联。",
+              "解释大量的类似质量的物体如何可以有不同的体积，以及类似体积的物体，怎么能有不同的质量。",
+              "解释为什么改变对象的质量或体积不影响其密度（即，理解密度为密集属性）。",
+              "通过观察它置换流体的量测量一个物体的体积。",
+              "通过计算其密度识别未知材料并比较已知密度的列表。"
+            ]
+          },
+          {
+            "id": "natural-selection",
+            "name": "自然选择",
+            "thumbnail": "natural-selection.png",
+            "src": "natural-selection_en.html",
+            "isable": true,
+            "topics": ["突变", "遗传学", "选择"],
+            "sample_learning_goals": [
+              "确定哪些突变受到捕食者和食物多样性选择因子的青睐，以及哪些突变是中性的。",
+              "描述哪些特征会改变生物体在不同环境中的生存能力。",
+              "尝试不同的环境，分别产生稳定的兔子种群、灭绝的种群以及占领世界的种群。",
+              "追踪数代基因",
+              "比较显性和隐性基因如何遗传给后代。"
+            ]
+          },
+          {
+            "id": "gene-expression-essentials",
+            "name": "基因表达基础",
+            "thumbnail": "gene-expression-essentials.png",
+            "src": "gene-expression-essentials_en.html",
+            "isable": true,
+            "topics": ["基因表达", "DNA的翻译", "蛋白质合成", "细胞", "分子间相互作用的推测学"],
+            "sample_learning_goals": [
+              "解释细胞内发生的导致蛋白质合成的主要事件顺序。",
+              "预测改变生物分子的浓度和相互作用如何影响蛋白质的产生。",
+              "解释单个细胞的蛋白质生产与细胞集合体产生的蛋白质总量之间的关系。"
+            ]
+          },
+          {
+            "id": "molecule-polarity",
+            "name": "分子极性",
+            "thumbnail": "molecule-polarity.png",
+            "src": "molecule-polarity_en.html",
+            "isable": true,
+            "topics": ["极性", "电负性", "债券", "部分电荷", "偶极"],
+            "sample_learning_goals": [
+              "通过电负性数值，预测键的极性。",
+              "通过极性箭头或者部分电荷来标识极性。",
+              "按照极性的顺序对键进行排序。",
+              "通过键的极性和分子的形状预测分子的极性。"
+            ]
+          },
+          {
+            "id": "neuron",
+            "name": "神经元",
+            "thumbnail": "neuron.png",
+            "src": "neuron_en.html",
+            "isable": true,
+            "topics": ["生物学", "神经元", "细胞"],
+            "sample_learning_goals": [
+              "描述为什么离子可以或不可以跨越神经元膜。",
+              "识别泄漏和门控通道，并描述各自的功能。",
+              "描述膜的渗透率在不同类型的神经元信道的方面如何变化。",
+              "描述产生动作电位的事件的顺序。"
+            ]
+          },
+          {
+            "id": "color-vision",
+            "name": "光的混合",
+            "thumbnail": "color-vision.png",
+            "src": "color-vision_en.html",
+            "isable": true,
+            "topics": ["光子", "单色光", "白光", "彩虹"],
+            "sample_learning_goals": [
+              "判别红光、绿光和蓝光的不同组合中人眼能看到什么颜色。",
+              "描述透过不同颜色的滤光器的分别是什么颜色的光。"
+            ]
+          },
+          {
+            "id": "ph-scale",
+            "name": "PH值",
+            "thumbnail": "ph-scale.png",
+            "src": "ph-scale_en.html",
+            "isable": true,
+            "topics": ["pH（酸碱度）", "稀释", "浓度", "酸", "基础"],
+            "sample_learning_goals": [
+              "确定液体是酸性，碱性还是中性的。",
+              "根据相对顺序排列酸或碱。",
+              "描述在分子尺度，插图，水平衡随pH如何变化。",
+              "据给定pH确定氢氧化物、水合氢离子和水的浓度。",
+              "关联液体色至相应的pH。",
+              "预测（定性，定量地）稀释和量将如何影响氢氧化物，水合氢离子和水的pH值和浓度。"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
