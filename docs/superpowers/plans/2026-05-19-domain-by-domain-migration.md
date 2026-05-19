@@ -28,11 +28,11 @@
 
 - Create: `docs/migration/execution-index.md`
 
-- [ ] **Step 1: Read baseline files**
+- [x] **Step 1: Read baseline files**
   - Read `AGENTS.md`, `package.json`, `docs/AetherCore规范.md`, `docs/migration/web/spec.md`, `docs/migration/admin/spec.md`, `docs/migration/api/backend-design.md`, `docs/migration/api/database-schema.md`.
   - Confirm `source_web` and `source_admin` presence with `test -d source_web; test -d source_admin`.
 
-- [ ] **Step 2: Create execution index**
+- [x] **Step 2: Create execution index**
   - Create `docs/migration/execution-index.md` with:
     - source directory availability.
     - business domain list.
@@ -40,11 +40,11 @@
     - tRPC-over-REST decision.
     - note that `docker-compose.yml` already exists and includes pgAdmin.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Verify every business domain from web/admin migration docs appears in the index.
   - Verify no source directory assumption is unstated.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/execution-index.md
@@ -52,7 +52,7 @@ rg -n "tRPC|apps/web|apps/admin|pgAdmin|source_web|source_admin" docs/migration/
 git diff --check docs/migration/execution-index.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/execution-index.md
