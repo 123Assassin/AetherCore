@@ -604,19 +604,19 @@ git commit -m "feat: add web chat page"
 
 - Create: `docs/migration/web/inspiration-domain-analysis.md`
 
-- [ ] **Step 1: Analyze old inspiration pages**
+- [x] **Step 1: Analyze old inspiration pages**
   - Read docs for `LessonModule.tsx` and `InspirationLibrary.tsx`.
   - Record route, form fields, localStorage preference dependency, prompt ownership, and follow-up behavior.
 
-- [ ] **Step 2: Record target mapping**
+- [x] **Step 2: Record target mapping**
   - Route: `apps/web/src/app/(app)/lesson/inspiration/page.tsx`.
   - Backend: existing AI service with category `inspiration`.
   - Components: `apps/web/src/components/inspiration`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc mentions grade, subject, topic, context, follow-up, and no frontend prompt assembly.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/web/inspiration-domain-analysis.md
@@ -624,7 +624,7 @@ rg -n "InspirationLibrary|grade|subject|topic|follow-up|prompt" docs/migration/w
 git diff --check docs/migration/web/inspiration-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/web/inspiration-domain-analysis.md
