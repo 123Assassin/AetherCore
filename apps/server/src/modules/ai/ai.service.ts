@@ -40,6 +40,21 @@ export type AiHistoryDeleteInput = {
   sessionId: string;
 };
 
+export type AiInspirationGenerateInput = {
+  userId: string;
+  sessionId?: string;
+  grade: string;
+  subject: string;
+  topic: string;
+  context?: string;
+};
+
+export type AiInspirationFollowUpInput = {
+  userId: string;
+  sessionId: string;
+  message: string;
+};
+
 export type AiChatCreateResult = {
   sessionId: string;
   category: ConversationCategory;
@@ -172,6 +187,44 @@ export class AiService {
     };
   }
 
+  async generateInspiration(input: AiInspirationGenerateInput): Promise<AiChatSendResult> {
+    const grade = requireTrimmed(input.grade, 'Inspiration grade is required');
+    const subject = requireTrimmed(input.subject, 'Inspiration subject is required');
+    const topic = requireTrimmed(input.topic, 'Inspiration topic is required');
+    const context = trimOptional(input.context);
+    const sessionId = trimOptional(input.sessionId);
+
+    return this.sendChat({
+      userId: input.userId,
+      ...(sessionId === undefined ? {} : { sessionId }),
+      category: 'inspiration',
+      message: createInspirationGenerateMessage({
+        grade,
+        subject,
+        topic,
+        ...(context === undefined ? {} : { context }),
+      }),
+      payload: {
+        grade,
+        subject,
+        topic,
+        ...(context === undefined ? {} : { context }),
+      },
+    });
+  }
+
+  async followUpInspiration(input: AiInspirationFollowUpInput): Promise<AiChatSendResult> {
+    const sessionId = requireTrimmed(input.sessionId, 'Inspiration sessionId is required');
+    const message = requireTrimmed(input.message, 'Inspiration message is required');
+
+    return this.sendChat({
+      userId: input.userId,
+      sessionId,
+      category: 'inspiration',
+      message,
+    });
+  }
+
   async listHistory(input: AiHistoryListInput): Promise<AiHistoryListResult> {
     const limit = normalizeLimit(input.limit);
     const conversations = await this.aiRepository.listConversations({
@@ -238,6 +291,37 @@ function createTitle(input: string): string {
 
 function createAssistantContent(category: ConversationCategory, message: string): string {
   return `[mock:${category}] ${message}`;
+}
+
+function createInspirationGenerateMessage(input: {
+  grade: string;
+  subject: string;
+  topic: string;
+  context?: string;
+}): string {
+  const base = `请为我精讲 ${input.topic}（${input.grade} ${input.subject}）`;
+
+  return input.context ? `${base}，${input.context}` : base;
+}
+
+function requireTrimmed(value: string, message: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new AiServiceError('BAD_REQUEST', message);
+  }
+
+  return trimmed;
+}
+
+function trimOptional(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || undefined;
 }
 
 function ensureMockProviderEnabled(): void {

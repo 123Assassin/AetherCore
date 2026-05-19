@@ -13,6 +13,19 @@ type RouterTools = {
 const categories = ['chat', 'inspiration', 'comment', 'teaching'] as const;
 type Category = (typeof categories)[number];
 
+type InspirationGenerateInput = {
+  sessionId?: string;
+  grade: string;
+  subject: string;
+  topic: string;
+  context?: string;
+};
+
+type InspirationFollowUpInput = {
+  sessionId: string;
+  message: string;
+};
+
 export function createAiRouter(authService: AuthService, aiService: AiService, tools: RouterTools) {
   return tools.createTRPCRouter({
     chat: tools.createTRPCRouter({
@@ -51,6 +64,32 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
 
           return mapServiceError(() =>
             aiService.deleteHistory({
+              userId: session.user.id,
+              ...input,
+            })
+          );
+        }),
+    }),
+    inspiration: tools.createTRPCRouter({
+      generate: tools.publicProcedure
+        .input(parseInspirationGenerateInput)
+        .mutation(async ({ ctx, input }) => {
+          const session = await requireUserSession(authService, ctx);
+
+          return mapServiceError(() =>
+            aiService.generateInspiration({
+              userId: session.user.id,
+              ...input,
+            })
+          );
+        }),
+      followUp: tools.publicProcedure
+        .input(parseInspirationFollowUpInput)
+        .mutation(async ({ ctx, input }) => {
+          const session = await requireUserSession(authService, ctx);
+
+          return mapServiceError(() =>
+            aiService.followUpInspiration({
               userId: session.user.id,
               ...input,
             })
@@ -145,6 +184,37 @@ function parseHistoryDeleteInput(input: unknown): { sessionId: string } {
   };
 }
 
+function parseInspirationGenerateInput(input: unknown): InspirationGenerateInput {
+  if (!isRecord(input)) {
+    throwInvalidInput('AI inspiration generate input must be an object');
+  }
+
+  const sessionId = parseOptionalString(input.sessionId, 'sessionId');
+  const grade = parseRequiredString(input.grade, 'AI inspiration generate requires grade');
+  const subject = parseRequiredString(input.subject, 'AI inspiration generate requires subject');
+  const topic = parseRequiredString(input.topic, 'AI inspiration generate requires topic');
+  const context = parseOptionalString(input.context, 'context');
+
+  return {
+    ...(sessionId === undefined ? {} : { sessionId }),
+    grade,
+    subject,
+    topic,
+    ...(context === undefined ? {} : { context }),
+  };
+}
+
+function parseInspirationFollowUpInput(input: unknown): InspirationFollowUpInput {
+  if (!isRecord(input)) {
+    throwInvalidInput('AI inspiration follow-up input must be an object');
+  }
+
+  return {
+    sessionId: parseRequiredString(input.sessionId, 'AI inspiration follow-up requires sessionId'),
+    message: parseRequiredString(input.message, 'AI inspiration follow-up requires message'),
+  };
+}
+
 async function mapServiceError<T>(callback: () => Promise<T>): Promise<T> {
   try {
     return await callback();
@@ -184,6 +254,14 @@ function parseOptionalString(value: unknown, field: string): string | undefined 
   const trimmed = value.trim();
 
   return trimmed || undefined;
+}
+
+function parseRequiredString(value: unknown, message: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throwInvalidInput(message);
+  }
+
+  return value.trim();
 }
 
 function parseOptionalRecord(

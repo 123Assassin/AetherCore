@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { ConversationCategory, MessageRole } from '@package/db/schema';
 
 import type { AiRepository } from './ai.repository.js';
-import { AiService } from './ai.service.js';
+import { AiService, AiServiceError } from './ai.service.js';
 
 type ConversationRow = {
   id: string;
@@ -121,6 +121,114 @@ test('sendChat fails before writing mock content in production without provider 
     restoreEnv('AI_PROVIDER', originalProvider);
     restoreEnv('AI_MOCK_ENABLED', originalMockEnabled);
   }
+});
+
+test('generateInspiration rejects an empty topic before persistence', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.generateInspiration({
+        userId: 'user-1',
+        grade: '三年级',
+        subject: '语文',
+        topic: '   ',
+      }),
+    (error) => {
+      assert.equal(error instanceof AiServiceError, true);
+      assert.equal((error as AiServiceError).code, 'BAD_REQUEST');
+      assert.equal((error as AiServiceError).message, 'Inspiration topic is required');
+
+      return true;
+    }
+  );
+  assert.equal(repository.conversations.length, 0);
+  assert.equal(repository.messages.length, 0);
+});
+
+test('generateInspiration stores structured fields and returns credit and assistant events', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+
+  const result = await service.generateInspiration({
+    userId: 'user-1',
+    grade: ' 三年级 ',
+    subject: ' 语文 ',
+    topic: ' 春天 ',
+    context: ' 结合校园观察 ',
+  });
+
+  assert.equal(repository.conversations[0]?.category, 'inspiration');
+  assert.equal(repository.messages[0]?.role, 'user');
+  assert.equal(repository.messages[0]?.content, '请为我精讲 春天（三年级 语文），结合校园观察');
+  assert.deepEqual(repository.messages[0]?.payload, {
+    grade: '三年级',
+    subject: '语文',
+    topic: '春天',
+    context: '结合校园观察',
+  });
+  assert.equal(repository.messages[1]?.role, 'assistant');
+  assert.match(repository.messages[1]?.content ?? '', /^\[mock:inspiration\]/);
+  assert.equal(
+    result.events.some((event) => event.type === 'credit'),
+    true
+  );
+  assert.equal(
+    result.events.some((event) => event.type === 'delta'),
+    true
+  );
+  assert.equal(
+    result.events.some((event) => event.type === 'done'),
+    true
+  );
+});
+
+test('followUpInspiration requires sessionId before persistence', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.followUpInspiration({
+        userId: 'user-1',
+        sessionId: '   ',
+        message: '继续',
+      }),
+    (error) => {
+      assert.equal(error instanceof AiServiceError, true);
+      assert.equal((error as AiServiceError).code, 'BAD_REQUEST');
+      assert.equal((error as AiServiceError).message, 'Inspiration sessionId is required');
+
+      return true;
+    }
+  );
+  assert.equal(repository.conversations.length, 0);
+  assert.equal(repository.messages.length, 0);
+});
+
+test('followUpInspiration appends to an inspiration conversation', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  repository.addConversation({
+    id: 'inspiration-session',
+    userId: 'user-1',
+    category: 'inspiration',
+  });
+
+  const result = await service.followUpInspiration({
+    userId: 'user-1',
+    sessionId: ' inspiration-session ',
+    message: ' 继续扩展活动 ',
+  });
+
+  assert.equal(result.sessionId, 'inspiration-session');
+  assert.equal(repository.conversations.length, 1);
+  assert.equal(repository.messages[0]?.content, '继续扩展活动');
+  assert.equal(
+    result.events.some((event) => event.type === 'credit'),
+    true
+  );
 });
 
 class FakeAiRepository {

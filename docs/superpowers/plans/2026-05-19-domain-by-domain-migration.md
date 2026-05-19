@@ -642,21 +642,21 @@ git commit -m "docs: analyze inspiration migration"
 - Create: `packages/shared/src/types/inspiration.ts`
 - Modify: `packages/shared/src/types/index.ts`
 
-- [ ] **Step 1: Add inspiration types**
+- [x] **Step 1: Add inspiration types**
   - Define generate input: `sessionId?`, `grade`, `subject`, `topic`, `context?`.
   - Define follow-up input: `sessionId`, `message`.
 
-- [ ] **Step 2: Add procedures**
+- [x] **Step 2: Add procedures**
   - Add `ai.inspiration.generate`.
   - Add `ai.inspiration.followUp`.
   - Use AI conversation category `inspiration`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Empty `topic` returns typed validation error.
   - Follow-up without `sessionId` returns typed validation error.
   - Mock response includes credit and assistant message.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/shared type-check
@@ -664,7 +664,7 @@ pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/server/src/modules/ai apps/server/src/trpc/routers/ai.router.ts packages/shared/src/types
