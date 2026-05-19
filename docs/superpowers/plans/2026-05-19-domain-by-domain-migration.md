@@ -1346,20 +1346,20 @@ git commit -m "feat: add admin shell dashboard"
 - Create: `apps/admin/src/components/resources/prompt-form-dialog.tsx`
 - Create: `apps/admin/src/components/resources/prompt-markdown-preview.tsx`
 
-- [ ] **Step 1: Add agents page**
+- [x] **Step 1: Add agents page**
   - List, create, edit, delete agents.
   - Bind engine, prompt, and sensitive word list.
 
-- [ ] **Step 2: Add prompts page**
+- [x] **Step 2: Add prompts page**
   - List, create, edit, delete prompts.
   - Render Markdown preview in admin only.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Agent form requires name and engine.
   - Prompt form requires title, version, content.
   - Prompt preview renders Markdown content.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1367,7 +1367,7 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/admin/src/app/'(admin)'/resources apps/admin/src/components/resources
