@@ -444,18 +444,18 @@ git commit -m "docs: analyze web chat migration"
 - Create: `packages/db/src/schema/ai-messages.ts`
 - Modify: `packages/db/src/schema/index.ts`
 
-- [ ] **Step 1: Add conversation schema**
+- [x] **Step 1: Add conversation schema**
   - Add category values for `chat`, `inspiration`, `comment`, `teaching`.
   - Include user id, title, timestamps, and soft-delete or archive marker if aligned with schema docs.
 
-- [ ] **Step 2: Add message schema**
+- [x] **Step 2: Add message schema**
   - Add role, content, raw payload JSON, suggestions, workflow metadata, timestamps.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Schema supports all four AI domains without separate duplicated message tables.
   - Drizzle migration generation succeeds.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -463,7 +463,7 @@ pnpm --filter @package/db type-check
 pnpm --filter @package/db lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/db/src/schema packages/db/drizzle
