@@ -1305,19 +1305,19 @@ git commit -m "feat: add admin resource backend"
 - Create: `apps/admin/src/components/dashboard/dashboard-stat-card.tsx`
 - Create: `apps/admin/src/components/dashboard/traffic-source-list.tsx`
 
-- [ ] **Step 1: Add protected admin shell**
+- [x] **Step 1: Add protected admin shell**
   - Add grouped navigation and active route highlight.
   - Preserve documented admin routes.
 
-- [ ] **Step 2: Add dashboard**
+- [x] **Step 2: Add dashboard**
   - Render overview metrics from admin tRPC or deterministic mock until backend metrics are connected.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Unauthenticated access redirects to `/login`.
   - `/dashboard` renders inside admin shell.
   - Sidebar groups expand/collapse.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1325,7 +1325,7 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/admin/src/app/'(admin)' apps/admin/src/components/layout apps/admin/src/components/dashboard

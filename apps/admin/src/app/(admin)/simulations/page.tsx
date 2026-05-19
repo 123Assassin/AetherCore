@@ -407,7 +407,7 @@ const styles = {
     fontFamily:
       'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     gap: 18,
-    minHeight: '100vh',
+    minHeight: 0,
     padding: 24,
   },
   results: {
