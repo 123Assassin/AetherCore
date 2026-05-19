@@ -529,19 +529,19 @@ git commit -m "feat: add chat ai trpc backend"
 - Create: `apps/web/src/components/layout/app-sidebar.tsx`
 - Create: `apps/web/src/components/layout/app-header.tsx`
 
-- [ ] **Step 1: Add root redirect**
+- [x] **Step 1: Add root redirect**
   - Redirect `/` to `/chat`.
 
-- [ ] **Step 2: Add app layout**
+- [x] **Step 2: Add app layout**
   - Add `(app)/layout.tsx` with app shell.
   - Add sidebar and header components with route-aware active state.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - `/` redirects to `/chat`.
   - Layout renders children.
   - Sidebar links point to documented web routes.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -549,7 +549,7 @@ pnpm --filter web lint
 pnpm build:web
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app apps/web/src/components/layout
