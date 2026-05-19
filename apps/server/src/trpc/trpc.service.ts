@@ -4,6 +4,7 @@ import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from '@trpc/server/a
 
 import { AiService } from '../modules/ai/ai.service.js';
 import { AuthService } from '../modules/auth/auth.service.js';
+import { SimulationsService } from '../modules/simulations/simulations.service.js';
 import { createTRPCContext } from './context.js';
 import { createAppRouter, type AppRouter } from './router.js';
 
@@ -11,7 +12,8 @@ import { createAppRouter, type AppRouter } from './router.js';
 export class TrpcService {
   constructor(
     private readonly authService: AuthService,
-    private readonly aiService: AiService
+    private readonly aiService: AiService,
+    private readonly simulationsService: SimulationsService
   ) {}
 
   registerTrpcPlugin(app: NestFastifyApplication): void {
@@ -21,7 +23,7 @@ export class TrpcService {
       .register(fastifyTRPCPlugin, {
         prefix: '/trpc',
         trpcOptions: {
-          router: createAppRouter(this.authService, this.aiService),
+          router: createAppRouter(this.authService, this.aiService, this.simulationsService),
           createContext: createTRPCContext,
         } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
       });

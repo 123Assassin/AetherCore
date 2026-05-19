@@ -763,26 +763,26 @@ git commit -m "docs: analyze simulations migration"
 - Create: `packages/shared/src/types/simulations.ts`
 - Modify: `packages/shared/src/types/index.ts`
 
-- [ ] **Step 1: Confirm schema fit**
+- [x] **Step 1: Confirm schema fit**
   - Reuse existing simulation tables where possible.
   - Add only missing columns proven by analysis docs.
 
-- [ ] **Step 2: Add public procedures**
+- [x] **Step 2: Add public procedures**
   - `simulations.list`.
   - `simulations.filters`.
 
-- [ ] **Step 3: Add admin procedures**
+- [x] **Step 3: Add admin procedures**
   - `adminSimulations.list`.
   - `adminSimulations.filters`.
   - `adminSimulations.setEnabled`.
   - `adminSimulations.update`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Public list excludes disabled simulations.
   - Admin list includes disabled simulations.
   - Filter procedure returns subject/category/grade options.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -792,7 +792,7 @@ pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/db/src/schema packages/db/drizzle apps/server/src packages/shared/src/types

@@ -32,3 +32,19 @@ export async function resolveAdminSession(
 ): Promise<AdminSession | null> {
   return authService.resolveAdminSession(context);
 }
+
+export async function requireAdminSession(
+  authService: AuthService,
+  context: TRPCContext
+): Promise<AdminSession> {
+  const session = await resolveAdminSession(authService, context);
+
+  if (!session) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Admin session required',
+    });
+  }
+
+  return session;
+}
