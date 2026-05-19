@@ -21,6 +21,8 @@ export const createApiClient = <TRouter extends AnyTRPCRouter>(
   options?: CreateApiClientOptions<TRouter>
 ): ApiClient<TRouter> => {
   const linkOptions = {
+    fetch: (input, init) =>
+      fetch(input, { ...(init as RequestInit | undefined), credentials: 'include' }),
     ...(options ?? {}),
     url: `${baseUrl}/trpc`,
   } as HttpBatchLinkOptions<TRouter>;

@@ -305,37 +305,47 @@ git commit -m "feat: add auth preference and credit schema"
 - Create: `packages/shared/src/types/auth.ts`
 - Create: `packages/shared/src/types/me.ts`
 - Modify: `packages/shared/src/types/index.ts`
+- Modify: `packages/auth/package.json` (authorized Task 7 package export fix)
+- Modify: `packages/db/package.json` (authorized Task 7 package export fix)
+- Modify: `packages/api/src/client.ts` (Task 7 quality-review credentialed fetch fix)
 
-- [ ] **Step 1: Implement auth repository**
+- [x] **Step 1: Implement auth repository**
   - Read/write users, sessions, preferences, and credit account rows.
 
-- [ ] **Step 2: Implement auth service**
+- [x] **Step 2: Implement auth service**
   - Add admin login/logout/session.
   - Add mock WeChat login URL and user logout.
   - Use `packages/auth` for password/session helpers.
 
-- [ ] **Step 3: Add tRPC routers**
+- [x] **Step 3: Add tRPC routers**
   - Add `auth.wechatLoginUrl`, `auth.logout`.
   - Add `adminAuth.login`, `adminAuth.logout`, `adminAuth.session`.
   - Add `me.profile`, `me.preferences`, `me.credits`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Wrong admin password returns typed auth error.
   - Mock WeChat URL returns no secret to frontend.
   - User/admin sessions use separate Redis keys/cookies.
+  - Browser tRPC clients include credentials for cross-origin auth cookies.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
+pnpm --filter @package/auth build
+pnpm --filter @package/db build
+pnpm --filter @package/api type-check
+pnpm --filter @package/api lint
+pnpm --filter @package/api build
 pnpm --filter @package/shared type-check
 pnpm --filter server type-check
 pnpm --filter server lint
+pnpm --filter server build
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/server/src packages/shared/src/types
+git add apps/server/src packages/shared/src/types packages/auth/package.json packages/db/package.json packages/api/src/client.ts docs/superpowers/plans/2026-05-19-domain-by-domain-migration.md
 git commit -m "feat: add auth trpc procedures"
 ```
 
