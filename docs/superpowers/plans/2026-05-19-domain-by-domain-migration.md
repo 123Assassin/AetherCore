@@ -887,17 +887,17 @@ git commit -m "feat: add admin simulations page"
 
 - Create: `docs/migration/web/comments-domain-analysis.md`
 
-- [ ] **Step 1: Analyze single comment mode**
+- [x] **Step 1: Analyze single comment mode**
   - Record nickname, gender, grade, tags, keywords/details, result cards, copy behavior.
 
-- [ ] **Step 2: Analyze batch mode**
+- [x] **Step 2: Analyze batch mode**
   - Record template download, Excel upload, row queue, row generation, export gate.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc states frontend must not import `xlsx`.
   - Analysis doc maps components to `apps/web/src/components/comments`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/web/comments-domain-analysis.md
@@ -905,7 +905,7 @@ rg -n "CommentAssistant|single|batch|xlsx|Excel|apps/web/src/components/comments
 git diff --check docs/migration/web/comments-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/web/comments-domain-analysis.md
