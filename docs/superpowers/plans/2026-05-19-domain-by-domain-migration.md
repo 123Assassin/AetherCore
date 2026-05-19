@@ -1263,20 +1263,20 @@ git commit -m "feat: add admin resource schema"
 - Create: `packages/shared/src/types/admin-resources.ts`
 - Modify: `packages/shared/src/types/index.ts`
 
-- [ ] **Step 1: Add CRUD service**
+- [x] **Step 1: Add CRUD service**
   - Implement agents, prompts, sensitive word lists, and engines CRUD.
   - Validate agent references before save.
 
-- [ ] **Step 2: Add tRPC procedures**
+- [x] **Step 2: Add tRPC procedures**
   - All admin resource procedures require admin session.
   - Engine API key responses return masked value only.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Creating agent with nonexistent engine returns typed error.
   - Engine list masks API keys.
   - Deleting referenced prompt returns conflict.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/shared type-check
@@ -1284,7 +1284,7 @@ pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/server/src packages/shared/src/types

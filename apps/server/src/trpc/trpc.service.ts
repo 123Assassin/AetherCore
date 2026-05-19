@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from '@trpc/server/adapters/fastify';
 
+import { AdminResourcesService } from '../modules/admin-resources/admin-resources.service.js';
 import { AiService } from '../modules/ai/ai.service.js';
 import { AuthService } from '../modules/auth/auth.service.js';
 import { CommentsService } from '../modules/comments/comments.service.js';
@@ -15,7 +16,8 @@ export class TrpcService {
     private readonly authService: AuthService,
     private readonly aiService: AiService,
     private readonly simulationsService: SimulationsService,
-    private readonly commentsService: CommentsService
+    private readonly commentsService: CommentsService,
+    private readonly adminResourcesService: AdminResourcesService
   ) {}
 
   registerTrpcPlugin(app: NestFastifyApplication): void {
@@ -29,7 +31,8 @@ export class TrpcService {
             this.authService,
             this.aiService,
             this.simulationsService,
-            this.commentsService
+            this.commentsService,
+            this.adminResourcesService
           ),
           createContext: createTRPCContext,
         } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],

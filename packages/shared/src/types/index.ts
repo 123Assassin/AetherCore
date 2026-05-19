@@ -1,4 +1,5 @@
 export * from './ai.js';
+export * from './admin-resources.js';
 export * from './api.js';
 export * from './auth.js';
 export * from './comments.js';

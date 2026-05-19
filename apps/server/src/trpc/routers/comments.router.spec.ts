@@ -1,6 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type { AdminResourcesService } from '../../modules/admin-resources/admin-resources.service.js';
 import type { AiService } from '../../modules/ai/ai.service.js';
 import type { AuthService } from '../../modules/auth/auth.service.js';
 import type { CommentsService } from '../../modules/comments/comments.service.js';
@@ -87,7 +88,8 @@ function createCaller(authService: AuthService, commentsService: CommentsService
     authService,
     {} as AiService,
     {} as SimulationsService,
-    commentsService
+    commentsService,
+    {} as AdminResourcesService
   );
 
   return router.createCaller({ req: {}, res: {} } as never);
