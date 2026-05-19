@@ -1183,19 +1183,19 @@ git commit -m "feat: add teaching web page"
 
 - Create: `docs/migration/admin/resources-domain-analysis.md`
 
-- [ ] **Step 1: Analyze resource pages**
+- [x] **Step 1: Analyze resource pages**
   - Read docs for Dashboard, Agents, AIPrompts, SensitiveWords, EngineDispatch.
   - Record CRUD operations, form fields, and API key masking requirement.
 
-- [ ] **Step 2: Record target mapping**
+- [x] **Step 2: Record target mapping**
   - Routes under `apps/admin/src/app/(admin)`.
   - Components under `apps/admin/src/components/resources` and `apps/admin/src/components/engines`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc includes agents, prompts, sensitive words, engines, dashboard.
   - Analysis doc states API keys never return plaintext.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/admin/resources-domain-analysis.md
@@ -1203,7 +1203,7 @@ rg -n "Agents|Prompt|Sensitive|Engine|Dashboard|API Key|plaintext" docs/migratio
 git diff --check docs/migration/admin/resources-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/admin/resources-domain-analysis.md
