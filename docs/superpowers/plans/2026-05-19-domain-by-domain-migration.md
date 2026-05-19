@@ -1015,23 +1015,23 @@ git commit -m "feat: add single comment ui"
 - Create: `apps/web/src/components/comments/batch-comment-table.tsx`
 - Create: `apps/web/src/components/comments/batch-comment-toolbar.tsx`
 
-- [ ] **Step 1: Add batch upload UI**
+- [x] **Step 1: Add batch upload UI**
   - Accept `.xlsx` and `.xls`.
   - Reject unsupported file extensions client-side.
 
-- [ ] **Step 2: Add batch queue UI**
+- [x] **Step 2: Add batch queue UI**
   - Render pending/generating/success/error row states.
   - Support generate one and generate all.
 
-- [ ] **Step 3: Add export gate**
+- [x] **Step 3: Add export gate**
   - Reuse sponsored gate before export call.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Unsupported file does not call tRPC.
   - Generate all updates rows in sequence.
   - Export button is disabled until at least one success row exists.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -1040,7 +1040,7 @@ pnpm build:web
 pnpm why xlsx
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app/'(app)'/office/comment/page.tsx apps/web/src/components/comments

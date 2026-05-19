@@ -3,6 +3,8 @@
 import { type KeyboardEvent, useRef } from 'react';
 
 type DonateModalProps = {
+  confirmLabel?: string;
+  onConfirm?: () => void;
   open: boolean;
   onClose: () => void;
 };
@@ -11,7 +13,12 @@ type FocusTarget = {
   focus: () => void;
 };
 
-export function DonateModal({ open, onClose }: DonateModalProps) {
+export function DonateModal({
+  confirmLabel = '我知道了',
+  onConfirm,
+  open,
+  onClose,
+}: DonateModalProps) {
   const closeButtonRef = useRef<FocusTarget | null>(null);
   const confirmButtonRef = useRef<FocusTarget | null>(null);
 
@@ -82,13 +89,13 @@ export function DonateModal({ open, onClose }: DonateModalProps) {
         </div>
 
         <button
-          onClick={onClose}
+          onClick={onConfirm ?? onClose}
           ref={(node) => {
             confirmButtonRef.current = node as FocusTarget | null;
           }}
           style={styles.primaryButton}
         >
-          我知道了
+          {confirmLabel}
         </button>
         <button
           aria-label="保持焦点在赞助弹窗内"
