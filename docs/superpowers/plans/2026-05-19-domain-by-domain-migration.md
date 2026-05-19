@@ -151,32 +151,44 @@ git commit -m "feat: add shared typed api client"
 - Create: `apps/admin/src/trpc/provider.tsx`
 - Modify: `apps/web/src/app/layout.tsx`
 - Modify: `apps/admin/src/app/layout.tsx`
+- Create: `packages/api/src/client.js` (authorized Task 4 Turbopack source-resolution fix)
+- Create: `packages/api/src/server.js` (authorized Task 4 Turbopack source-resolution fix)
+- Modify: `apps/server/src/main.ts` (Task 4 CORS fix required by quality review)
 
-- [ ] **Step 1: Add web tRPC provider**
+- [x] **Step 1: Add web tRPC provider**
   - Use `NEXT_PUBLIC_API_URL` with fallback `http://localhost:3000`.
   - Keep provider as a client component.
 
-- [ ] **Step 2: Add admin tRPC provider**
+- [x] **Step 2: Add admin tRPC provider**
   - Mirror web provider behavior for `apps/admin`.
   - Wrap root layout body with provider.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Web and admin root layouts type-check as Next.js layouts.
   - Provider imports resolve from `@package/api`.
+  - `@package/api` source shims resolve in Next/Turbopack builds.
+  - Browser tRPC calls from default web/admin origins receive CORS headers.
+  - Playwright MCP opened web/admin root routes and confirmed expected page text; both routes also reported the pre-existing missing `/favicon.ico` console 404.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
+pnpm --filter server type-check
+pnpm --filter server lint
+pnpm --filter @package/api type-check
+pnpm --filter @package/api lint
 pnpm --filter web type-check
 pnpm --filter admin type-check
 pnpm --filter web lint
 pnpm --filter admin lint
+pnpm build:web
+pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/web/src/trpc apps/admin/src/trpc apps/web/src/app/layout.tsx apps/admin/src/app/layout.tsx
+git add apps/web/src/trpc apps/admin/src/trpc apps/web/src/app/layout.tsx apps/admin/src/app/layout.tsx packages/api/src/client.js packages/api/src/server.js apps/server/src/main.ts docs/superpowers/plans/2026-05-19-domain-by-domain-migration.md
 git commit -m "feat: add app trpc providers"
 ```
 
