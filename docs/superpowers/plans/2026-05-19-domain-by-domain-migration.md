@@ -1146,20 +1146,21 @@ git commit -m "feat: add teaching backend"
 - Create: `apps/web/src/components/teaching/teaching-result-panel.tsx`
 - Create: `apps/web/src/components/teaching/teaching.data.ts`
 
-- [ ] **Step 1: Add teaching page**
+- [x] **Step 1: Add teaching page**
   - Connect page to teaching tRPC procedures.
   - Support both input modes.
 
-- [ ] **Step 2: Add teaching components**
+- [x] **Step 2: Add teaching components**
   - Keep all teaching components in `apps/web/src/components/teaching`.
   - Examples trigger same generation path as manual form.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Switching mode changes labels/options.
   - Empty prompt blocks submit.
   - Mock generation renders result and follow-up suggestions.
+  - Playwright MCP verified `/office/teaching`, empty prompt blocking with zero tRPC calls, mode switch labels/options, mocked generation, old follow-up suggestion chips, follow-up mutation, fresh session behavior for repeated generation, mobile overflow, and browser console errors.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -1167,7 +1168,7 @@ pnpm --filter web lint
 pnpm build:web
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app/'(app)'/office/teaching apps/web/src/components/teaching
