@@ -685,20 +685,20 @@ git commit -m "feat: add inspiration trpc backend"
 - Create: `apps/web/src/components/inspiration/inspiration-chat-panel.tsx`
 - Create: `apps/web/src/components/inspiration/inspiration.data.ts`
 
-- [ ] **Step 1: Add lesson layout**
+- [x] **Step 1: Add lesson layout**
   - Add secondary navigation for `/lesson/inspiration` and `/lesson/simulation`.
 
-- [ ] **Step 2: Add inspiration page and components**
+- [x] **Step 2: Add inspiration page and components**
   - Form collects grade, subject, topic, context.
   - Featured cases trigger the same generation path as manual input.
   - Chat panel renders generated result and follow-up suggestions.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Empty topic blocks submit.
   - Featured case populates/generates.
   - Follow-up appends a response using `sessionId`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -706,7 +706,7 @@ pnpm --filter web lint
 pnpm build:web
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app/'(app)'/lesson apps/web/src/components/lesson apps/web/src/components/inspiration
