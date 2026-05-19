@@ -721,18 +721,18 @@ git commit -m "feat: add inspiration web page"
 
 - Create: `docs/migration/simulations-domain-analysis.md`
 
-- [ ] **Step 1: Analyze web simulation behavior**
+- [x] **Step 1: Analyze web simulation behavior**
   - Read docs for `SimulationLab.tsx`.
   - Record filters, search, cards, iframe overlay, and user-facing route.
 
-- [ ] **Step 2: Analyze admin simulation behavior**
+- [x] **Step 2: Analyze admin simulation behavior**
   - Read docs for `Simulations.tsx`.
   - Record enable/disable behavior and admin route.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc distinguishes web browse/player from admin management.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/simulations-domain-analysis.md
@@ -740,7 +740,7 @@ rg -n "SimulationLab|Simulations|apps/web|apps/admin|iframe|isable" docs/migrati
 git diff --check docs/migration/simulations-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/simulations-domain-analysis.md
