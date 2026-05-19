@@ -406,20 +406,20 @@ git commit -m "feat: add auth user interfaces"
 
 - Create: `docs/migration/web/chat-domain-analysis.md`
 
-- [ ] **Step 1: Analyze old chat and app shell**
+- [x] **Step 1: Analyze old chat and app shell**
   - Read `docs/migration/web/spec.md`, `docs/migration/web/routes.md`, `docs/migration/web/components.md`, `docs/migration/web/api-assumptions.md`.
   - Record source availability and target files for `App.tsx`, `ChatAssistant.tsx`, `Sidebar.tsx`, `HistorySidebar.tsx`.
 
-- [ ] **Step 2: Record decisions**
+- [x] **Step 2: Record decisions**
   - Target route: `apps/web/src/app/(app)/chat/page.tsx`.
   - Business components stay in `apps/web/src/components`.
   - No frontend `@google/genai` or `react-markdown`.
   - Workflow mapping: `comment`, `inspiration`, `teaching` map to real routes.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc mentions route, API, components, storage migration, and workflow mapping.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/web/chat-domain-analysis.md
@@ -427,7 +427,7 @@ rg -n "ChatAssistant|/chat|workflow|@google/genai|HistorySidebar" docs/migration
 git diff --check docs/migration/web/chat-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/web/chat-domain-analysis.md
