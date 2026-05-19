@@ -43,6 +43,13 @@
       "when": 1779220805116,
       "tag": "0005_woozy_karnak",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779225223854,
+      "tag": "0006_wet_moon_knight",
+      "breakpoints": true
     }
   ]
 }

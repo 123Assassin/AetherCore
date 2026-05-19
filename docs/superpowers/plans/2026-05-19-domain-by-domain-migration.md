@@ -1219,22 +1219,22 @@ git commit -m "docs: analyze admin resource migration"
 - Create: `packages/db/src/schema/ai-resources.ts`
 - Modify: `packages/db/src/schema/index.ts`
 
-- [ ] **Step 1: Add resource schemas**
+- [x] **Step 1: Add resource schemas**
   - Add `model_engines`.
   - Add `ai_prompts`.
   - Add `sensitive_word_lists`.
   - Add `ai_agents`.
 
-- [ ] **Step 2: Add constraints**
+- [x] **Step 2: Add constraints**
   - Prompt title/version uniqueness.
   - Agent key uniqueness.
   - Engine name uniqueness.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Drizzle migration generation succeeds.
   - New schema exports from `@package/db/schema`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -1242,7 +1242,7 @@ pnpm --filter @package/db type-check
 pnpm --filter @package/db lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/db/src/schema packages/db/drizzle
