@@ -18,6 +18,7 @@
 - 当前仓库未发现 `source_web` / `source_admin` 目录；若执行时仍缺失，旧页面分析以 `docs/migration/**` 为准，并在分析文档中记录该事实。
 - 当前仓库已存在 `docker-compose.yml`，包含 Postgres、Redis、pgAdmin 以及 `app` profile 下的 `db-init/server/web/admin` 服务；Docker task 只维护和验证该文件。
 - 业务组件默认留在 `apps/web/src/components` 或 `apps/admin/src/components`；只有 Button、Dialog、Input、Table、Card、Badge、Form 等通用 UI primitive 可以进入 `packages/ui`。
+- 所有涉及 `apps/web` 或 `apps/admin` 页面、布局、路由、交互组件的前端 task，页面级测试必须使用 Playwright MCP 执行；至少覆盖目标路由打开、关键元素可见、主要交互（导航、表单、弹窗、上传等按页面实际能力选择）以及浏览器控制台错误检查，不能只用 type-check、lint 或 build 代替页面测试。
 
 ---
 
