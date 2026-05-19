@@ -72,26 +72,26 @@ git commit -m "docs: add migration execution index"
 - Modify: `apps/server/src/app.module.ts`
 - Modify: `apps/server/src/main.ts`
 
-- [ ] **Step 1: Add minimal tRPC context and router**
+- [x] **Step 1: Add minimal tRPC context and router**
   - Define request context in `context.ts`.
   - Define an empty root router plus a `health.ping` procedure in `router.ts`.
 
-- [ ] **Step 2: Mount tRPC in Nest/Fastify**
+- [x] **Step 2: Mount tRPC in Nest/Fastify**
   - Add `TrpcModule` and `TrpcService`.
   - Mount the tRPC handler at `/trpc`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Server type-checks with tRPC imports.
   - `health.ping` is callable once server is running.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/server/src/trpc apps/server/src/app.module.ts apps/server/src/main.ts
