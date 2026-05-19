@@ -1055,16 +1055,16 @@ git commit -m "feat: add batch comment ui"
 
 - Create: `docs/migration/web/teaching-domain-analysis.md`
 
-- [ ] **Step 1: Analyze teaching page**
+- [x] **Step 1: Analyze teaching page**
   - Record original-question transformation mode.
   - Record knowledge-point generation mode.
   - Record level/difficulty options, examples, result panel, and follow-up behavior.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc states route `/office/teaching`.
   - Analysis doc states backend owns prompt assembly.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/web/teaching-domain-analysis.md
@@ -1072,7 +1072,7 @@ rg -n "TeachingAssist|/office/teaching|原题|知识点|prompt|follow" docs/migr
 git diff --check docs/migration/web/teaching-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/web/teaching-domain-analysis.md
