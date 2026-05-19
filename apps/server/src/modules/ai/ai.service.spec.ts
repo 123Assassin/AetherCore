@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { ConversationCategory, MessageRole } from '@package/db/schema';
 
 import type { AiRepository } from './ai.repository.js';
-import { AiService, AiServiceError } from './ai.service.js';
+import { AiService, AiServiceError, type AiTeachingGenerateInput } from './ai.service.js';
 
 type ConversationRow = {
   id: string;
@@ -19,6 +19,7 @@ type ConversationRow = {
 
 type MessageRow = {
   id: string;
+  messageOrder: bigint;
   conversationId: string;
   role: MessageRole;
   content: string;
@@ -231,9 +232,305 @@ test('followUpInspiration appends to an inspiration conversation', async () => {
   );
 });
 
+test('generateTeaching rejects an empty prompt before persistence', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.generateTeaching({
+        userId: 'user-1',
+        subject: '数学',
+        stage: '七年级',
+        mode: 'variant',
+        prompt: '   ',
+        level: 'similar',
+      }),
+    (error) => {
+      assert.equal(error instanceof AiServiceError, true);
+      assert.equal((error as AiServiceError).code, 'BAD_REQUEST');
+      assert.equal((error as AiServiceError).message, 'Teaching prompt is required');
+
+      return true;
+    }
+  );
+  assert.equal(repository.conversations.length, 0);
+  assert.equal(repository.messages.length, 0);
+});
+
+test('generateTeaching rejects a level that does not match the teaching mode', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const input = {
+    userId: 'user-1',
+    subject: '数学',
+    stage: '七年级',
+    mode: 'variant',
+    prompt: '一次函数应用题',
+    level: 'foundation',
+  } as unknown as AiTeachingGenerateInput;
+
+  await assert.rejects(
+    () => service.generateTeaching(input),
+    (error) => {
+      assert.equal(error instanceof AiServiceError, true);
+      assert.equal((error as AiServiceError).code, 'BAD_REQUEST');
+      assert.equal((error as AiServiceError).message, 'Teaching level is invalid for mode');
+
+      return true;
+    }
+  );
+  assert.equal(repository.conversations.length, 0);
+  assert.equal(repository.messages.length, 0);
+});
+
+test('generateTeaching returns deterministic mock results for both teaching modes', async () => {
+  const cases = [
+    {
+      mode: 'variant' as const,
+      level: 'challenge' as const,
+      prompt: '已知一次函数 y=2x+1，求 x=3 时的 y 值。',
+      expectedMessage:
+        '教学出题（原题变式）：七年级 数学，层级 challenge。原题：已知一次函数 y=2x+1，求 x=3 时的 y 值。',
+      expectedContent:
+        '[mock:teaching] 原题变式设计：围绕“已知一次函数 y=2x+1，求 x=3 时的 y 值。”生成 challenge 层级变式题，保留核心考点并调整条件或情境。',
+    },
+    {
+      mode: 'knowledge' as const,
+      level: 'application' as const,
+      prompt: '一次函数的图像与性质',
+      expectedMessage:
+        '教学出题（知识点出题）：七年级 数学，层级 application。知识点：一次函数的图像与性质',
+      expectedContent:
+        '[mock:teaching] 知识点出题：围绕“一次函数的图像与性质”生成 application 层级原创题，包含清晰题干和可检查的作答目标。',
+    },
+  ] as const;
+
+  for (const item of cases) {
+    const repository = new FakeAiRepository();
+    const service = new AiService(repository.asRepository());
+
+    const baseInput = {
+      userId: 'user-1',
+      subject: ' 数学 ',
+      stage: ' 七年级 ',
+      prompt: ` ${item.prompt} `,
+    };
+    const result =
+      item.mode === 'variant'
+        ? await service.generateTeaching({
+            ...baseInput,
+            mode: item.mode,
+            level: item.level,
+          })
+        : await service.generateTeaching({
+            ...baseInput,
+            mode: item.mode,
+            level: item.level,
+          });
+
+    assert.equal(repository.conversations[0]?.category, 'teaching');
+    assert.equal(repository.messages[0]?.content, item.expectedMessage);
+    assert.deepEqual(repository.messages[0]?.payload, {
+      subject: '数学',
+      stage: '七年级',
+      mode: item.mode,
+      prompt: item.prompt,
+      level: item.level,
+    });
+    assert.equal(repository.messages[1]?.content, item.expectedContent);
+    assert.deepEqual(repository.messages[1]?.suggestions, ['生成解析', '调整难度', '继续追问']);
+    assert.equal(result.events[1]?.type, 'delta');
+    assert.equal(
+      result.events[1]?.type === 'delta' ? result.events[1].content : '',
+      item.expectedContent
+    );
+  }
+});
+
+test('followUpTeaching rejects a non-teaching conversation before persistence', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  repository.addConversation({
+    id: 'chat-session',
+    userId: 'user-1',
+    category: 'chat',
+  });
+
+  await assert.rejects(
+    () =>
+      service.followUpTeaching({
+        userId: 'user-1',
+        sessionId: 'chat-session',
+        message: '继续',
+      }),
+    (error) => {
+      assert.equal(error instanceof AiServiceError, true);
+      assert.equal((error as AiServiceError).code, 'BAD_REQUEST');
+      assert.equal((error as AiServiceError).message, 'AI conversation category does not match');
+
+      return true;
+    }
+  );
+  assert.equal(repository.messages.length, 0);
+});
+
+test('followUpTeaching appends to an existing teaching conversation', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  repository.addConversation({
+    id: 'teaching-session',
+    userId: 'user-1',
+    category: 'teaching',
+  });
+  await repository.appendMessage({
+    conversationId: 'teaching-session',
+    role: 'user',
+    content: '教学出题（原题变式）：七年级 数学，层级 challenge。原题：一次函数应用题',
+    payload: {
+      subject: '数学',
+      stage: '七年级',
+      mode: 'variant',
+      prompt: '一次函数应用题',
+      level: 'challenge',
+    },
+  });
+  await repository.appendMessage({
+    conversationId: 'teaching-session',
+    role: 'assistant',
+    content: '[mock:teaching] 原题变式设计：围绕“一次函数应用题”生成 challenge 层级变式题。',
+  });
+
+  const result = await service.followUpTeaching({
+    userId: 'user-1',
+    sessionId: ' teaching-session ',
+    message: ' 请再给一个解析步骤 ',
+  });
+
+  assert.equal(result.sessionId, 'teaching-session');
+  assert.equal(repository.conversations.length, 1);
+  assert.equal(repository.messages[2]?.conversationId, 'teaching-session');
+  assert.equal(repository.messages[2]?.content, '请再给一个解析步骤');
+  assert.deepEqual(repository.messages[2]?.payload, {
+    kind: 'teaching-follow-up',
+    message: '请再给一个解析步骤',
+    previousAssistantContent:
+      '[mock:teaching] 原题变式设计：围绕“一次函数应用题”生成 challenge 层级变式题。',
+    context: [
+      {
+        role: 'user',
+        content: '教学出题（原题变式）：七年级 数学，层级 challenge。原题：一次函数应用题',
+      },
+      {
+        role: 'assistant',
+        content: '[mock:teaching] 原题变式设计：围绕“一次函数应用题”生成 challenge 层级变式题。',
+      },
+    ],
+  });
+  assert.equal(
+    repository.messages[3]?.content,
+    '[mock:teaching] 追问回应：基于上一轮“[mock:teaching] 原题变式设计：围绕“一次函数应用题”生成 challenge 层级变式题。”，回应“请再给一个解析步骤”。'
+  );
+  assert.equal(repository.messages[3]?.workflowName, 'teaching');
+  assert.equal(repository.messages[3]?.redirectTo, '/office/teaching');
+  assert.equal(
+    result.events[1]?.type === 'delta' ? result.events[1].content : '',
+    repository.messages[3]?.content
+  );
+});
+
+test('followUpTeaching uses the previous assistant message when repository ordering is ambiguous', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  repository.addConversation({
+    id: 'teaching-session',
+    userId: 'user-1',
+    category: 'teaching',
+  });
+  await repository.appendMessage({
+    conversationId: 'teaching-session',
+    role: 'user',
+    content: '教学出题（原题变式）：七年级 数学，层级 challenge。原题：一次函数应用题',
+  });
+  await repository.appendMessage({
+    conversationId: 'teaching-session',
+    role: 'assistant',
+    content: '[mock:teaching] 上一轮教学出题结果',
+  });
+  repository.reverseMessageListOrder = true;
+
+  const result = await service.followUpTeaching({
+    userId: 'user-1',
+    sessionId: 'teaching-session',
+    message: '继续给解析',
+  });
+
+  assert.equal(
+    result.events[1]?.type === 'delta' ? result.events[1].content : '',
+    '[mock:teaching] 追问回应：基于上一轮“[mock:teaching] 上一轮教学出题结果”，回应“继续给解析”。'
+  );
+});
+
+test('followUpTeaching preserves multi-turn order when timestamps tie', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  repository.addConversation({
+    id: 'teaching-session',
+    userId: 'user-1',
+    category: 'teaching',
+  });
+  repository.addMessage({
+    id: 'z-user-first',
+    messageOrder: 1n,
+    conversationId: 'teaching-session',
+    role: 'user',
+    content: '第一轮题目',
+  });
+  repository.addMessage({
+    id: 'z-assistant-first',
+    messageOrder: 2n,
+    conversationId: 'teaching-session',
+    role: 'assistant',
+    content: '[mock:teaching] 第一轮结果',
+  });
+  repository.addMessage({
+    id: 'a-user-second',
+    messageOrder: 3n,
+    conversationId: 'teaching-session',
+    role: 'user',
+    content: '第二轮追问',
+  });
+  repository.addMessage({
+    id: 'a-assistant-second',
+    messageOrder: 4n,
+    conversationId: 'teaching-session',
+    role: 'assistant',
+    content: '[mock:teaching] 第二轮结果',
+  });
+
+  await service.followUpTeaching({
+    userId: 'user-1',
+    sessionId: 'teaching-session',
+    message: '继续给解析',
+  });
+
+  assert.deepEqual(repository.messages[4]?.payload, {
+    kind: 'teaching-follow-up',
+    message: '继续给解析',
+    previousAssistantContent: '[mock:teaching] 第二轮结果',
+    context: [
+      { role: 'user', content: '第一轮题目' },
+      { role: 'assistant', content: '[mock:teaching] 第一轮结果' },
+      { role: 'user', content: '第二轮追问' },
+      { role: 'assistant', content: '[mock:teaching] 第二轮结果' },
+    ],
+  });
+});
+
 class FakeAiRepository {
   readonly conversations: ConversationRow[] = [];
   readonly messages: MessageRow[] = [];
+  reverseMessageListOrder = false;
 
   private conversationCounter = 0;
   private messageCounter = 0;
@@ -321,9 +618,28 @@ class FakeAiRepository {
   }): Promise<MessageRow> {
     this.messageCounter += 1;
 
+    return this.addMessage({
+      id: `message-${this.messageCounter}`,
+      messageOrder: BigInt(this.messageCounter),
+      ...input,
+    });
+  }
+
+  addMessage(input: {
+    id: string;
+    messageOrder: bigint;
+    conversationId: string;
+    role: MessageRole;
+    content: string;
+    payload?: Record<string, unknown> | unknown[] | null;
+    suggestions?: string[] | null;
+    workflowName?: string | null;
+    redirectTo?: string | null;
+  }): MessageRow {
     const now = new Date('2026-05-19T00:00:00.000Z');
     const message: MessageRow = {
-      id: `message-${this.messageCounter}`,
+      id: input.id,
+      messageOrder: input.messageOrder,
       conversationId: input.conversationId,
       role: input.role,
       content: input.content,
@@ -394,7 +710,11 @@ class FakeAiRepository {
   }
 
   async listMessagesForConversations(conversationIds: string[]): Promise<MessageRow[]> {
-    return this.messages.filter((message) => conversationIds.includes(message.conversationId));
+    const messages = this.messages.filter((message) =>
+      conversationIds.includes(message.conversationId)
+    );
+
+    return this.reverseMessageListOrder ? [...messages].reverse() : messages;
   }
 
   async softDeleteConversation(userId: string, conversationId: string): Promise<boolean> {

@@ -55,6 +55,38 @@ export type AiInspirationFollowUpInput = {
   message: string;
 };
 
+export type AiTeachingMode = 'variant' | 'knowledge';
+
+export type AiTeachingVariantLevel = 'similar' | 'challenge' | 'creative';
+
+export type AiTeachingKnowledgeLevel = 'foundation' | 'application' | 'expansion';
+
+export type AiTeachingLevel = AiTeachingVariantLevel | AiTeachingKnowledgeLevel;
+
+type AiTeachingGenerateBaseInput = {
+  userId: string;
+  sessionId?: string;
+  subject: string;
+  stage: string;
+  prompt: string;
+};
+
+export type AiTeachingGenerateInput =
+  | (AiTeachingGenerateBaseInput & {
+      mode: 'variant';
+      level: AiTeachingVariantLevel;
+    })
+  | (AiTeachingGenerateBaseInput & {
+      mode: 'knowledge';
+      level: AiTeachingKnowledgeLevel;
+    });
+
+export type AiTeachingFollowUpInput = {
+  userId: string;
+  sessionId: string;
+  message: string;
+};
+
 export type AiChatCreateResult = {
   sessionId: string;
   category: ConversationCategory;
@@ -107,6 +139,9 @@ const DEFAULT_CATEGORY: ConversationCategory = 'chat';
 const MAX_TITLE_LENGTH = 200;
 const DEFAULT_HISTORY_LIMIT = 20;
 const MAX_HISTORY_LIMIT = 100;
+const TEACHING_MODES = ['variant', 'knowledge'] as const;
+const TEACHING_VARIANT_LEVELS = ['similar', 'challenge', 'creative'] as const;
+const TEACHING_KNOWLEDGE_LEVELS = ['foundation', 'application', 'expansion'] as const;
 
 const WORKFLOW_ROUTES: Record<AiWorkflowName, string> = {
   comment: '/office/comment',
@@ -149,7 +184,7 @@ export class AiService {
 
     ensureMockProviderEnabled();
 
-    const assistantContent = createAssistantContent(category, content);
+    const assistantContent = createAssistantContent(category, content, input.payload);
     const suggestions = createSuggestions(category);
     const workflow = getWorkflow(category);
     const exchange = await this.aiRepository.saveChatExchange({
@@ -225,6 +260,58 @@ export class AiService {
     });
   }
 
+  async generateTeaching(input: AiTeachingGenerateInput): Promise<AiChatSendResult> {
+    const subject = requireTrimmed(input.subject, 'Teaching subject is required');
+    const stage = requireTrimmed(input.stage, 'Teaching stage is required');
+    const mode = requireTeachingMode(input.mode);
+    const prompt = requireTrimmed(input.prompt, 'Teaching prompt is required');
+    const level = requireTeachingLevel(input.level, mode);
+    const sessionId = trimOptional(input.sessionId);
+
+    return this.sendChat({
+      userId: input.userId,
+      ...(sessionId === undefined ? {} : { sessionId }),
+      category: 'teaching',
+      message: createTeachingGenerateMessage({
+        subject,
+        stage,
+        mode,
+        prompt,
+        level,
+      }),
+      payload: {
+        subject,
+        stage,
+        mode,
+        prompt,
+        level,
+      },
+    });
+  }
+
+  async followUpTeaching(input: AiTeachingFollowUpInput): Promise<AiChatSendResult> {
+    const sessionId = requireTrimmed(input.sessionId, 'Teaching sessionId is required');
+    const message = requireTrimmed(input.message, 'Teaching message is required');
+    const conversation = await this.getExistingConversation(input.userId, sessionId, 'teaching');
+    const previousMessages = await this.aiRepository.listMessagesForConversations([
+      conversation.id,
+    ]);
+    const context = createTeachingFollowUpContext(previousMessages);
+
+    return this.sendChat({
+      userId: input.userId,
+      sessionId,
+      category: 'teaching',
+      message,
+      payload: {
+        kind: 'teaching-follow-up',
+        message,
+        previousAssistantContent: getPreviousAssistantContent(previousMessages),
+        context,
+      },
+    });
+  }
+
   async listHistory(input: AiHistoryListInput): Promise<AiHistoryListResult> {
     const limit = normalizeLimit(input.limit);
     const conversations = await this.aiRepository.listConversations({
@@ -289,7 +376,19 @@ function createTitle(input: string): string {
   return title.slice(0, MAX_TITLE_LENGTH);
 }
 
-function createAssistantContent(category: ConversationCategory, message: string): string {
+function createAssistantContent(
+  category: ConversationCategory,
+  message: string,
+  payload?: Record<string, unknown> | unknown[] | null
+): string {
+  if (category === 'teaching') {
+    const teachingContent = createTeachingAssistantContent(payload);
+
+    if (teachingContent) {
+      return teachingContent;
+    }
+  }
+
   return `[mock:${category}] ${message}`;
 }
 
@@ -302,6 +401,44 @@ function createInspirationGenerateMessage(input: {
   const base = `请为我精讲 ${input.topic}（${input.grade} ${input.subject}）`;
 
   return input.context ? `${base}，${input.context}` : base;
+}
+
+function createTeachingGenerateMessage(input: {
+  subject: string;
+  stage: string;
+  mode: AiTeachingMode;
+  prompt: string;
+  level: AiTeachingLevel;
+}): string {
+  if (input.mode === 'variant') {
+    return `教学出题（原题变式）：${input.stage} ${input.subject}，层级 ${input.level}。原题：${input.prompt}`;
+  }
+
+  return `教学出题（知识点出题）：${input.stage} ${input.subject}，层级 ${input.level}。知识点：${input.prompt}`;
+}
+
+function createTeachingAssistantContent(
+  payload?: Record<string, unknown> | unknown[] | null
+): string | null {
+  if (isTeachingFollowUpPayload(payload)) {
+    const previousAssistant = [...payload.context]
+      .reverse()
+      .find((message) => message.role === 'assistant');
+    const previousContent =
+      payload.previousAssistantContent ?? previousAssistant?.content ?? '无历史上下文';
+
+    return `[mock:teaching] 追问回应：基于上一轮“${previousContent}”，回应“${payload.message}”。`;
+  }
+
+  if (!isTeachingPayload(payload)) {
+    return null;
+  }
+
+  if (payload.mode === 'variant') {
+    return `[mock:teaching] 原题变式设计：围绕“${payload.prompt}”生成 ${payload.level} 层级变式题，保留核心考点并调整条件或情境。`;
+  }
+
+  return `[mock:teaching] 知识点出题：围绕“${payload.prompt}”生成 ${payload.level} 层级原创题，包含清晰题干和可检查的作答目标。`;
 }
 
 function requireTrimmed(value: string, message: string): string {
@@ -324,6 +461,65 @@ function trimOptional(value: string | undefined): string | undefined {
   return trimmed || undefined;
 }
 
+function requireTeachingMode(value: string): AiTeachingMode {
+  if (!TEACHING_MODES.includes(value as AiTeachingMode)) {
+    throw new AiServiceError('BAD_REQUEST', 'Teaching mode is invalid');
+  }
+
+  return value as AiTeachingMode;
+}
+
+function requireTeachingLevel(value: string, mode: AiTeachingMode): AiTeachingLevel {
+  if (mode === 'variant' && TEACHING_VARIANT_LEVELS.includes(value as AiTeachingVariantLevel)) {
+    return value as AiTeachingVariantLevel;
+  }
+
+  if (
+    mode === 'knowledge' &&
+    TEACHING_KNOWLEDGE_LEVELS.includes(value as AiTeachingKnowledgeLevel)
+  ) {
+    return value as AiTeachingKnowledgeLevel;
+  }
+
+  throw new AiServiceError('BAD_REQUEST', 'Teaching level is invalid for mode');
+}
+
+function createTeachingFollowUpContext(
+  messages: AiMessageRow[]
+): Array<{ role: AiMessageRow['role']; content: string }> {
+  return [...messages].sort(compareTeachingMessages).map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+}
+
+function getPreviousAssistantContent(messages: AiMessageRow[]): string | null {
+  return (
+    [...messages]
+      .filter((message) => message.role === 'assistant')
+      .sort(compareTeachingMessages)
+      .at(-1)?.content ?? null
+  );
+}
+
+function compareTeachingMessages(first: AiMessageRow, second: AiMessageRow): number {
+  if (first.messageOrder < second.messageOrder) {
+    return -1;
+  }
+
+  if (first.messageOrder > second.messageOrder) {
+    return 1;
+  }
+
+  const createdAtDiff = first.createdAt.getTime() - second.createdAt.getTime();
+
+  if (createdAtDiff !== 0) {
+    return createdAtDiff;
+  }
+
+  return 0;
+}
+
 function ensureMockProviderEnabled(): void {
   if (
     process.env.NODE_ENV === 'production' &&
@@ -337,6 +533,10 @@ function ensureMockProviderEnabled(): void {
 function createSuggestions(category: ConversationCategory): string[] {
   if (category === 'chat') {
     return ['继续提问', '总结要点', '生成下一步'];
+  }
+
+  if (category === 'teaching') {
+    return ['生成解析', '调整难度', '继续追问'];
   }
 
   return ['打开工作流', '补充材料', '调整要求'];
@@ -385,6 +585,55 @@ function toHistoryMessage(message: AiMessageRow): AiHistoryMessage {
 
 function isWorkflowName(value: string | null): value is AiWorkflowName {
   return value === 'comment' || value === 'inspiration' || value === 'teaching';
+}
+
+function isTeachingPayload(value: unknown): value is {
+  mode: AiTeachingMode;
+  prompt: string;
+  level: AiTeachingLevel;
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    isTeachingMode((value as { mode?: unknown }).mode) &&
+    typeof (value as { prompt?: unknown }).prompt === 'string' &&
+    typeof (value as { level?: unknown }).level === 'string'
+  );
+}
+
+function isTeachingFollowUpPayload(value: unknown): value is {
+  kind: 'teaching-follow-up';
+  message: string;
+  previousAssistantContent: string | null;
+  context: Array<{
+    role: AiMessageRow['role'];
+    content: string;
+  }>;
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as { kind?: unknown }).kind === 'teaching-follow-up' &&
+    typeof (value as { message?: unknown }).message === 'string' &&
+    ((value as { previousAssistantContent?: unknown }).previousAssistantContent === null ||
+      typeof (value as { previousAssistantContent?: unknown }).previousAssistantContent ===
+        'string') &&
+    Array.isArray((value as { context?: unknown }).context) &&
+    (value as { context: unknown[] }).context.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        !Array.isArray(item) &&
+        typeof (item as { role?: unknown }).role === 'string' &&
+        typeof (item as { content?: unknown }).content === 'string'
+    )
+  );
+}
+
+function isTeachingMode(value: unknown): value is AiTeachingMode {
+  return typeof value === 'string' && TEACHING_MODES.includes(value as AiTeachingMode);
 }
 
 function normalizeLimit(limit: number | undefined): number {

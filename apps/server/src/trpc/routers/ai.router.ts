@@ -26,6 +26,36 @@ type InspirationFollowUpInput = {
   message: string;
 };
 
+const teachingModes = ['variant', 'knowledge'] as const;
+const teachingVariantLevels = ['similar', 'challenge', 'creative'] as const;
+const teachingKnowledgeLevels = ['foundation', 'application', 'expansion'] as const;
+type TeachingMode = (typeof teachingModes)[number];
+type TeachingVariantLevel = (typeof teachingVariantLevels)[number];
+type TeachingKnowledgeLevel = (typeof teachingKnowledgeLevels)[number];
+type TeachingLevel = TeachingVariantLevel | TeachingKnowledgeLevel;
+
+type TeachingGenerateBaseInput = {
+  sessionId?: string;
+  subject: string;
+  stage: string;
+  prompt: string;
+};
+
+type TeachingGenerateInput =
+  | (TeachingGenerateBaseInput & {
+      mode: 'variant';
+      level: TeachingVariantLevel;
+    })
+  | (TeachingGenerateBaseInput & {
+      mode: 'knowledge';
+      level: TeachingKnowledgeLevel;
+    });
+
+type TeachingFollowUpInput = {
+  sessionId: string;
+  message: string;
+};
+
 export function createAiRouter(authService: AuthService, aiService: AiService, tools: RouterTools) {
   return tools.createTRPCRouter({
     chat: tools.createTRPCRouter({
@@ -90,6 +120,32 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
 
           return mapServiceError(() =>
             aiService.followUpInspiration({
+              userId: session.user.id,
+              ...input,
+            })
+          );
+        }),
+    }),
+    teaching: tools.createTRPCRouter({
+      generate: tools.publicProcedure
+        .input(parseTeachingGenerateInput)
+        .mutation(async ({ ctx, input }) => {
+          const session = await requireUserSession(authService, ctx);
+
+          return mapServiceError(() =>
+            aiService.generateTeaching({
+              userId: session.user.id,
+              ...input,
+            })
+          );
+        }),
+      followUp: tools.publicProcedure
+        .input(parseTeachingFollowUpInput)
+        .mutation(async ({ ctx, input }) => {
+          const session = await requireUserSession(authService, ctx);
+
+          return mapServiceError(() =>
+            aiService.followUpTeaching({
               userId: session.user.id,
               ...input,
             })
@@ -215,6 +271,51 @@ function parseInspirationFollowUpInput(input: unknown): InspirationFollowUpInput
   };
 }
 
+function parseTeachingGenerateInput(input: unknown): TeachingGenerateInput {
+  if (!isRecord(input)) {
+    throwInvalidInput('AI teaching generate input must be an object');
+  }
+
+  const sessionId = parseOptionalString(input.sessionId, 'sessionId');
+  const subject = parseRequiredString(input.subject, 'AI teaching generate requires subject');
+  const stage = parseRequiredString(input.stage, 'AI teaching generate requires stage');
+  const mode = parseTeachingMode(input.mode);
+  const prompt = parseRequiredString(input.prompt, 'AI teaching generate requires prompt');
+  const level = parseTeachingLevel(input.level, mode);
+
+  const baseInput = {
+    ...(sessionId === undefined ? {} : { sessionId }),
+    subject,
+    stage,
+    prompt,
+  };
+
+  if (mode === 'variant') {
+    return {
+      ...baseInput,
+      mode,
+      level: level as TeachingVariantLevel,
+    };
+  }
+
+  return {
+    ...baseInput,
+    mode,
+    level: level as TeachingKnowledgeLevel,
+  };
+}
+
+function parseTeachingFollowUpInput(input: unknown): TeachingFollowUpInput {
+  if (!isRecord(input)) {
+    throwInvalidInput('AI teaching follow-up input must be an object');
+  }
+
+  return {
+    sessionId: parseRequiredString(input.sessionId, 'AI teaching follow-up requires sessionId'),
+    message: parseRequiredString(input.message, 'AI teaching follow-up requires message'),
+  };
+}
+
 async function mapServiceError<T>(callback: () => Promise<T>): Promise<T> {
   try {
     return await callback();
@@ -240,6 +341,26 @@ function parseOptionalCategory(value: unknown): Category | undefined {
   }
 
   return value as Category;
+}
+
+function parseTeachingMode(value: unknown): TeachingMode {
+  if (!teachingModes.includes(value as TeachingMode)) {
+    throwInvalidInput('Invalid AI teaching mode');
+  }
+
+  return value as TeachingMode;
+}
+
+function parseTeachingLevel(value: unknown, mode: TeachingMode): TeachingLevel {
+  if (mode === 'variant' && teachingVariantLevels.includes(value as TeachingVariantLevel)) {
+    return value as TeachingVariantLevel;
+  }
+
+  if (mode === 'knowledge' && teachingKnowledgeLevels.includes(value as TeachingKnowledgeLevel)) {
+    return value as TeachingKnowledgeLevel;
+  }
+
+  throwInvalidInput('Invalid AI teaching level');
 }
 
 function parseOptionalString(value: unknown, field: string): string | undefined {

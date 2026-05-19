@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { check, index, jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  bigserial,
+  check,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 
 import { aiConversations } from './ai-conversations.js';
 
@@ -10,6 +20,7 @@ export const aiMessages = pgTable(
   'ai_messages',
   {
     id: uuid('id').defaultRandom().primaryKey(),
+    messageOrder: bigserial('message_order', { mode: 'bigint' }).notNull(),
     conversationId: uuid('conversation_id')
       .notNull()
       .references(() => aiConversations.id, { onDelete: 'cascade' }),
@@ -23,7 +34,7 @@ export const aiMessages = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index('idx_ai_messages_conversation_created').on(table.conversationId, table.createdAt),
+    index('idx_ai_messages_conversation_order').on(table.conversationId, table.messageOrder),
     check('ai_messages_role_check', sql`${table.role} in ('user', 'assistant', 'system')`),
   ]
 );

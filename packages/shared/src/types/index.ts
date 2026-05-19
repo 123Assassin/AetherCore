@@ -5,6 +5,7 @@ export * from './comments.js';
 export * from './inspiration.js';
 export * from './me.js';
 export * from './simulations.js';
+export * from './teaching.js';
 
 export type HealthStatus = {
   status: 'ok';

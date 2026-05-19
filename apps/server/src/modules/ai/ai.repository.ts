@@ -222,7 +222,7 @@ export class AiRepository {
       .select()
       .from(aiMessages)
       .where(inArray(aiMessages.conversationId, conversationIds))
-      .orderBy(asc(aiMessages.createdAt));
+      .orderBy(asc(aiMessages.conversationId), asc(aiMessages.messageOrder));
   }
 
   async softDeleteConversation(userId: string, conversationId: string): Promise<boolean> {

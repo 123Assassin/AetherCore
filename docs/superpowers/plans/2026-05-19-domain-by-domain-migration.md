@@ -1086,35 +1086,48 @@ git commit -m "docs: analyze teaching migration"
 **Files:**
 
 - Modify: `apps/server/src/modules/ai/ai.service.ts`
+- Modify: `apps/server/src/modules/ai/ai.repository.ts` (Task 26 quality-review fix: stable message ordering)
 - Modify: `apps/server/src/trpc/routers/ai.router.ts`
 - Create: `packages/shared/src/types/teaching.ts`
 - Modify: `packages/shared/src/types/index.ts`
+- Modify: `packages/db/src/schema/ai-messages.ts` (Task 26 quality-review fix: persisted message order)
+- Create: `packages/db/drizzle/0005_woozy_karnak.sql` (Task 26 quality-review fix)
+- Create: `packages/db/drizzle/meta/0005_snapshot.json` (Task 26 quality-review fix)
+- Modify: `packages/db/drizzle/meta/_journal.json` (Task 26 quality-review fix)
 
-- [ ] **Step 1: Add teaching types**
+- [x] **Step 1: Add teaching types**
   - Define `subject`, `stage`, `mode`, `prompt`, `level`, `sessionId?`.
 
-- [ ] **Step 2: Add procedures**
+- [x] **Step 2: Add procedures**
   - Add `ai.teaching.generate`.
   - Add `ai.teaching.followUp`.
   - Use AI conversation category `teaching`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Empty prompt returns typed validation error.
   - Both modes return deterministic mock results.
   - Follow-up appends to existing teaching session.
+  - Invalid mode/level pairing is rejected.
+  - Wrong-category follow-up is rejected.
+  - Same-timestamp multi-turn follow-up context preserves persisted message order.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
+pnpm db:generate
+pnpm exec tsx --test apps/server/src/modules/ai/ai.service.spec.ts
+pnpm --filter @package/db type-check
+pnpm --filter @package/db lint
 pnpm --filter @package/shared type-check
 pnpm --filter server type-check
 pnpm --filter server lint
+git diff --check
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/server/src/modules/ai apps/server/src/trpc/routers/ai.router.ts packages/shared/src/types
+git add apps/server/src/modules/ai apps/server/src/trpc/routers/ai.router.ts packages/shared/src/types packages/db/src/schema/ai-messages.ts packages/db/drizzle docs/superpowers/plans/2026-05-19-domain-by-domain-migration.md
 git commit -m "feat: add teaching backend"
 ```
 
