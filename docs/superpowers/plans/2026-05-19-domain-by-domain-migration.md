@@ -568,20 +568,20 @@ git commit -m "feat: add web app shell"
 - Create: `apps/web/src/components/chat/ai-sender.tsx`
 - Create: `apps/web/src/components/chat/suggestion-chips.tsx`
 
-- [ ] **Step 1: Add chat page**
+- [x] **Step 1: Add chat page**
   - Page connects to chat tRPC procedures.
   - It renders current conversation, input, loading state, and suggestions.
 
-- [ ] **Step 2: Extract chat components**
+- [x] **Step 2: Extract chat components**
   - Keep all components in `apps/web/src/components/chat`.
   - Do not move them to `packages/ui`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Empty input does not call tRPC.
   - Mock response appends assistant message.
   - Suggestion click sends a new message.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -589,7 +589,7 @@ pnpm --filter web lint
 pnpm build:web
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app/'(app)'/chat apps/web/src/components/chat
