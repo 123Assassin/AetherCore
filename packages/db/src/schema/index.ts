@@ -1,5 +1,6 @@
 export * from './ai-conversations.js';
 export * from './ai-messages.js';
+export * from './comment-batches.js';
 export * from './credits.js';
 export * from './sessions.js';
 export * from './simulations.js';

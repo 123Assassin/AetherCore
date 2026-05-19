@@ -2,6 +2,7 @@ import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { AuthService } from '../../modules/auth/auth.service.js';
+import type { CommentsService } from '../../modules/comments/comments.service.js';
 import {
   SimulationsServiceError,
   type SimulationsService,
@@ -79,7 +80,12 @@ class FakeSimulationsService {
 }
 
 function createCaller(authService: AuthService, simulationsService: SimulationsService) {
-  const router = createAppRouter(authService, {} as never, simulationsService);
+  const router = createAppRouter(
+    authService,
+    {} as never,
+    simulationsService,
+    {} as CommentsService
+  );
 
   return router.createCaller({ req: {}, res: {} } as never);
 }

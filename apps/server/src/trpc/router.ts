@@ -2,10 +2,12 @@ import { initTRPC } from '@trpc/server';
 
 import type { AiService } from '../modules/ai/ai.service.js';
 import type { AuthService } from '../modules/auth/auth.service.js';
+import type { CommentsService } from '../modules/comments/comments.service.js';
 import type { SimulationsService } from '../modules/simulations/simulations.service.js';
 import type { TRPCContext } from './context.js';
 import { createAiRouter } from './routers/ai.router.js';
 import { createAuthRouter, createAdminAuthRouter } from './routers/auth.router.js';
+import { createCommentsRouter } from './routers/comments.router.js';
 import { createMeRouter } from './routers/me.router.js';
 import {
   createAdminSimulationsRouter,
@@ -24,7 +26,8 @@ const healthRouter = createTRPCRouter({
 export const createAppRouter = (
   authService: AuthService,
   aiService: AiService,
-  simulationsService: SimulationsService
+  simulationsService: SimulationsService,
+  commentsService: CommentsService
 ) =>
   createTRPCRouter({
     health: healthRouter,
@@ -32,6 +35,10 @@ export const createAppRouter = (
     adminAuth: createAdminAuthRouter(authService, { createTRPCRouter, publicProcedure }),
     me: createMeRouter(authService, { createTRPCRouter, publicProcedure }),
     ai: createAiRouter(authService, aiService, { createTRPCRouter, publicProcedure }),
+    comments: createCommentsRouter(authService, commentsService, {
+      createTRPCRouter,
+      publicProcedure,
+    }),
     simulations: createSimulationsRouter(simulationsService, {
       createTRPCRouter,
       publicProcedure,

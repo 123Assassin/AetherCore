@@ -928,23 +928,23 @@ git commit -m "docs: analyze comments migration"
 - Create: `packages/shared/src/types/comments.ts`
 - Modify: `packages/shared/src/types/index.ts`
 
-- [ ] **Step 1: Add batch schema**
+- [x] **Step 1: Add batch schema**
   - Add batch job and batch row tables.
   - Store row status and generated results.
 
-- [ ] **Step 2: Add tRPC procedures**
+- [x] **Step 2: Add tRPC procedures**
   - `comments.single.generate`.
   - `comments.batch.createFromUpload`.
   - `comments.batch.generateRow`.
   - `comments.batch.generateAll`.
   - `comments.batch.export`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Single generate validates gender, grade, and tags.
   - Batch upload accepts file metadata and returns row previews in mock mode.
   - Row generation updates status to `success`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -954,7 +954,7 @@ pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/db/src/schema packages/db/drizzle apps/server/src packages/shared/src/types
