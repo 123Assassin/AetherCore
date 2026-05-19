@@ -484,25 +484,25 @@ git commit -m "feat: add ai conversation schema"
 - Create: `packages/shared/src/types/ai.ts`
 - Modify: `packages/shared/src/types/index.ts`
 
-- [ ] **Step 1: Add AI repository**
+- [x] **Step 1: Add AI repository**
   - Read/write conversation and message rows.
   - Filter history by category.
 
-- [ ] **Step 2: Add chat procedures**
+- [x] **Step 2: Add chat procedures**
   - Add `ai.chat.create`, `ai.chat.send`, `ai.history.list`, `ai.history.delete`.
   - Return deterministic mock stream-compatible events in development.
 
-- [ ] **Step 3: Add workflow mapping**
+- [x] **Step 3: Add workflow mapping**
   - `comment` -> `/office/comment`.
   - `inspiration` -> `/lesson/inspiration`.
   - `teaching` -> `/office/teaching`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - `ai.chat.send` creates a conversation when `sessionId` is absent.
   - History list only returns category `chat` for chat filter.
   - Workflow event returns correct route.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/shared type-check
@@ -510,7 +510,7 @@ pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/server/src packages/shared/src/types
