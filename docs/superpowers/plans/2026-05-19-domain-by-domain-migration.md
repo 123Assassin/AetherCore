@@ -203,34 +203,39 @@ git commit -m "feat: add app trpc providers"
 - Create: `packages/auth/src/guards.ts`
 - Modify: `packages/auth/src/session.ts`
 - Modify: `packages/auth/src/index.ts`
+- Modify: `packages/auth/src/redis.ts` (Task 5 quality-review fix: avoid Redis connection on pure root imports)
+- Modify: `packages/auth/package.json` (authorized Task 5 bcrypt dependency declaration)
+- Modify: `pnpm-lock.yaml` (authorized Task 5 dependency lockfile update)
 
-- [ ] **Step 1: Add password helpers**
+- [x] **Step 1: Add password helpers**
   - Implement hash and verify helpers in `password.ts`.
   - Keep bcrypt usage centralized in `packages/auth`.
 
-- [ ] **Step 2: Add token and guard payload types**
+- [x] **Step 2: Add token and guard payload types**
   - Add signed token helpers in `jwt.ts`.
   - Add user/admin payload and guard result types in `guards.ts`.
 
-- [ ] **Step 3: Expand session helpers**
+- [x] **Step 3: Expand session helpers**
   - Keep `session:{token}` and `admin:session:{token}` key builders.
   - Add typed session payload serialization helpers.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Password helper verifies a known password against a generated hash.
   - Auth package exports all helper modules.
+  - Built-output behavior check verifies password true/false, JWT round trip, empty secret rejection, expiration rejection, malformed session payload rejection, finite JWT time validation, and pure root helper import without Redis connection warnings.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/auth type-check
 pnpm --filter @package/auth lint
+pnpm --filter @package/auth build
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add packages/auth/src
+git add packages/auth/src packages/auth/package.json pnpm-lock.yaml docs/superpowers/plans/2026-05-19-domain-by-domain-migration.md
 git commit -m "feat: add shared auth primitives"
 ```
 
