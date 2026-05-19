@@ -359,37 +359,42 @@ git commit -m "feat: add auth trpc procedures"
 - Create: `apps/web/src/components/sponsor/donate-modal.tsx`
 - Create: `apps/admin/src/app/login/page.tsx`
 - Modify: `apps/admin/src/app/page.tsx`
+- Modify: `apps/web/src/app/page.tsx` (authorized Task 8 modal route-level test mount)
 
-- [ ] **Step 1: Add web login and sponsor modals**
+- [x] **Step 1: Add web login and sponsor modals**
   - Implement mock-friendly WeChat login modal.
   - Implement sponsor modal from web migration docs.
 
-- [ ] **Step 2: Add admin login page**
+- [x] **Step 2: Add admin login page**
   - Use tRPC admin login.
   - Replace `localStorage.isAdminAuth` behavior with server session flow.
 
-- [ ] **Step 3: Update admin root redirect**
+- [x] **Step 3: Update admin root redirect**
   - `/` redirects to `/dashboard` for authenticated admin.
   - `/` redirects to `/login` for unauthenticated admin.
+  - Task 31 owns the concrete `/dashboard` page implementation.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Admin login rejects invalid credentials.
   - Web modal opens/closes without touching server secrets.
   - Admin root redirect behavior is deterministic.
+  - Playwright MCP verified web modal open/close, Escape, focus loop, focus restoration, admin invalid-login UI, and admin root redirects with tRPC route stubs; console checks reported 0 errors after stubbing favicon and future dashboard route.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
 pnpm --filter admin type-check
 pnpm --filter web lint
 pnpm --filter admin lint
+rg -n "localStorage|isAdminAuth|WECHAT_APP_SECRET|SECRET|process\\.env" apps/admin/src/app apps/web/src/components/auth apps/web/src/app/page.tsx apps/web/src/components/sponsor -S
+git diff --check
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/web/src/components/auth apps/web/src/components/sponsor apps/admin/src/app
+git add apps/web/src/components/auth apps/web/src/components/sponsor apps/web/src/app/page.tsx apps/admin/src/app docs/superpowers/plans/2026-05-19-domain-by-domain-migration.md
 git commit -m "feat: add auth user interfaces"
 ```
 
