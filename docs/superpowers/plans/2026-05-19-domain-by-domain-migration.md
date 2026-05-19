@@ -111,19 +111,20 @@ git commit -m "feat: mount server trpc router"
 - Modify: `packages/shared/src/types/index.ts`
 - Modify: `packages/shared/src/index.ts`
 
-- [ ] **Step 1: Export typed client helpers**
-  - Update `packages/api/src/client.ts` to create typed tRPC clients from `AppRouter`.
-  - Update `server.ts` with a server caller factory placeholder wired to the root router type.
+- [x] **Step 1: Export typed client helpers**
+  - Update `packages/api/src/client.ts` to export generic typed tRPC client helpers.
+  - Do not import `AppRouter` from `apps/server` in `packages/api`; app-local tRPC clients/providers bind the concrete `AppRouter` type in later app tasks.
+  - Update `server.ts` with a generic server caller factory placeholder that can be wired to a concrete router type outside `packages/api`.
 
-- [ ] **Step 2: Add shared API result types**
+- [x] **Step 2: Add shared API result types**
   - Add common pagination and API error/code types to `packages/shared/src/types/api.ts`.
   - Export them through shared package indexes.
 
-- [ ] **Testing steps**
-  - Type-check verifies `@package/api` imports do not require app-local router definitions.
+- [x] **Testing steps**
+  - Type-check verifies `@package/api` does not import `apps/server` or app-local router definitions.
   - Shared API types export from `@package/shared`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/shared type-check
@@ -131,7 +132,7 @@ pnpm --filter @package/api type-check
 pnpm --filter @package/api lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/api/src packages/shared/src
