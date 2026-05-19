@@ -813,20 +813,20 @@ git commit -m "feat: add simulations backend"
 - Create: `apps/web/src/components/simulations/simulation-player-overlay.tsx`
 - Create: `apps/web/src/components/simulations/simulations.data.ts`
 
-- [ ] **Step 1: Add simulation page**
+- [x] **Step 1: Add simulation page**
   - Connect to public simulation tRPC procedures.
   - Support subject/category/grade/search filtering.
 
-- [ ] **Step 2: Add player overlay**
+- [x] **Step 2: Add player overlay**
   - Open iframe overlay from card action.
   - Close overlay without route change.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Search and filters combine correctly.
   - Empty results render reset UI.
   - Overlay opens and closes.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -834,7 +834,7 @@ pnpm --filter web lint
 pnpm build:web
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app/'(app)'/lesson/simulation apps/web/src/components/simulations
