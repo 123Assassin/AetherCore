@@ -851,20 +851,20 @@ git commit -m "feat: add web simulations page"
 - Create: `apps/admin/src/components/simulations/simulation-tree-filter.tsx`
 - Create: `apps/admin/src/components/simulations/simulation-card.tsx`
 
-- [ ] **Step 1: Add admin simulation page**
+- [x] **Step 1: Add admin simulation page**
   - Connect to admin simulation tRPC procedures.
   - Render tree/filter and resource cards.
 
-- [ ] **Step 2: Add enable/disable action**
+- [x] **Step 2: Add enable/disable action**
   - Toggle `isable` through admin tRPC.
   - Reflect changed state in the list.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Disabled item remains visible in admin.
   - Toggling disabled state updates UI.
   - Web public list behavior remains unaffected.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -872,7 +872,7 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/admin/src/app/'(admin)'/simulations apps/admin/src/components/simulations
