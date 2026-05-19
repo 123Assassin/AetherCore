@@ -1,0 +1,162 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aethercore-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aether}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aether_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-aether_db}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: aethercore-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+    command:
+      ['redis-server', '--appendonly', 'yes', '--requirepass', '${REDIS_PASSWORD:-redis_secret}']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD:-redis_secret}" ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: aethercore-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-pgadmin_secret}
+    ports:
+      - '${PGADMIN_PORT:-5050}:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  db-init:
+    profiles: ['app']
+    image: node:24.14.0-alpine
+    container_name: aethercore-db-init
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@10.32.1 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @package/db build &&
+      pnpm --filter @package/shared build &&
+      pnpm --filter db-init exec tsx src/index.ts"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aether}:${POSTGRES_PASSWORD:-aether_secret}@postgres:5432/${POSTGRES_DB:-aether_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
+    volumes:
+      - .:/workspace
+      - db_init_node_modules:/workspace/node_modules
+      - db_init_pnpm_store:/root/.local/share/pnpm/store
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  server:
+    profiles: ['app']
+    image: node:24.14.0-alpine
+    container_name: aethercore-server
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@10.32.1 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter server dev"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aether}:${POSTGRES_PASSWORD:-aether_secret}@postgres:5432/${POSTGRES_DB:-aether_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      APP_HTTP_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/workspace
+      - server_node_modules:/workspace/node_modules
+      - server_pnpm_store:/root/.local/share/pnpm/store
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    profiles: ['app']
+    image: node:24.14.0-alpine
+    container_name: aethercore-web
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@10.32.1 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter web exec next dev -H 0.0.0.0 -p 3001"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - '3001:3001'
+    volumes:
+      - .:/workspace
+      - web_node_modules:/workspace/node_modules
+      - web_pnpm_store:/root/.local/share/pnpm/store
+    depends_on:
+      - server
+
+  admin:
+    profiles: ['app']
+    image: node:24.14.0-alpine
+    container_name: aethercore-admin
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@10.32.1 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter admin exec next dev -H 0.0.0.0 -p 3002"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - '3002:3002'
+    volumes:
+      - .:/workspace
+      - admin_node_modules:/workspace/node_modules
+      - admin_pnpm_store:/root/.local/share/pnpm/store
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  db_init_node_modules:
+  db_init_pnpm_store:
+  server_node_modules:
+  server_pnpm_store:
+  web_node_modules:
+  web_pnpm_store:
+  admin_node_modules:
+  admin_pnpm_store:
