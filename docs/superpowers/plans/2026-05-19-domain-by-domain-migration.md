@@ -250,23 +250,29 @@ git commit -m "feat: add shared auth primitives"
 - Create: `packages/db/src/schema/user-preferences.ts`
 - Create: `packages/db/src/schema/credits.ts`
 - Modify: `packages/db/src/schema/index.ts`
+- Create: `packages/db/drizzle/0002_productive_dragon_lord.sql`
+- Create: `packages/db/drizzle/meta/0002_snapshot.json`
+- Modify: `packages/db/drizzle/meta/_journal.json`
 
-- [ ] **Step 1: Add user preference schema**
+- [x] **Step 1: Add user preference schema**
   - Add `user_preferences` with `userId`, `grade`, `subject`, timestamps.
 
-- [ ] **Step 2: Add credit schemas**
+- [x] **Step 2: Add credit schemas**
   - Add `user_credit_accounts` and `credit_transactions`.
   - Use fields from `docs/migration/api/database-schema.md`.
+  - Add database checks for credit direction, reason, and numeric invariants.
+  - Preserve transaction history by keeping `credit_transactions.user_id` non-cascading.
 
-- [ ] **Step 3: Keep existing user/session compatibility**
+- [x] **Step 3: Keep existing user/session compatibility**
   - Reuse `users.role` for admin/user distinction.
   - Reuse `sessions` for user/admin session rows.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Drizzle schema exports all new tables.
   - Migration generation succeeds.
+  - Generated migration includes the three new tables, credit checks, and non-cascading transaction user FK.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -274,7 +280,7 @@ pnpm --filter @package/db type-check
 pnpm --filter @package/db lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/db/src/schema packages/db/drizzle
