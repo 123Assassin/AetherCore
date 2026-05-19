@@ -976,19 +976,19 @@ git commit -m "feat: add comments backend"
 - Create: `apps/web/src/components/comments/comment-result-list.tsx`
 - Create: `apps/web/src/components/comments/comment-tags.data.ts`
 
-- [ ] **Step 1: Add office layout**
+- [x] **Step 1: Add office layout**
   - Add secondary navigation for `/office/comment` and `/office/teaching`.
 
-- [ ] **Step 2: Add single comment mode**
+- [x] **Step 2: Add single comment mode**
   - Form validates required fields.
   - Results render as copyable cards.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Missing required fields block submit.
   - Mock generation renders three result cards.
   - Copy button changes visible copy state.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -996,7 +996,7 @@ pnpm --filter web lint
 pnpm build:web
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/app/'(app)'/office apps/web/src/components/office apps/web/src/components/comments
