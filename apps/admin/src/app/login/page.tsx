@@ -1,158 +1,156 @@
 'use client';
 
+import { Lock, ShieldCheck, User } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 
 import { useTrpcClient } from '../../trpc/provider';
 
-type AuthError = {
-  kind: 'auth' | 'network';
-  message: string;
-};
+const defaultAdminUsername = 'admin';
+const errorId = 'admin-login-error';
 
 export default function LoginPage() {
   const client = useTrpcClient();
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(defaultAdminUsername);
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<AuthError | null>(null);
+  const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const errorId = 'admin-login-error';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!username.trim() || !password) {
-      setError({ kind: 'auth', message: '请输入管理员账号和密码。' });
+    if (!password) {
+      setError('密码错误，请重试');
       return;
     }
 
+    const submittedUsername = username.trim() || defaultAdminUsername;
+
     setSubmitting(true);
-    setError(null);
+    setError('');
 
     try {
       const result = await client.adminAuth.login.mutate({
         password,
-        username: username.trim(),
+        username: submittedUsername,
       });
 
       if (!result.success) {
-        setError({ kind: 'auth', message: result.error.message });
+        setError('密码错误，请重试');
         return;
       }
 
       router.push('/dashboard');
     } catch {
-      setError({ kind: 'network', message: '登录服务暂不可用，请稍后重试。' });
+      setError('登录服务暂不可用，请稍后重试');
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <main style={styles.main}>
-      <form aria-label="管理员登录" onSubmit={handleSubmit} style={styles.form}>
-        <h1 style={styles.title}>AetherCore Admin</h1>
-        <label style={styles.field}>
-          <span style={styles.labelText}>管理员账号</span>
-          <input
-            aria-describedby={error ? errorId : undefined}
-            aria-invalid={error?.kind === 'auth'}
-            autoComplete="username"
-            onChange={(event) => setUsername(readInputValue(event.target))}
-            style={styles.input}
-            type="text"
-            value={username}
-          />
-        </label>
-        <label style={styles.field}>
-          <span style={styles.labelText}>密码</span>
-          <input
-            aria-describedby={error ? errorId : undefined}
-            aria-invalid={error?.kind === 'auth'}
-            autoComplete="current-password"
-            onChange={(event) => setPassword(readInputValue(event.target))}
-            style={styles.input}
-            type="password"
-            value={password}
-          />
-        </label>
+    <main className="bg-sidebar-dark relative flex min-h-screen items-center justify-center overflow-hidden p-6">
+      <div className="bg-primary/20 absolute top-[-10%] right-[-10%] h-[40%] w-[40%] rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full bg-blue-600/10 blur-[120px]" />
 
-        {error ? (
-          <p aria-live="polite" id={errorId} role="alert" style={styles.error}>
-            {error.kind === 'auth' ? '认证失败：' : '请求失败：'}
-            {error.message}
+      <motion.div
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-[40px] border border-slate-800 bg-slate-900 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.9 }}
+      >
+        <div className="p-10 pb-6 text-center">
+          <div className="bg-primary/10 text-primary ring-primary/5 mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl ring-8">
+            <ShieldCheck size={40} />
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white">Nexus 管理后台</h1>
+          <p className="mt-2 font-medium text-slate-400">需要进行身份验证</p>
+        </div>
+
+        <form aria-label="管理员登录" className="space-y-8 p-10 pt-6" onSubmit={handleSubmit}>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label
+                className="ml-2 text-[10px] font-black tracking-widest text-slate-500 uppercase"
+                htmlFor="admin-username"
+              >
+                授权账号
+              </label>
+              <div className="relative">
+                <User
+                  className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-500"
+                  size={18}
+                />
+                <input
+                  autoComplete="username"
+                  className="focus:ring-primary/20 focus:border-primary w-full rounded-2xl border border-slate-700/50 bg-slate-800/50 py-4 pr-4 pl-12 text-white transition-all outline-none placeholder:text-slate-600 focus:ring-4"
+                  id="admin-username"
+                  onChange={(event) => setUsername(readInputValue(event.currentTarget))}
+                  placeholder={defaultAdminUsername}
+                  type="text"
+                  value={username}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                className="ml-2 text-[10px] font-black tracking-widest text-slate-500 uppercase"
+                htmlFor="admin-password"
+              >
+                访问凭据
+              </label>
+              <div className="relative">
+                <Lock
+                  className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-500"
+                  size={18}
+                />
+                <input
+                  aria-describedby={error ? errorId : undefined}
+                  aria-invalid={Boolean(error)}
+                  autoComplete="current-password"
+                  autoFocus
+                  className="focus:ring-primary/20 focus:border-primary w-full rounded-2xl border border-slate-700 bg-slate-800 py-4 pr-4 pl-12 text-white transition-all outline-none placeholder:text-slate-600 focus:ring-4"
+                  id="admin-password"
+                  onChange={(event) => setPassword(readInputValue(event.currentTarget))}
+                  placeholder="••••••••••••"
+                  type="password"
+                  value={password}
+                />
+              </div>
+              {error ? (
+                <p
+                  aria-live="polite"
+                  className="mt-2 ml-2 flex items-center gap-1 text-xs font-bold text-red-400"
+                  id={errorId}
+                  role="alert"
+                >
+                  <span className="h-1 w-1 rounded-full bg-red-400" />
+                  {error}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <button
+            className="bg-primary hover:bg-primary-dark shadow-primary/40 w-full rounded-2xl py-5 font-black text-white shadow-2xl transition-all hover:-translate-y-1 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+            disabled={submitting}
+            type="submit"
+          >
+            {submitting ? '登录中...' : '登录系统'}
+          </button>
+        </form>
+
+        <div className="border-t border-slate-800/50 bg-slate-800/30 px-10 py-8 text-center">
+          <p className="text-xs font-medium tracking-tight text-slate-500">
+            系统版本 v4.12.0 // AES-256 加密保护
           </p>
-        ) : null}
-
-        <button disabled={submitting} style={styles.button} type="submit">
-          {submitting ? '登录中...' : '登录'}
-        </button>
-      </form>
+        </div>
+      </motion.div>
     </main>
   );
 }
-
-const styles = {
-  main: {
-    alignItems: 'center',
-    color: '#1f2937',
-    display: 'flex',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    padding: 24,
-  },
-  form: {
-    border: '1px solid #d7dde7',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 14,
-    maxWidth: 360,
-    padding: 20,
-    width: '100%',
-  },
-  title: {
-    fontSize: 22,
-    lineHeight: '30px',
-    margin: 0,
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  labelText: {
-    color: '#334155',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  input: {
-    border: '1px solid #b9c3d0',
-    borderRadius: 6,
-    fontSize: 14,
-    padding: '9px 10px',
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '8px 10px',
-  },
-  button: {
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    borderRadius: 6,
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontSize: 14,
-    padding: '10px 14px',
-  },
-} as const;
 
 function readInputValue(target: EventTarget): string {
   const value = (target as { value?: unknown }).value;

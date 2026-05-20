@@ -542,7 +542,7 @@ Expected: comment and teaching pages match source screenshots in layout, color a
 - Replace: `apps/admin/src/components/layout/admin-header.tsx`
 - Modify: `apps/admin/src/app/(admin)/layout.tsx`
 
-- [ ] **Step 1: Restore login visual**
+- [x] **Step 1: Restore login visual**
 
 Port `source/source-admin/src/pages/Login.tsx` visual design. Keep target admin auth mutation/session behavior, but preserve source copy and layout:
 
@@ -555,11 +555,11 @@ Nexus 管理后台
 系统版本 v4.12.0 // AES-256 加密保护
 ```
 
-- [ ] **Step 2: Restore dark sidebar**
+- [x] **Step 2: Restore dark sidebar**
 
 Port source `Sidebar` from `source/source-admin/src/App.tsx`, replacing React Router `Link` with Next `Link`. Preserve default expanded group names and exact lucide icons.
 
-- [ ] **Step 3: Restore header/content shell**
+- [x] **Step 3: Restore header/content shell**
 
 Use source header and content sizing:
 
@@ -568,7 +568,7 @@ header h-20 px-10 bg-white/90 backdrop-blur-xl
 content p-8 flex-1 max-w-7xl mx-auto w-full overflow-x-hidden
 ```
 
-- [ ] **Step 4: Verify admin shell**
+- [x] **Step 4: Verify admin shell**
 
 Run:
 

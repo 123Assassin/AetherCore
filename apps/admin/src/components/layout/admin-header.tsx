@@ -1,155 +1,40 @@
 'use client';
 
-import type { AuthUserSummary } from '@package/shared';
 import { usePathname } from 'next/navigation';
-import type { CSSProperties } from 'react';
 
-type AdminHeaderProps = {
-  compact?: boolean;
-  user: AuthUserSummary;
+const titleMap: Record<string, string> = {
+  '/dashboard': '数据看板',
+  '/resources/agents': '智能体管理',
+  '/resources/prompts': 'AI Prompt管理',
+  '/resources/sensitive-words': '敏感词库管理',
+  '/simulations': '仿真案例库管理',
+  '/engine-dispatch': '引擎调度中心',
+  '/operations/activities': '活动管理',
+  '/operations/fission': '裂变管理',
+  '/security/system-audit': '系统审计日志',
+  '/security/content-audit': 'AI内容审计',
+  '/security/traffic-monitor': '流量监控',
+  '/alarm': '消息告警中心',
+  '/users': '用户管理控制台',
+  '/settings': '系统设置',
 };
 
-const routeTitles = [
-  { href: '/dashboard', title: '数据看板', section: 'Dashboard' },
-  { href: '/resources/agents', title: '智能体管理', section: 'Resources' },
-  { href: '/resources/prompts', title: 'AI Prompt 管理', section: 'Resources' },
-  { href: '/resources/sensitive-words', title: '敏感词库管理', section: 'Resources' },
-  { href: '/operations/activities', title: '活动与通告管理', section: 'Operations' },
-  { href: '/operations/fission', title: '裂变管理', section: 'Operations' },
-  { href: '/engine-dispatch', title: '模型引擎调度', section: 'Engine' },
-  { href: '/simulations', title: '仿真案例库管理', section: 'Simulations' },
-  { href: '/security/system-audit', title: '系统审计日志', section: 'Security' },
-  { href: '/security/content-audit', title: 'AI 内容审计', section: 'Security' },
-  { href: '/security/traffic-monitor', title: '流量监控', section: 'Security' },
-  { href: '/alarm', title: '消息告警中心', section: 'Alarm' },
-  { href: '/users', title: '用户管理', section: 'Users' },
-  { href: '/settings', title: '系统设置', section: 'Settings' },
-];
-
-export function AdminHeader({ compact = false, user }: AdminHeaderProps) {
+export function AdminHeader() {
   const pathname = usePathname();
-  const title = getRouteTitle(pathname);
-  const displayName = user.name || user.email;
 
   return (
-    <header style={compact ? styles.compactHeader : styles.header}>
-      <div style={styles.titleBlock}>
-        <p style={styles.section}>{title.section}</p>
-        <h1 style={compact ? styles.compactTitle : styles.title}>{title.title}</h1>
-      </div>
-      <div aria-label="管理员会话" style={compact ? styles.compactAccount : styles.account}>
-        <span style={compact ? styles.compactAccountName : styles.accountName}>{displayName}</span>
-        <span style={compact ? styles.compactAccountEmail : styles.accountEmail}>{user.email}</span>
-      </div>
+    <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-slate-200 bg-white/90 px-10 backdrop-blur-xl">
+      <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
+        {getRouteTitle(pathname)}
+      </h2>
     </header>
   );
 }
 
-function getRouteTitle(pathname: string): { title: string; section: string } {
-  return (
-    routeTitles.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)) ?? {
-      section: 'Admin',
-      title: '后台管理',
-    }
+function getRouteTitle(pathname: string): string {
+  const matchingRoute = Object.entries(titleMap).find(
+    ([href]) => pathname === href || pathname.startsWith(`${href}/`)
   );
-}
 
-const styles = {
-  account: {
-    alignItems: 'end',
-    display: 'grid',
-    gap: 2,
-    minWidth: 0,
-    textAlign: 'right',
-  },
-  accountEmail: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: 240,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  accountName: {
-    color: '#172033',
-    fontSize: 14,
-    fontWeight: 700,
-    lineHeight: '20px',
-    maxWidth: 240,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  compactAccount: {
-    alignItems: 'start',
-    display: 'grid',
-    gap: 2,
-    minWidth: 0,
-    textAlign: 'left',
-    width: '100%',
-  },
-  compactAccountEmail: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: '100%',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  compactAccountName: {
-    color: '#172033',
-    fontSize: 14,
-    fontWeight: 700,
-    lineHeight: '20px',
-    maxWidth: '100%',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  compactHeader: {
-    alignItems: 'start',
-    background: '#ffffff',
-    borderBottom: '1px solid #d8dee8',
-    display: 'grid',
-    gap: 8,
-    minHeight: 0,
-    minWidth: 0,
-    padding: '12px 14px',
-  },
-  compactTitle: {
-    color: '#172033',
-    fontSize: 18,
-    lineHeight: '24px',
-    margin: 0,
-  },
-  header: {
-    alignItems: 'center',
-    background: '#ffffff',
-    borderBottom: '1px solid #d8dee8',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-    minHeight: 68,
-    padding: '12px 24px',
-  },
-  section: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: 0,
-  },
-  title: {
-    color: '#172033',
-    fontSize: 20,
-    lineHeight: '28px',
-    margin: 0,
-  },
-  titleBlock: {
-    display: 'grid',
-    gap: 2,
-    minWidth: 0,
-  },
-} satisfies Record<string, CSSProperties>;
+  return matchingRoute?.[1] ?? '仪表盘';
+}

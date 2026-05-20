@@ -1,8 +1,8 @@
 'use client';
 
 import type { AuthUserSummary } from '@package/shared';
-import { usePathname, useRouter } from 'next/navigation';
-import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import { useTrpcClient } from '../../trpc/provider';
 import { AdminHeader } from './admin-header';
@@ -22,23 +22,10 @@ type AuthState =
       user: null;
     };
 
-type ShellMediaQueryList = {
-  addEventListener: (type: 'change', listener: () => void) => void;
-  matches: boolean;
-  removeEventListener: (type: 'change', listener: () => void) => void;
-};
-
-type ShellBrowserGlobal = typeof globalThis & {
-  matchMedia?: (query: string) => ShellMediaQueryList;
-};
-
 export function AdminShell({ children }: { children: ReactNode }) {
   const client = useTrpcClient();
-  const pathname = usePathname();
   const router = useRouter();
-  const compact = useCompactShell();
   const [authState, setAuthState] = useState<AuthState>({ status: 'checking', user: null });
-  const showHeader = pathname !== '/simulations';
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +59,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (authState.status !== 'authenticated') {
     return (
-      <main aria-busy="true" style={styles.loadingScreen}>
-        <p style={styles.loadingText}>
+      <main
+        aria-busy="true"
+        className="bg-bg-light flex min-h-screen items-center justify-center p-6 text-slate-700"
+      >
+        <p className="text-sm">
           {authState.status === 'redirecting' ? '正在跳转登录...' : '正在检查管理员会话...'}
         </p>
       </main>
@@ -81,83 +71,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div style={compact ? styles.compactShell : styles.shell}>
-      <AdminSidebar compact={compact} />
-      <div style={styles.workspace}>
-        {showHeader ? <AdminHeader compact={compact} user={authState.user} /> : null}
-        <div style={styles.content}>{children}</div>
-      </div>
+    <div className="bg-bg-light flex min-h-screen">
+      <AdminSidebar />
+      <main className="flex min-w-0 flex-1 flex-col">
+        <AdminHeader />
+        <div className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden p-8">{children}</div>
+      </main>
     </div>
   );
 }
-
-function useCompactShell(): boolean {
-  const [compact, setCompact] = useState(false);
-
-  useEffect(() => {
-    const browserGlobal = globalThis as ShellBrowserGlobal;
-
-    if (!browserGlobal.matchMedia) {
-      return;
-    }
-
-    const mediaQuery = browserGlobal.matchMedia('(max-width: 767px)');
-    const updateCompact = () => setCompact(mediaQuery.matches);
-
-    updateCompact();
-    mediaQuery.addEventListener('change', updateCompact);
-
-    return () => {
-      mediaQuery.removeEventListener('change', updateCompact);
-    };
-  }, []);
-
-  return compact;
-}
-
-const styles = {
-  compactShell: {
-    background: '#f8fafc',
-    color: '#172033',
-    display: 'grid',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    gridTemplateColumns: 'minmax(0, 1fr)',
-    gridTemplateRows: 'auto minmax(0, 1fr)',
-    minHeight: '100vh',
-    minWidth: 0,
-  },
-  content: {
-    minWidth: 0,
-  },
-  loadingScreen: {
-    alignItems: 'center',
-    background: '#f8fafc',
-    color: '#334155',
-    display: 'flex',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    padding: 24,
-  },
-  loadingText: {
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-  },
-  shell: {
-    background: '#f8fafc',
-    color: '#172033',
-    display: 'grid',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    gridTemplateColumns: 'minmax(220px, 248px) minmax(0, 1fr)',
-    minHeight: '100vh',
-  },
-  workspace: {
-    display: 'grid',
-    gridTemplateRows: 'auto minmax(0, 1fr)',
-    minWidth: 0,
-  },
-} satisfies Record<string, CSSProperties>;
