@@ -1844,24 +1844,24 @@ git commit -m "test: add admin integration checklist"
 - Modify: `.env.example`
 - Create: `docs/migration/runtime-verification.md`
 
-- [ ] **Step 1: Verify Compose services**
+- [x] **Step 1: Verify Compose services**
   - Keep Postgres, Redis, and pgAdmin in the default profile.
   - Keep `db-init`, `server`, `web`, and `admin` under the `app` profile.
   - Keep ports: server `3000`, web `3001`, admin `3002`, Postgres `5432`, Redis `6379`, pgAdmin `5050`.
 
-- [ ] **Step 2: Document pgAdmin usage**
+- [x] **Step 2: Document pgAdmin usage**
   - URL: `http://localhost:5050`.
   - Server host: `postgres`.
   - Database: `aether_db`.
   - User: `aether`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Default Compose config validates.
   - App profile Compose config validates.
   - pgAdmin health endpoint responds.
   - Postgres and Redis health checks pass.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 docker compose --env-file .env.example config
@@ -1872,7 +1872,7 @@ curl -f http://localhost:5050/misc/ping
 docker compose --env-file .env.example down
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docker-compose.yml .env.example docs/migration/runtime-verification.md
