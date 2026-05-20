@@ -1423,19 +1423,19 @@ git commit -m "feat: add admin sensitive words engines ui"
 
 - Create: `docs/migration/admin/operations-domain-analysis.md`
 
-- [ ] **Step 1: Analyze remaining admin pages**
+- [x] **Step 1: Analyze remaining admin pages**
   - Read docs for Users, Activities, Fission, SystemAudit, ContentAudit, TrafficMonitor, AlarmCenter, Settings.
 
-- [ ] **Step 2: Record behavior boundaries**
+- [x] **Step 2: Record behavior boundaries**
   - User status and blacklist are separate.
   - Content audit delete is soft delete.
   - High-risk mutations write system audit logs.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Analysis doc mentions every remaining admin route.
   - Analysis doc identifies soft delete and audit requirements.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 test -f docs/migration/admin/operations-domain-analysis.md
@@ -1443,7 +1443,7 @@ rg -n "Users|Activities|Fission|SystemAudit|ContentAudit|TrafficMonitor|Alarm|Se
 git diff --check docs/migration/admin/operations-domain-analysis.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add docs/migration/admin/operations-domain-analysis.md
