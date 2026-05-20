@@ -7,7 +7,6 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ChatMessage } from '../../../components/chat/ai-message-bubble';
 import { AiSender } from '../../../components/chat/ai-sender';
 import { ChatMessageList } from '../../../components/chat/chat-message-list';
-import { SuggestionChips } from '../../../components/chat/suggestion-chips';
 import { AdLoadingBot } from '../../../components/sponsor/ad-system';
 import { type Message, useChatHistory } from '../../../contexts/chat-history-context';
 import { useTrpcClient } from '../../../trpc/provider';
@@ -47,6 +46,15 @@ function collectAssistantResponse(events: AiStreamEvent[]) {
   return { content, errorMessage, redirectTo, suggestions };
 }
 
+const defaultAssistantMessage: ChatMessage = {
+  content:
+    '老师您好！我是红笔AI，您的专属教学AI助手。您可以直接和我聊天，或者告诉我您的需求（比如：“帮我写个评语”、“我想备课”），我会为您打开对应的专业工具。',
+  id: 'chat-default-assistant-message',
+  role: 'assistant',
+};
+
+const defaultSuggestions = ['帮我写一份期末评语', '我想找点备课灵感', '如何处理课堂上的突发情况？'];
+
 export default function ChatPage() {
   const client = useTrpcClient();
   const router = useRouter();
@@ -74,6 +82,8 @@ export default function ChatPage() {
 
     return lastMessage?.role === 'assistant' ? (lastMessage.suggestions ?? []) : [];
   }, [activeSession]);
+  const visibleMessages = messages.length === 0 ? [defaultAssistantMessage] : messages;
+  const visibleSuggestions = messages.length === 0 ? defaultSuggestions : suggestions;
 
   const handleSend = useCallback(
     async (rawMessage: string) => {
@@ -156,257 +166,29 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="web-chat">
-      <div className="web-chat__panel">
-        <ChatMessageList loading={loading} messages={messages} />
-        {loading ? <AdLoadingBot /> : null}
-        {error ? (
-          <div aria-live="assertive" className="web-chat__alert" role="alert">
-            {error}
-          </div>
-        ) : null}
-        <SuggestionChips disabled={loading} onSelect={handleSend} suggestions={suggestions} />
-        <AiSender loading={loading} onSend={handleSend} />
+    <div className="mx-auto flex h-full min-h-[calc(100vh-112px)] max-w-[1400px] gap-4 bg-white pb-4 md:pb-6">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-h-[500px] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/60">
+          <ChatMessageList
+            loading={loading}
+            loadingIndicator={<AdLoadingBot />}
+            messages={visibleMessages}
+            onSuggestionSelect={handleSend}
+            suggestions={visibleSuggestions}
+            suggestionsDisabled={loading}
+          />
+          {error ? (
+            <div
+              aria-live="assertive"
+              className="border-t border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+              role="alert"
+            >
+              {error}
+            </div>
+          ) : null}
+          <AiSender loading={loading} onSend={handleSend} />
+        </div>
       </div>
-
-      <style>{`
-        .web-chat {
-          display: flex;
-          min-height: calc(100vh - 112px);
-          width: 100%;
-        }
-
-        .web-chat__panel {
-          display: flex;
-          width: 100%;
-          min-width: 0;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .web-chat__messages {
-          display: flex;
-          min-height: 360px;
-          flex: 1;
-          flex-direction: column;
-          gap: 12px;
-          overflow: auto;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #ffffff;
-          padding: 18px;
-        }
-
-        .web-chat__empty {
-          display: flex;
-          min-height: 280px;
-          flex: 1;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: #5f6b7a;
-          text-align: center;
-        }
-
-        .web-chat__empty h2 {
-          margin: 0 0 8px;
-          color: #17202a;
-          font-size: 20px;
-          line-height: 28px;
-        }
-
-        .web-chat__empty p {
-          max-width: 440px;
-          margin: 0;
-          font-size: 14px;
-          line-height: 22px;
-        }
-
-        .web-chat__loading {
-          align-self: flex-start;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #f6f7f9;
-          color: #4b5563;
-          font-size: 14px;
-          line-height: 20px;
-          padding: 10px 12px;
-        }
-
-        .web-chat__alert {
-          border: 1px solid #f0b8b8;
-          border-radius: 8px;
-          background: #fff1f1;
-          color: #9f1f1f;
-          font-size: 14px;
-          line-height: 20px;
-          padding: 10px 12px;
-        }
-
-        .ai-message {
-          display: flex;
-          max-width: min(760px, 88%);
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .ai-message--user {
-          align-self: flex-end;
-          align-items: flex-end;
-        }
-
-        .ai-message--assistant {
-          align-self: flex-start;
-          align-items: flex-start;
-        }
-
-        .ai-message__meta {
-          color: #6b7280;
-          font-size: 12px;
-          font-weight: 600;
-          line-height: 16px;
-        }
-
-        .ai-message__content {
-          white-space: pre-wrap;
-          word-break: break-word;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #f8fafb;
-          color: #17202a;
-          font-size: 14px;
-          line-height: 22px;
-          padding: 11px 13px;
-        }
-
-        .ai-message--user .ai-message__content {
-          border-color: #12645c;
-          background: #12645c;
-          color: #ffffff;
-        }
-
-        .suggestion-chips {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .suggestion-chips__button {
-          min-height: 34px;
-          cursor: pointer;
-          border: 1px solid #cbd5df;
-          border-radius: 999px;
-          background: #ffffff;
-          color: #334155;
-          font: inherit;
-          font-size: 13px;
-          line-height: 18px;
-          padding: 7px 12px;
-        }
-
-        .suggestion-chips__button:hover:not(:disabled) {
-          border-color: #12645c;
-          color: #0f4f47;
-        }
-
-        .suggestion-chips__button:disabled {
-          cursor: not-allowed;
-          opacity: 0.6;
-        }
-
-        .ai-sender {
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #ffffff;
-          padding: 12px;
-        }
-
-        .ai-sender__label {
-          display: block;
-          margin-bottom: 8px;
-          color: #374151;
-          font-size: 13px;
-          font-weight: 700;
-          line-height: 18px;
-        }
-
-        .ai-sender__row {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 10px;
-          align-items: stretch;
-        }
-
-        .ai-sender__textarea {
-          width: 100%;
-          min-height: 76px;
-          resize: vertical;
-          border: 1px solid #cbd5df;
-          border-radius: 8px;
-          color: #17202a;
-          font: inherit;
-          font-size: 14px;
-          line-height: 22px;
-          padding: 10px 12px;
-        }
-
-        .ai-sender__textarea:focus {
-          border-color: #12645c;
-          outline: 2px solid rgba(18, 100, 92, 0.18);
-          outline-offset: 0;
-        }
-
-        .ai-sender__textarea:disabled {
-          background: #f3f4f6;
-          cursor: not-allowed;
-        }
-
-        .ai-sender__button {
-          min-width: 88px;
-          cursor: pointer;
-          border: 0;
-          border-radius: 8px;
-          background: #12645c;
-          color: #ffffff;
-          font: inherit;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-          padding: 0 18px;
-        }
-
-        .ai-sender__button:hover:not(:disabled) {
-          background: #0f4f47;
-        }
-
-        .ai-sender__button:disabled {
-          cursor: not-allowed;
-          opacity: 0.58;
-        }
-
-        @media (max-width: 760px) {
-          .web-chat {
-            min-height: calc(100vh - 154px);
-          }
-
-          .web-chat__messages {
-            min-height: 300px;
-            padding: 14px;
-          }
-
-          .ai-message {
-            max-width: 94%;
-          }
-
-          .ai-sender__row {
-            grid-template-columns: 1fr;
-          }
-
-          .ai-sender__button {
-            min-height: 42px;
-          }
-        }
-      `}</style>
     </div>
   );
 }

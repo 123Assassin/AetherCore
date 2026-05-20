@@ -1,5 +1,8 @@
 'use client';
 
+import { Bot, User } from 'lucide-react';
+import Markdown from 'react-markdown';
+
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -16,10 +19,52 @@ export function AiMessageBubble({ message }: AiMessageBubbleProps) {
   return (
     <article
       aria-label={isUser ? '用户消息' : '助手消息'}
-      className={isUser ? 'ai-message ai-message--user' : 'ai-message ai-message--assistant'}
+      className={`flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`}
     >
-      <div className="ai-message__meta">{isUser ? '你' : 'AetherCore'}</div>
-      <div className="ai-message__content">{message.content}</div>
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm ${
+          isUser
+            ? 'bg-rose-100 text-rose-600'
+            : 'bg-gradient-to-br from-orange-400 to-rose-500 text-white'
+        }`}
+      >
+        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+      </div>
+      <div className={`flex max-w-[85%] flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+        <div
+          className={`rounded-2xl p-4 shadow-sm ${
+            isUser
+              ? 'rounded-tr-sm bg-rose-500 text-white'
+              : 'rounded-tl-sm bg-white text-slate-800 ring-1 ring-slate-200/60'
+          }`}
+        >
+          <div
+            className={`text-sm leading-6 break-words ${
+              isUser
+                ? '[&_a]:text-white [&_code]:bg-white/15'
+                : '[&_a]:text-rose-600 [&_code]:bg-slate-100'
+            } [&_a]:underline [&_code]:rounded [&_code]:px-1 [&_img]:my-4 [&_li]:my-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-0 [&_p+_p]:mt-3 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-white [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5`}
+          >
+            <Markdown
+              components={{
+                img: ({ node, ...props }) => {
+                  void node;
+
+                  return (
+                    <img
+                      {...props}
+                      className="my-4 h-auto max-w-full rounded-xl border border-slate-100 shadow-sm"
+                      referrerPolicy="no-referrer"
+                    />
+                  );
+                },
+              }}
+            >
+              {message.content}
+            </Markdown>
+          </div>
+        </div>
+      </div>
     </article>
   );
 }

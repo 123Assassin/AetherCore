@@ -360,7 +360,7 @@ Expected: left sidebar is 80px, top header is 64px, brand is `红笔AI`, active 
 - Modify: `apps/web/src/components/chat/chat-message-list.tsx`
 - Modify: `apps/web/src/components/chat/suggestion-chips.tsx`
 
-- [ ] **Step 1: Restore chat layout**
+- [x] **Step 1: Restore chat layout**
 
 Use source `ChatAssistant.tsx` JSX structure:
 
@@ -371,11 +371,11 @@ messages: p-4 md:p-6 space-y-6 bg-slate-50/30
 input: p-4 bg-white border-t border-slate-100
 ```
 
-- [ ] **Step 2: Keep tRPC send path**
+- [x] **Step 2: Keep tRPC send path**
 
 Keep the existing `client.ai.chat.send.mutate` call, session id handling and workflow redirect mapping. Only replace the visual shell and message rendering.
 
-- [ ] **Step 3: Restore default assistant message**
+- [x] **Step 3: Restore default assistant message**
 
 When no messages exist, render the source welcome copy:
 
@@ -391,7 +391,7 @@ Suggestions:
 如何处理课堂上的突发情况？
 ```
 
-- [ ] **Step 4: Verify chat page**
+- [x] **Step 4: Verify chat page**
 
 Run:
 
