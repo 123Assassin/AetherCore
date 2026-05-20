@@ -1689,18 +1689,18 @@ git commit -m "feat: add admin security traffic alarm ui"
 - Create: `packages/ui/src/components/card.tsx`
 - Modify: `packages/ui/src/index.ts`
 
-- [ ] **Step 1: Extract only generic primitives**
+- [x] **Step 1: Extract only generic primitives**
   - Move only generic UI primitives with no business text or data.
   - Keep business components in app directories.
 
-- [ ] **Step 2: Export primitives**
+- [x] **Step 2: Export primitives**
   - Export all primitives from `packages/ui/src/index.ts`.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - `packages/ui` builds independently.
   - No component in `packages/ui` imports `apps/*` or business types.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/ui type-check
@@ -1709,7 +1709,7 @@ pnpm --filter @package/ui lint
 rg -n "apps/|@package/shared.*(comments|teaching|simulations|admin)" packages/ui/src || true
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/ui/src
