@@ -291,11 +291,11 @@ Expected: all commands pass.
 - Create: `apps/web/src/contexts/user-preferences-context.tsx`
 - Modify: `apps/web/src/app/(app)/layout.tsx`
 
-- [ ] **Step 1: Port source contexts**
+- [x] **Step 1: Port source contexts**
 
 Port `source/source-web/src/contexts/ChatHistoryContext.tsx` and `UserPreferencesContext.tsx` into `apps/web/src/contexts`, keeping localStorage keys and behavior compatible with source UI.
 
-- [ ] **Step 2: Restore 80px sidebar**
+- [x] **Step 2: Restore 80px sidebar**
 
 Implement the `AppSidebar` using the source `Sidebar.tsx` layout, with Next route navigation:
 
@@ -307,7 +307,7 @@ office -> /office/comment
 
 Use exact icons and active classes from source.
 
-- [ ] **Step 3: Restore 64px header and subnav**
+- [x] **Step 3: Restore 64px header and subnav**
 
 Implement `AppHeader` with source brand, history button and segmented subnav. Map subnav routes:
 
@@ -318,7 +318,7 @@ office comment -> /office/comment
 office teaching -> /office/teaching
 ```
 
-- [ ] **Step 4: Restore history sidebar**
+- [x] **Step 4: Restore history sidebar**
 
 Port `HistorySidebar` visual structure and filter sessions by source categories:
 
@@ -328,11 +328,11 @@ lesson -> inspiration, simulation
 office -> comment, teaching
 ```
 
-- [ ] **Step 5: Restore modals**
+- [x] **Step 5: Restore modals**
 
 Replace current login and sponsor modal styling with source `LoginModal.tsx` and `DonateModal.tsx` visuals. Port `AdSystem.tsx` as `ad-system.tsx` for loading and export-ad surfaces.
 
-- [ ] **Step 6: Verify web shell**
+- [x] **Step 6: Verify web shell**
 
 Run app and inspect:
 

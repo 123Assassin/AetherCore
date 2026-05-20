@@ -14,7 +14,7 @@ import {
   SingleCommentForm,
   type SingleCommentFormValues,
 } from '../../../../components/comments/single-comment-form';
-import { DonateModal } from '../../../../components/sponsor/donate-modal';
+import { ExportAdModal } from '../../../../components/sponsor/ad-system';
 import { useTrpcClient } from '../../../../trpc/provider';
 
 type CommentMode = 'single' | 'batch';
@@ -142,7 +142,7 @@ export default function OfficeCommentPage() {
   const [generatingRowId, setGeneratingRowId] = useState<string | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
   const [batchCreditRemaining, setBatchCreditRemaining] = useState<number | null>(null);
-  const [donateOpen, setDonateOpen] = useState(false);
+  const [exportAdOpen, setExportAdOpen] = useState(false);
 
   const handleFormChange = useCallback(
     (nextValues: SingleCommentFormValues) => {
@@ -345,15 +345,15 @@ export default function OfficeCommentPage() {
       return;
     }
 
-    setDonateOpen(true);
+    setExportAdOpen(true);
   }, [batchExporting, batchGeneratingAll, batchJob, batchRows]);
 
-  const closeDonateGate = useCallback(() => {
-    setDonateOpen(false);
+  const closeExportAdGate = useCallback(() => {
+    setExportAdOpen(false);
   }, []);
 
-  const confirmDonateGate = useCallback(() => {
-    setDonateOpen(false);
+  const confirmExportAdGate = useCallback(() => {
+    setExportAdOpen(false);
     void exportBatchRows();
   }, [exportBatchRows]);
 
@@ -437,12 +437,9 @@ export default function OfficeCommentPage() {
         )}
       </section>
 
-      <DonateModal
-        confirmLabel="继续导出"
-        onClose={closeDonateGate}
-        onConfirm={confirmDonateGate}
-        open={donateOpen}
-      />
+      {exportAdOpen ? (
+        <ExportAdModal isOpen onClose={closeExportAdGate} onConfirm={confirmExportAdGate} />
+      ) : null}
 
       <style>{`
         .office-comment-page {

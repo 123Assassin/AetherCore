@@ -2,12 +2,14 @@
 
 import type { AiStreamEvent } from '@package/shared';
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { ChatMessage } from '../../../components/chat/ai-message-bubble';
 import { AiSender } from '../../../components/chat/ai-sender';
 import { ChatMessageList } from '../../../components/chat/chat-message-list';
 import { SuggestionChips } from '../../../components/chat/suggestion-chips';
+import { AdLoadingBot } from '../../../components/sponsor/ad-system';
+import { type Message, useChatHistory } from '../../../contexts/chat-history-context';
 import { useTrpcClient } from '../../../trpc/provider';
 
 function getMutationErrorMessage(error: unknown) {
@@ -48,22 +50,30 @@ function collectAssistantResponse(events: AiStreamEvent[]) {
 export default function ChatPage() {
   const client = useTrpcClient();
   const router = useRouter();
-  const nextMessageId = useRef(0);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sessionId, setSessionId] = useState<string | undefined>();
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const { currentSessionIds, sessions, setCurrentSessionId, upsertSession } = useChatHistory();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const currentSessionId = currentSessionIds.chat;
+  const activeSession = useMemo(
+    () => sessions.find((session) => session.id === currentSessionId),
+    [currentSessionId, sessions]
+  );
+  const messages = useMemo(
+    () =>
+      (activeSession?.messages ?? []).map((message): ChatMessage => {
+        return {
+          content: message.content,
+          id: message.id,
+          role: message.role,
+        };
+      }),
+    [activeSession]
+  );
+  const suggestions = useMemo(() => {
+    const lastMessage = activeSession?.messages.at(-1);
 
-  const createMessage = useCallback((role: ChatMessage['role'], content: string): ChatMessage => {
-    nextMessageId.current += 1;
-
-    return {
-      content,
-      id: `${role}-${nextMessageId.current}`,
-      role,
-    };
-  }, []);
+    return lastMessage?.role === 'assistant' ? (lastMessage.suggestions ?? []) : [];
+  }, [activeSession]);
 
   const handleSend = useCallback(
     async (rawMessage: string) => {
@@ -73,33 +83,65 @@ export default function ChatPage() {
         return;
       }
 
+      const historyBaseMessages = activeSession?.messages ?? [];
+      const userMessage = createHistoryMessage('user', trimmedMessage);
+      const optimisticSessionId = currentSessionId ?? `local-${Date.now()}`;
+
       setLoading(true);
       setError(null);
-      setSuggestions([]);
-      setMessages((currentMessages) => [...currentMessages, createMessage('user', trimmedMessage)]);
+      setCurrentSessionId('chat', optimisticSessionId);
+      upsertSession({
+        category: 'chat',
+        id: optimisticSessionId,
+        messages: [...historyBaseMessages, userMessage],
+        ...(activeSession?.serverSessionId
+          ? { serverSessionId: activeSession.serverSessionId }
+          : {}),
+        title: activeSession?.title ?? '新对话',
+        updatedAt: Date.now(),
+      });
 
       try {
         const result = await client.ai.chat.send.mutate({
           category: 'chat',
-          ...(sessionId ? { sessionId } : {}),
+          ...(activeSession?.serverSessionId ? { sessionId: activeSession.serverSessionId } : {}),
           message: trimmedMessage,
         });
         const assistantResponse = collectAssistantResponse(result.events);
 
-        setSessionId(result.sessionId);
-        setSuggestions(assistantResponse.suggestions);
-
         if (assistantResponse.errorMessage) {
           setError(assistantResponse.errorMessage);
+          upsertSession({
+            category: 'chat',
+            id: optimisticSessionId,
+            messages: [...historyBaseMessages, userMessage],
+            serverSessionId: result.sessionId,
+            title: activeSession?.title ?? '新对话',
+            updatedAt: Date.now(),
+          });
           return;
         }
 
+        const nextMessages = [...historyBaseMessages, userMessage];
+
         if (assistantResponse.content.trim()) {
-          setMessages((currentMessages) => [
-            ...currentMessages,
-            createMessage('assistant', assistantResponse.content),
-          ]);
+          nextMessages.push(
+            createHistoryMessage(
+              'assistant',
+              assistantResponse.content,
+              assistantResponse.suggestions
+            )
+          );
         }
+
+        upsertSession({
+          category: 'chat',
+          id: optimisticSessionId,
+          messages: nextMessages,
+          serverSessionId: result.sessionId,
+          title: activeSession?.title ?? '新对话',
+          updatedAt: Date.now(),
+        });
 
         if (assistantResponse.redirectTo) {
           router.push(assistantResponse.redirectTo);
@@ -110,13 +152,14 @@ export default function ChatPage() {
         setLoading(false);
       }
     },
-    [client, createMessage, loading, router, sessionId]
+    [activeSession, client, currentSessionId, loading, router, setCurrentSessionId, upsertSession]
   );
 
   return (
     <div className="web-chat">
       <div className="web-chat__panel">
         <ChatMessageList loading={loading} messages={messages} />
+        {loading ? <AdLoadingBot /> : null}
         {error ? (
           <div aria-live="assertive" className="web-chat__alert" role="alert">
             {error}
@@ -376,4 +419,28 @@ function getChatWorkflowRoute(redirectTo: string): ChatWorkflowRoute | null {
   return (chatWorkflowRoutes as readonly string[]).includes(redirectTo)
     ? (redirectTo as ChatWorkflowRoute)
     : null;
+}
+
+function createHistoryMessage(
+  role: Message['role'],
+  content: string,
+  suggestions?: string[]
+): Message {
+  return {
+    content,
+    id: createMessageId(role),
+    role,
+    ...(suggestions?.length ? { suggestions } : {}),
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function createMessageId(role: Message['role']) {
+  const random = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID?.();
+
+  if (random) {
+    return `${role}-${random}`;
+  }
+
+  return `${role}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
