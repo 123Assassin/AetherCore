@@ -1460,21 +1460,21 @@ git commit -m "docs: analyze admin operations migration"
 - Create: `packages/db/src/schema/audit.ts`
 - Modify: `packages/db/src/schema/index.ts`
 
-- [ ] **Step 1: Add operations schema**
+- [x] **Step 1: Add operations schema**
   - Add activities/notices.
   - Add fission config/invite tree storage.
   - Add alarm settings.
 
-- [ ] **Step 2: Add audit schema**
+- [x] **Step 2: Add audit schema**
   - Add system audit logs.
   - Add content audit session metadata.
   - Include soft-delete marker for content audit rows.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Drizzle migration generation succeeds.
   - Schema exports from `@package/db/schema`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -1482,7 +1482,7 @@ pnpm --filter @package/db type-check
 pnpm --filter @package/db lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add packages/db/src/schema packages/db/drizzle

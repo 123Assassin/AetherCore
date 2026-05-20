@@ -50,6 +50,13 @@
       "when": 1779225223854,
       "tag": "0006_wet_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779239209347,
+      "tag": "0007_smart_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }
