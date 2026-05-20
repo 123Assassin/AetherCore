@@ -1,14 +1,9 @@
 'use client';
 
 import type { AdminModelEngineCreateInput, AdminModelEngineItem } from '@package/shared';
-import {
-  type CSSProperties,
-  type FormEvent,
-  type KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { X } from 'lucide-react';
+import { motion } from 'motion/react';
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 export type EngineFormSubmitInput = Omit<AdminModelEngineCreateInput, 'apiKey'> & {
   apiKey?: string;
@@ -85,8 +80,16 @@ export function EngineFormDialog({
       return;
     }
 
-    focusFirstDialogControl(dialogRef.current);
-  }, [open]);
+    const timeoutId = setTimeout(() => {
+      setError(null);
+      setForm(engine ? toFormState(engine) : defaultFormState);
+      focusFirstDialogControl(dialogRef.current);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [engine, open]);
 
   if (!open) {
     return null;
@@ -133,133 +136,155 @@ export function EngineFormDialog({
   }
 
   return (
-    <div role="presentation" style={styles.backdrop}>
-      <section
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
+      <motion.div
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        onClick={submitting ? undefined : onClose}
+      />
+      <motion.section
+        animate={{ opacity: 1, scale: 1 }}
         aria-labelledby={engineDialogTitleId}
         aria-modal="true"
+        className="relative w-full max-w-lg overflow-hidden rounded-[32px] bg-white p-8 shadow-2xl"
+        exit={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         onKeyDown={(event) => handleDialogKeyDown(event, onClose, submitting)}
         ref={(element) => {
           dialogRef.current = element as FocusableDialogElement | null;
         }}
         role="dialog"
-        style={styles.dialog}
         tabIndex={-1}
       >
-        <div style={styles.header}>
-          <div>
-            <p style={styles.eyebrow}>Operations / Engine Dispatch</p>
-            <h2 id={engineDialogTitleId} style={styles.title}>
-              {engine ? '编辑模型引擎' : '新建模型引擎'}
-            </h2>
-          </div>
-          <button disabled={submitting} onClick={onClose} style={styles.closeButton} type="button">
-            关闭
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-slate-800" id={engineDialogTitleId}>
+            {engine ? '编辑模型引擎' : '新增模型引擎'}
+          </h3>
+          <button
+            aria-label="关闭模型引擎表单"
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100"
+            disabled={submitting}
+            onClick={onClose}
+            type="button"
+          >
+            <X size={24} />
           </button>
         </div>
 
         {visibleError ? (
-          <p aria-live="polite" role="alert" style={styles.error}>
+          <p
+            aria-live="polite"
+            className="mb-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+            role="alert"
+          >
             {visibleError}
           </p>
         ) : null}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inlineFields}>
-            <label style={styles.field}>
-              <span style={styles.label}>名称</span>
-              <input
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
-
-                  setForm((current) => ({ ...current, name: value }));
-                }}
-                placeholder="例如：OpenAI 主通道"
-                style={styles.input}
-                value={form.name}
-              />
-            </label>
-
-            <label style={styles.field}>
-              <span style={styles.label}>Provider</span>
-              <select
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
-
-                  setForm((current) => ({ ...current, provider: value as EngineProvider }));
-                }}
-                style={styles.input}
-                value={form.provider}
-              >
-                {providerOptions.map((provider) => (
-                  <option key={provider} value={provider}>
-                    {providerLabels[provider]} / {provider}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label style={styles.field}>
-            <span style={styles.label}>API Base URL</span>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-slate-700">引擎名称</span>
             <input
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
+              className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
+              onChange={(event) =>
+                setForm((current) => ({ ...current, name: readControlValue(event.currentTarget) }))
+              }
+              placeholder="如：OpenAI GPT-4"
+              value={form.name}
+            />
+          </label>
 
-                setForm((current) => ({ ...current, apiBaseUrl: value }));
-              }}
-              placeholder="https://api.example.com/v1"
-              style={styles.input}
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-slate-700">Provider</span>
+            <select
+              className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  provider: readControlValue(event.currentTarget) as EngineProvider,
+                }))
+              }
+              value={form.provider}
+            >
+              {providerOptions.map((provider) => (
+                <option key={provider} value={provider}>
+                  {providerLabels[provider]} / {provider}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-slate-700">API 地址</span>
+            <input
+              className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm transition-colors outline-none"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  apiBaseUrl: readControlValue(event.currentTarget),
+                }))
+              }
+              placeholder="https://api.openai.com/v1"
               value={form.apiBaseUrl}
             />
           </label>
 
           {engine ? (
-            <div style={styles.maskedKeyRow}>
-              <span style={styles.label}>当前 API Key</span>
-              <code style={styles.maskedKey}>{engine.apiKeyMasked}</code>
+            <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <span className="text-sm font-bold text-slate-700">当前 API Key</span>
+              <code className="block truncate font-mono text-sm text-slate-500 blur-[2px] transition-all hover:blur-none">
+                {engine.apiKeyMasked}
+              </code>
             </div>
           ) : null}
 
-          <label style={styles.field}>
-            <span style={styles.label}>{engine ? '替换 API Key' : 'API Key'}</span>
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-slate-700">
+              {engine ? '替换 API Key' : 'API Key'}
+            </span>
             <input
               autoComplete="new-password"
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
-
-                setForm((current) => ({ ...current, apiKey: value }));
-              }}
-              placeholder={engine ? '留空则不替换' : '请输入 API Key'}
-              style={styles.input}
+              className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm transition-colors outline-none"
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  apiKey: readControlValue(event.currentTarget),
+                }))
+              }
+              placeholder={engine ? '留空则不替换' : 'sk-...'}
               type="password"
               value={form.apiKey}
             />
           </label>
 
-          <div style={styles.inlineFields}>
-            <label style={styles.field}>
-              <span style={styles.label}>Model Name</span>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-bold text-slate-700">Model Name</span>
               <input
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
-
-                  setForm((current) => ({ ...current, modelName: value }));
-                }}
-                placeholder="例如：gpt-4.1"
-                style={styles.input}
+                className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    modelName: readControlValue(event.currentTarget),
+                  }))
+                }
+                placeholder="如：gpt-4.1"
                 value={form.modelName}
               />
             </label>
 
-            <label style={styles.field}>
-              <span style={styles.label}>状态</span>
+            <label className="space-y-2">
+              <span className="text-sm font-bold text-slate-700">状态</span>
               <select
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
-
-                  setForm((current) => ({ ...current, status: value as EngineStatus }));
-                }}
-                style={styles.input}
+                className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    status: readControlValue(event.currentTarget) as EngineStatus,
+                  }))
+                }
                 value={form.status}
               >
                 {statusOptions.map((status) => (
@@ -271,21 +296,25 @@ export function EngineFormDialog({
             </label>
           </div>
 
-          <div style={styles.actions}>
+          <div className="flex gap-4 pt-4">
             <button
+              className="flex-1 rounded-2xl bg-slate-100 py-4 font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={submitting}
               onClick={onClose}
-              style={styles.secondaryButton}
               type="button"
             >
               取消
             </button>
-            <button disabled={submitting} style={styles.primaryButton} type="submit">
+            <button
+              className="bg-primary hover:bg-primary-dark flex-1 rounded-2xl py-4 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting}
+              type="submit"
+            >
               {submitting ? '保存中...' : '保存'}
             </button>
           </div>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -373,8 +402,10 @@ function getFocusableElements(container: FocusableDialogElement): FocusableEleme
   ).filter((element) => element.offsetParent !== null);
 }
 
-function readFormValue(target: EventTarget): string {
-  return (target as EventTarget & { value: string }).value;
+function readControlValue(target: EventTarget): string {
+  const value = (target as { value?: unknown }).value;
+
+  return typeof value === 'string' ? value : '';
 }
 
 const providerLabels: Record<EngineProvider, string> = {
@@ -382,142 +413,3 @@ const providerLabels: Record<EngineProvider, string> = {
   gemini: 'Gemini',
   openai: 'OpenAI',
 };
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '8px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 10,
-    justifyContent: 'end',
-    paddingTop: 14,
-  },
-  backdrop: {
-    alignItems: 'center',
-    background: 'rgba(15, 23, 42, 0.42)',
-    bottom: 0,
-    display: 'flex',
-    justifyContent: 'center',
-    left: 0,
-    padding: 20,
-    position: 'fixed',
-    right: 0,
-    top: 0,
-    zIndex: 40,
-  },
-  closeButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  dialog: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    boxShadow: '0 18px 50px rgba(15, 23, 42, 0.24)',
-    display: 'grid',
-    gap: 14,
-    maxHeight: 'calc(100vh - 40px)',
-    maxWidth: 720,
-    overflow: 'auto',
-    padding: 18,
-    width: 'min(100%, 720px)',
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  form: {
-    display: 'grid',
-    gap: 14,
-  },
-  header: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  inlineFields: {
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 38,
-    padding: '8px 10px',
-    width: '100%',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  maskedKey: {
-    color: '#334155',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '18px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  maskedKeyRow: {
-    background: '#f8fafc',
-    border: '1px solid #d8dee8',
-    borderRadius: 6,
-    display: 'grid',
-    gap: 6,
-    padding: 10,
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  title: {
-    color: '#172033',
-    fontSize: 20,
-    lineHeight: '28px',
-    margin: 0,
-  },
-} satisfies Record<string, CSSProperties>;

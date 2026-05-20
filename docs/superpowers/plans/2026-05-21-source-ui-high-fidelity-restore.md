@@ -653,19 +653,19 @@ Expected: dashboard and resource routes use source card radius, blue primary col
 - Modify: `apps/admin/src/components/operations/invite-tree.tsx`
 - Modify: `apps/admin/src/components/operations/reward-config-form.tsx`
 
-- [ ] **Step 1: Restore admin simulations**
+- [x] **Step 1: Restore admin simulations**
 
 Use source admin `Simulations.tsx` visual, not source web `SimulationLab.tsx`. Preserve left resource taxonomy and right card grid with enable toggles.
 
-- [ ] **Step 2: Restore engine dispatch and users**
+- [x] **Step 2: Restore engine dispatch and users**
 
 Port source `EngineDispatch.tsx` and `Users.tsx` structure, using existing tRPC data and mutations.
 
-- [ ] **Step 3: Restore activities and fission**
+- [x] **Step 3: Restore activities and fission**
 
 Port source `Activities.tsx` and `Fission.tsx` visuals, including `motion/react` collapses and segmented control.
 
-- [ ] **Step 4: Verify admin mid-section pages**
+- [x] **Step 4: Verify admin mid-section pages**
 
 Run:
 

@@ -7,13 +7,21 @@ import type {
   AdminActivityStatus,
   AdminActivityUpdateInput,
 } from '@package/shared';
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, Plus } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ActivityNoticeFormDialog } from '../../../../components/operations/activity-notice-form-dialog';
 import { ActivityNoticeListItem } from '../../../../components/operations/activity-notice-list-item';
 import { useTrpcClient } from '../../../../trpc/provider';
 
 type StatusFilter = 'all' | AdminActivityStatus;
+
+const activityFilterOptions: { label: string; value: StatusFilter }[] = [
+  { label: '全部状态', value: 'all' },
+  { label: '已发布', value: 'published' },
+  { label: '草稿', value: 'draft' },
+];
 
 export default function AdminActivitiesPage() {
   const client = useTrpcClient();
@@ -181,85 +189,124 @@ export default function AdminActivitiesPage() {
   const draftCount = items.filter((item) => item.status === 'draft').length;
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
+    <main className="space-y-8">
+      <header className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <p style={styles.eyebrow}>Admin / Operations / Activities</p>
-          <h2 style={styles.heading}>活动与通告管理</h2>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900">活动与通告管理</h3>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            推送系统消息、营销活动及功能更新给所有用户
+          </p>
         </div>
-        <div style={styles.headerActions}>
-          <div aria-label="活动通告统计" style={styles.summary}>
-            <strong style={styles.summaryNumber}>{loading ? '...' : total}</strong>
-            <span style={styles.summaryText}>条结果</span>
-          </div>
-          <button onClick={handleCreateClick} style={styles.primaryButton} type="button">
-            新建活动通告
-          </button>
-        </div>
+        <button
+          className="bg-primary hover:bg-primary-dark shadow-primary/30 flex items-center gap-2 rounded-2xl px-6 py-3.5 font-bold text-white shadow-xl transition-all hover:-translate-y-1 active:translate-y-0"
+          onClick={handleCreateClick}
+          type="button"
+        >
+          <Plus size={20} />
+          发布新活动通告
+        </button>
       </header>
 
-      <section aria-label="活动通告筛选" style={styles.filters}>
-        <label style={styles.field}>
-          <span style={styles.label}>状态</span>
-          <select
-            onChange={(event) =>
-              handleStatusFilterChange(readControlValue(event.currentTarget) as StatusFilter)
-            }
-            style={styles.input}
-            value={statusFilter}
-          >
-            <option value="all">全部状态</option>
-            <option value="published">已发布</option>
-            <option value="draft">草稿</option>
-          </select>
-        </label>
+      <section
+        aria-label="活动通告筛选"
+        className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"
+      >
+        <div className="flex rounded-2xl border border-slate-200/50 bg-slate-100 p-1.5 shadow-inner">
+          {activityFilterOptions.map((option) => (
+            <button
+              aria-pressed={statusFilter === option.value}
+              className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-all ${
+                statusFilter === option.value
+                  ? 'text-primary bg-white shadow-md'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+              key={option.value}
+              onClick={() => handleStatusFilterChange(option.value)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
-        <div aria-label="当前筛选统计" style={styles.filterSummary}>
-          <span style={styles.filterStat}>已发布 {publishedCount}</span>
-          <span style={styles.filterStat}>草稿 {draftCount}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500">
+            共 {loading ? '...' : total} 条
+          </span>
+          <span className="rounded-full border border-green-100 bg-green-50 px-3 py-1 text-xs font-bold text-green-600">
+            已发布 {publishedCount}
+          </span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500">
+            草稿 {draftCount}
+          </span>
         </div>
       </section>
 
       {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
       {mutationError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+          role="alert"
+        >
           {mutationError}
         </p>
       ) : null}
 
-      <section aria-busy={loading} aria-label="活动通告列表" style={styles.list}>
-        {loading ? <p style={styles.stateText}>正在加载活动通告...</p> : null}
+      <section
+        aria-busy={loading}
+        aria-label="活动通告列表"
+        className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm"
+      >
+        <div className="grid grid-cols-1 divide-y divide-slate-100">
+          {loading ? (
+            <p className="p-8 text-sm font-semibold text-slate-400">正在加载活动通告...</p>
+          ) : null}
 
-        {!loading && items.length === 0 ? <p style={styles.stateText}>暂无活动通告。</p> : null}
+          {!loading && items.length === 0 ? (
+            <div className="space-y-4 p-20 text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 text-slate-200">
+                <Activity size={40} />
+              </div>
+              <p className="font-medium tracking-tight text-slate-400">暂无已发布的活动通告</p>
+            </div>
+          ) : null}
 
-        {!loading
-          ? items.map((item) => (
-              <ActivityNoticeListItem
-                deleting={deletingIds.has(item.id)}
-                item={item}
-                key={item.id}
-                onDelete={handleDelete}
-                onEdit={handleEditClick}
-              />
-            ))
-          : null}
+          {!loading
+            ? items.map((item) => (
+                <ActivityNoticeListItem
+                  deleting={deletingIds.has(item.id)}
+                  item={item}
+                  key={item.id}
+                  onDelete={handleDelete}
+                  onEdit={handleEditClick}
+                />
+              ))
+            : null}
+        </div>
       </section>
 
-      {dialogOpen ? (
-        <ActivityNoticeFormDialog
-          activity={editingItem}
-          onClose={handleDialogClose}
-          onSubmit={handleSubmit}
-          open={dialogOpen}
-          submitError={dialogError}
-          submitting={submitting}
-        />
-      ) : null}
+      <AnimatePresence>
+        {dialogOpen ? (
+          <ActivityNoticeFormDialog
+            activity={editingItem}
+            onClose={handleDialogClose}
+            onSubmit={handleSubmit}
+            open={dialogOpen}
+            submitError={dialogError}
+            submitting={submitting}
+          />
+        ) : null}
+      </AnimatePresence>
     </main>
   );
 }
@@ -285,12 +332,6 @@ function confirmInBrowser(message: string): boolean {
   return browserGlobal.confirm?.(message) ?? false;
 }
 
-function readControlValue(target: EventTarget): string {
-  const value = (target as { value?: unknown }).value;
-
-  return typeof value === 'string' ? value : '';
-}
-
 function deletePendingId(current: ReadonlySet<string>, id: string): ReadonlySet<string> {
   const next = new Set(current);
 
@@ -298,141 +339,3 @@ function deletePendingId(current: ReadonlySet<string>, id: string): ReadonlySet<
 
   return next;
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '9px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-    minWidth: 180,
-  },
-  filters: {
-    alignItems: 'end',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-    padding: 14,
-  },
-  filterStat: {
-    background: '#f8fafc',
-    border: '1px solid #d8dee8',
-    borderRadius: 999,
-    color: '#334155',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '4px 8px',
-    whiteSpace: 'nowrap',
-  },
-  filterSummary: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  headerActions: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'end',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 24,
-    lineHeight: '32px',
-    margin: 0,
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #b9c3d0',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 40,
-    padding: '8px 10px',
-  },
-  label: {
-    color: '#334155',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  list: {
-    display: 'grid',
-    gap: 12,
-  },
-  main: {
-    display: 'grid',
-    gap: 16,
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-    minHeight: 40,
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  summary: {
-    alignItems: 'baseline',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 6,
-    padding: '10px 12px',
-  },
-  summaryNumber: {
-    color: '#0f766e',
-    fontSize: 22,
-    lineHeight: '28px',
-  },
-  summaryText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-} satisfies Record<string, CSSProperties>;

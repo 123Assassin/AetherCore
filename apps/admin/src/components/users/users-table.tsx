@@ -1,5 +1,5 @@
 import type { AdminMutableUserStatus, AdminUserItem } from '@package/shared';
-import type { CSSProperties } from 'react';
+import { Ban, Shield, ShieldBan, Trash2 } from 'lucide-react';
 
 import { QuotaBadge } from './quota-badge';
 
@@ -23,119 +23,146 @@ export function UsersTable({
   updatingStatusIds,
 }: UsersTableProps) {
   return (
-    <div style={styles.tableWrap}>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.headerCell}>用户</th>
-            <th style={styles.headerCell}>角色</th>
-            <th style={styles.headerCell}>配额</th>
-            <th style={styles.headerCell}>状态</th>
-            <th style={styles.headerCell}>黑名单</th>
-            <th style={styles.headerCell}>最近登录</th>
-            <th style={styles.headerCell}>创建时间</th>
-            <th style={styles.actionHeaderCell}>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => {
-            const deleted = item.status === 'deleted';
-            const statusBusy = updatingStatusIds.has(item.id);
-            const blacklistBusy = updatingBlacklistIds.has(item.id);
-            const deleting = deletingIds.has(item.id);
-            const rowBusy = statusBusy || blacklistBusy || deleting;
-            const nextStatus = getNextStatus(item.status);
+    <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+      <div className="custom-scrollbar overflow-x-auto">
+        <table className="w-full min-w-[980px] border-collapse text-left">
+          <thead className="border-b border-slate-200 bg-slate-50">
+            <tr>
+              <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                用户资料及邮箱
+              </th>
+              <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                状态
+              </th>
+              <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                资源分配 (配额)
+              </th>
+              <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                最近登录
+              </th>
+              <th className="px-8 py-6 text-right text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                管理操作
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {items.map((item) => {
+              const deleted = item.status === 'deleted';
+              const statusBusy = updatingStatusIds.has(item.id);
+              const blacklistBusy = updatingBlacklistIds.has(item.id);
+              const deleting = deletingIds.has(item.id);
+              const rowBusy = statusBusy || blacklistBusy || deleting;
+              const nextStatus = getNextStatus(item.status);
 
-            return (
-              <tr key={item.id}>
-                <td style={styles.bodyCell}>
-                  <div style={styles.nameGroup}>
-                    <strong style={styles.name}>{item.displayName}</strong>
-                    <span style={styles.email}>{item.email}</span>
-                    <span style={styles.idText}>{item.id}</span>
-                  </div>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={styles.roleBadge}>{item.role}</span>
-                </td>
-                <td style={styles.bodyCell}>
-                  <QuotaBadge credits={item.credits} totalQuota={item.totalQuota} />
-                </td>
-                <td style={styles.bodyCell}>
-                  <div style={styles.controlGroup}>
-                    <span style={getStatusBadgeStyle(item.status)}>
-                      {statusLabels[item.status]}
-                    </span>
-                    <button
-                      disabled={deleted || rowBusy}
-                      onClick={() => onStatusChange(item, nextStatus)}
-                      style={styles.secondaryButton}
-                      type="button"
-                    >
-                      {statusBusy ? '更新中...' : statusActionLabels[nextStatus]}
-                    </button>
-                  </div>
-                </td>
-                <td style={styles.bodyCell}>
-                  <div style={styles.controlGroup}>
-                    <span style={item.isBlacklisted ? styles.blacklistBadge : styles.normalBadge}>
-                      {item.isBlacklisted ? '已拉黑' : '正常'}
-                    </span>
-                    <button
-                      disabled={deleted || rowBusy}
-                      onClick={() => onBlacklistChange(item, !item.isBlacklisted)}
-                      style={item.isBlacklisted ? styles.secondaryButton : styles.warningButton}
-                      type="button"
-                    >
-                      {blacklistBusy
-                        ? '更新中...'
-                        : item.isBlacklisted
-                          ? '移出黑名单'
-                          : '加入黑名单'}
-                    </button>
-                  </div>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={item.lastLoginAt ? styles.bodyText : styles.mutedText}>
+              return (
+                <tr className="group transition-colors hover:bg-slate-50" key={item.id}>
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="group-hover:border-primary group-hover:bg-primary flex h-12 w-12 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-100 text-lg font-extrabold text-slate-600 shadow-sm transition-all duration-300 group-hover:text-white">
+                        {item.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-sm font-extrabold tracking-tight text-slate-900">
+                          <span className="max-w-[240px] truncate">{item.displayName}</span>
+                          {item.isBlacklisted ? (
+                            <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 uppercase">
+                              黑名单
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">
+                          {item.email}
+                        </p>
+                        <p className="mt-0.5 truncate font-mono text-[10px] tracking-tighter text-slate-400 uppercase">
+                          UID: {item.id}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`h-2 w-2 rounded-full ${
+                          item.status === 'active'
+                            ? 'bg-green-500'
+                            : item.status === 'disabled'
+                              ? 'animate-pulse bg-amber-500'
+                              : 'bg-slate-300'
+                        }`}
+                      />
+                      <span
+                        className={`text-[10px] font-black tracking-widest uppercase ${
+                          item.status === 'active'
+                            ? 'text-green-600'
+                            : item.status === 'disabled'
+                              ? 'text-amber-500'
+                              : 'text-slate-400'
+                        }`}
+                      >
+                        {statusLabels[item.status]}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <QuotaBadge credits={item.credits} totalQuota={item.totalQuota} />
+                  </td>
+                  <td className="px-8 py-6 text-sm whitespace-nowrap text-slate-500">
                     {item.lastLoginAt ? formatDateTime(item.lastLoginAt) : '暂无记录'}
-                  </span>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={styles.bodyText}>{formatDateTime(item.createdAt)}</span>
-                </td>
-                <td style={styles.actionCell}>
-                  <button
-                    disabled={deleted || rowBusy}
-                    onClick={() => onDelete(item)}
-                    style={styles.dangerButton}
-                    type="button"
-                  >
-                    {deleted ? '已删除' : deleting ? '删除中...' : '删除'}
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                  <td className="px-8 py-6 text-right">
+                    <div className="flex translate-x-0 items-center justify-end gap-1 opacity-100 transition-all duration-300 md:translate-x-3 md:opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100">
+                      <button
+                        aria-label={`${item.status === 'active' ? '限制访问' : '恢复访问'} ${item.displayName}`}
+                        className={`rounded-xl p-2.5 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                          item.status === 'active'
+                            ? 'text-amber-400 hover:bg-amber-50'
+                            : 'text-green-500 hover:bg-green-50'
+                        }`}
+                        disabled={deleted || rowBusy}
+                        onClick={() => onStatusChange(item, nextStatus)}
+                        title={item.status === 'active' ? '限制访问' : '恢复访问'}
+                        type="button"
+                      >
+                        <Ban size={18} />
+                      </button>
+                      <button
+                        aria-label={`${item.isBlacklisted ? '撤回黑名单' : '加入黑名单'} ${item.displayName}`}
+                        className={`rounded-xl p-2.5 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                          item.isBlacklisted
+                            ? 'text-blue-500 hover:bg-blue-50'
+                            : 'text-red-500 hover:bg-red-50'
+                        }`}
+                        disabled={deleted || rowBusy}
+                        onClick={() => onBlacklistChange(item, !item.isBlacklisted)}
+                        title={item.isBlacklisted ? '撤回黑名单' : '加入黑名单'}
+                        type="button"
+                      >
+                        {item.isBlacklisted ? <Shield size={18} /> : <ShieldBan size={18} />}
+                      </button>
+                      <button
+                        aria-label={`${deleted ? '用户已删除' : deleting ? '正在删除' : '删除用户'} ${item.displayName}`}
+                        className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={deleted || rowBusy}
+                        onClick={() => onDelete(item)}
+                        title={deleted ? '已删除' : deleting ? '删除中' : '删除用户'}
+                        type="button"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 function getNextStatus(status: AdminUserItem['status']): AdminMutableUserStatus {
   return status === 'active' ? 'disabled' : 'active';
-}
-
-function getStatusBadgeStyle(status: AdminUserItem['status']): CSSProperties {
-  if (status === 'active') {
-    return styles.activeBadge;
-  }
-
-  if (status === 'disabled') {
-    return styles.disabledBadge;
-  }
-
-  return styles.deletedBadge;
 }
 
 function formatDateTime(value: string): string {
@@ -155,176 +182,7 @@ function formatDateTime(value: string): string {
 }
 
 const statusLabels: Record<AdminUserItem['status'], string> = {
-  active: '启用',
+  active: '正常',
   deleted: '已删除',
-  disabled: '停用',
+  disabled: '受限',
 };
-
-const statusActionLabels: Record<AdminMutableUserStatus, string> = {
-  active: '启用',
-  disabled: '停用',
-};
-
-const badgeBase = {
-  borderRadius: 999,
-  display: 'inline-flex',
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: '16px',
-  padding: '3px 8px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '7px 11px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const styles = {
-  actionCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    textAlign: 'right',
-    verticalAlign: 'top',
-  },
-  actionHeaderCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'right',
-    whiteSpace: 'nowrap',
-  },
-  activeBadge: {
-    ...badgeBase,
-    background: '#dcfce7',
-    color: '#166534',
-  },
-  blacklistBadge: {
-    ...badgeBase,
-    background: '#fee2e2',
-    color: '#991b1b',
-  },
-  bodyCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    verticalAlign: 'top',
-  },
-  bodyText: {
-    color: '#172033',
-    fontSize: 13,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  controlGroup: {
-    alignItems: 'start',
-    display: 'grid',
-    gap: 8,
-    justifyItems: 'start',
-  },
-  dangerButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-  },
-  deletedBadge: {
-    ...badgeBase,
-    background: '#f1f5f9',
-    color: '#64748b',
-  },
-  disabledBadge: {
-    ...badgeBase,
-    background: '#e2e8f0',
-    color: '#475569',
-  },
-  email: {
-    color: '#334155',
-    fontSize: 13,
-    lineHeight: '18px',
-    maxWidth: 220,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  headerCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
-  },
-  idText: {
-    color: '#64748b',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: 180,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  mutedText: {
-    color: '#94a3b8',
-    fontSize: 13,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  name: {
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    maxWidth: 220,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  nameGroup: {
-    display: 'grid',
-    gap: 4,
-    minWidth: 0,
-  },
-  normalBadge: {
-    ...badgeBase,
-    background: '#e6f4f1',
-    color: '#0f766e',
-  },
-  roleBadge: {
-    ...badgeBase,
-    background: '#eef2ff',
-    color: '#3730a3',
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  table: {
-    borderCollapse: 'collapse',
-    minWidth: 1080,
-    width: '100%',
-  },
-  tableWrap: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    overflowX: 'auto',
-  },
-  warningButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fed7aa',
-    color: '#c2410c',
-  },
-} satisfies Record<string, CSSProperties>;

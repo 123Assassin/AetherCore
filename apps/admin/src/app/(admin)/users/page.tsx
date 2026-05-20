@@ -6,7 +6,8 @@ import type {
   AdminUserListInput,
   AdminUserStatus,
 } from '@package/shared';
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { UsersStats } from '../../../components/users/users-stats';
 import { UsersTable } from '../../../components/users/users-table';
@@ -191,38 +192,40 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
+    <main className="space-y-6">
+      <header className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <p style={styles.eyebrow}>Admin / Users</p>
-          <h2 style={styles.heading}>用户管理</h2>
+          <h3 className="text-2xl font-black tracking-tight text-slate-900">用户管理</h3>
+          <p className="mt-1 text-sm text-slate-500">控制访问权限并监控 API 使用情况</p>
         </div>
-        <div aria-label="用户结果统计" style={styles.summary}>
-          <strong style={styles.summaryNumber}>{loading ? '...' : total}</strong>
-          <span style={styles.summaryText}>条结果</span>
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="relative">
+            <Search className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              className="focus:ring-primary/10 w-64 rounded-[14px] border border-slate-200 bg-white py-3 pr-4 pl-12 text-xs transition-all outline-none focus:ring-4"
+              onChange={(event) => handleSearchChange(readControlValue(event.currentTarget))}
+              placeholder="按邮箱搜索..."
+              value={q}
+            />
+          </label>
         </div>
       </header>
 
       <UsersStats loading={loading} total={total} users={users} />
 
-      <section aria-label="用户筛选" style={styles.filters}>
-        <label style={styles.field}>
-          <span style={styles.label}>搜索</span>
-          <input
-            onChange={(event) => handleSearchChange(readControlValue(event.currentTarget))}
-            placeholder="邮箱或昵称"
-            style={styles.input}
-            value={q}
-          />
-        </label>
-
-        <label style={styles.field}>
-          <span style={styles.label}>状态</span>
+      <section
+        aria-label="用户筛选"
+        className="flex flex-wrap items-end gap-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"
+      >
+        <label className="grid min-w-44 gap-2">
+          <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+            状态
+          </span>
           <select
+            className="focus:ring-primary/10 rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600 transition-all outline-none focus:ring-4"
             onChange={(event) =>
               handleStatusFilterChange(readControlValue(event.currentTarget) as StatusFilter)
             }
-            style={styles.input}
             value={statusFilter}
           >
             <option value="all">全部状态</option>
@@ -232,13 +235,15 @@ export default function AdminUsersPage() {
           </select>
         </label>
 
-        <label style={styles.field}>
-          <span style={styles.label}>黑名单</span>
+        <label className="grid min-w-44 gap-2">
+          <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+            黑名单
+          </span>
           <select
+            className="focus:ring-primary/10 rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600 transition-all outline-none focus:ring-4"
             onChange={(event) =>
               handleBlacklistFilterChange(readControlValue(event.currentTarget) as BlacklistFilter)
             }
-            style={styles.input}
             value={blacklistFilter}
           >
             <option value="all">全部用户</option>
@@ -247,27 +252,47 @@ export default function AdminUsersPage() {
           </select>
         </label>
 
-        <button onClick={resetFilters} style={styles.secondaryButton} type="button">
+        <button
+          className="rounded-[14px] border border-slate-200 bg-white px-5 py-3 text-xs font-black tracking-widest text-slate-500 uppercase transition-all hover:bg-slate-50"
+          onClick={resetFilters}
+          type="button"
+        >
           重置筛选
         </button>
       </section>
 
       {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
       {mutationError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+          role="alert"
+        >
           {mutationError}
         </p>
       ) : null}
 
-      <section aria-busy={loading} aria-label="用户列表" style={styles.section}>
-        {loading ? <p style={styles.stateText}>正在加载用户列表...</p> : null}
+      <section aria-busy={loading} aria-label="用户列表" className="space-y-4">
+        {loading ? (
+          <p className="rounded-[32px] border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-400 shadow-sm">
+            正在加载用户列表...
+          </p>
+        ) : null}
 
-        {!loading && users.length === 0 ? <p style={styles.stateText}>暂无用户。</p> : null}
+        {!loading && users.length === 0 ? (
+          <p className="rounded-[32px] border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-400 shadow-sm">
+            暂无用户。
+          </p>
+        ) : null}
 
         {!loading && users.length > 0 ? (
           <UsersTable
@@ -284,120 +309,6 @@ export default function AdminUsersPage() {
     </main>
   );
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '9px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-    minWidth: 180,
-  },
-  filters: {
-    alignItems: 'end',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 12,
-    padding: 14,
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 24,
-    lineHeight: '32px',
-    margin: 0,
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #b9c3d0',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 40,
-    padding: '8px 10px',
-  },
-  label: {
-    color: '#334155',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  main: {
-    display: 'grid',
-    gap: 16,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-    minHeight: 40,
-  },
-  section: {
-    display: 'grid',
-    gap: 12,
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  summary: {
-    alignItems: 'baseline',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 6,
-    padding: '10px 12px',
-  },
-  summaryNumber: {
-    color: '#0f766e',
-    fontSize: 22,
-    lineHeight: '28px',
-  },
-  summaryText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-} satisfies Record<string, CSSProperties>;
 
 function confirmInBrowser(message: string): boolean {
   const browserGlobal = globalThis as typeof globalThis & {

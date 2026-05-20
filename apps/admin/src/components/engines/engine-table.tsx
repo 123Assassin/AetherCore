@@ -1,5 +1,5 @@
 import type { AdminModelEngineItem } from '@package/shared';
-import type { CSSProperties } from 'react';
+import { Edit, ServerCog, Trash2 } from 'lucide-react';
 
 type EngineTableProps = {
   deletingId: string | null;
@@ -10,78 +10,105 @@ type EngineTableProps = {
 
 export function EngineTable({ deletingId, items, onDelete, onEdit }: EngineTableProps) {
   return (
-    <div style={styles.tableWrap}>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.headerCell}>名称</th>
-            <th style={styles.headerCell}>Provider</th>
-            <th style={styles.headerCell}>Base URL</th>
-            <th style={styles.headerCell}>API Key</th>
-            <th style={styles.headerCell}>Model</th>
-            <th style={styles.headerCell}>状态</th>
-            <th style={styles.headerCell}>更新时间</th>
-            <th style={styles.actionHeaderCell}>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => {
-            const enabled = item.status === 'enabled';
+    <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+      <div className="custom-scrollbar overflow-x-auto">
+        <table className="w-full min-w-[980px] text-left">
+          <thead className="border-b border-slate-200 bg-slate-50">
+            <tr>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                引擎名称
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                API 地址
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                API Key
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                Model
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                状态
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                更新时间
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
+                操作
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {items.map((item) => {
+              const enabled = item.status === 'enabled';
 
-            return (
-              <tr key={item.id}>
-                <td style={styles.bodyCell}>
-                  <div style={styles.nameGroup}>
-                    <strong style={styles.name}>{item.name}</strong>
-                    <span style={styles.idText}>{item.id}</span>
-                  </div>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={styles.providerBadge}>{providerLabels[item.provider]}</span>
-                </td>
-                <td style={styles.bodyCell}>
-                  <code style={styles.codeText}>{item.apiBaseUrl}</code>
-                </td>
-                <td style={styles.bodyCell}>
-                  <code style={styles.keyText}>{item.apiKeyMasked}</code>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={item.modelName ? styles.bodyText : styles.mutedText}>
-                    {item.modelName || '未指定'}
-                  </span>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={enabled ? styles.enabledBadge : styles.disabledBadge}>
-                    {enabled ? '启用' : '停用'}
-                  </span>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={styles.bodyText}>{formatDateTime(item.updatedAt)}</span>
-                </td>
-                <td style={styles.actionCell}>
-                  <div style={styles.actions}>
+              return (
+                <tr className="transition-colors hover:bg-slate-50/50" key={item.id}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3 whitespace-nowrap">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-500">
+                        <ServerCog size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-slate-900">{item.name}</p>
+                        <p className="truncate font-mono text-[10px] text-slate-400">{item.id}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <code className="block max-w-[260px] truncate font-mono text-sm text-slate-500">
+                      {item.apiBaseUrl}
+                    </code>
+                  </td>
+                  <td className="px-6 py-4">
+                    <code className="cursor-pointer font-mono text-sm whitespace-nowrap text-slate-500 blur-[2px] transition-all hover:blur-none">
+                      {item.apiKeyMasked}
+                    </code>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm whitespace-nowrap text-slate-500">
+                      {item.modelName || providerLabels[item.provider]}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`rounded-md px-2 py-1 text-[10px] font-black tracking-widest uppercase ${
+                        enabled
+                          ? 'border border-green-100 bg-green-50 text-green-600'
+                          : 'border border-slate-200 bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {enabled ? '启用' : '停用'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm whitespace-nowrap text-slate-500">
+                    {formatDateTime(item.updatedAt)}
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm whitespace-nowrap">
                     <button
+                      aria-label={`编辑模型引擎 ${item.name}`}
+                      className="hover:text-primary p-2 text-slate-400 transition-colors"
                       onClick={() => onEdit(item)}
-                      style={styles.secondaryButton}
                       type="button"
                     >
-                      编辑
+                      <Edit size={16} />
                     </button>
                     <button
+                      aria-label={`删除模型引擎 ${item.name}`}
+                      className="p-2 text-slate-400 transition-colors hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={deletingId === item.id}
                       onClick={() => onDelete(item)}
-                      style={styles.dangerButton}
                       type="button"
                     >
-                      {deletingId === item.id ? '删除中...' : '删除'}
+                      <Trash2 size={16} />
                     </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -107,149 +134,3 @@ const providerLabels: Record<AdminModelEngineItem['provider'], string> = {
   gemini: 'Gemini',
   openai: 'OpenAI',
 };
-
-const badgeBase = {
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: '16px',
-  padding: '3px 8px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '7px 11px',
-} satisfies CSSProperties;
-
-const styles = {
-  actionCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    textAlign: 'right',
-    verticalAlign: 'top',
-  },
-  actionHeaderCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'right',
-    whiteSpace: 'nowrap',
-  },
-  actions: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'end',
-  },
-  bodyCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    verticalAlign: 'top',
-  },
-  bodyText: {
-    color: '#172033',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  codeText: {
-    color: '#334155',
-    display: 'block',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '18px',
-    maxWidth: 260,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  dangerButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-  },
-  disabledBadge: {
-    ...badgeBase,
-    background: '#f1f5f9',
-    color: '#64748b',
-  },
-  enabledBadge: {
-    ...badgeBase,
-    background: '#dcfce7',
-    color: '#166534',
-  },
-  headerCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
-  },
-  idText: {
-    color: '#64748b',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: 180,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  keyText: {
-    color: '#334155',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  mutedText: {
-    color: '#94a3b8',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  name: {
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-  },
-  nameGroup: {
-    display: 'grid',
-    gap: 4,
-    minWidth: 0,
-  },
-  providerBadge: {
-    ...badgeBase,
-    background: '#e6f4f1',
-    color: '#0f766e',
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  table: {
-    borderCollapse: 'collapse',
-    minWidth: 980,
-    width: '100%',
-  },
-  tableWrap: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    overflowX: 'auto',
-  },
-} satisfies Record<string, CSSProperties>;

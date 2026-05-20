@@ -5,14 +5,9 @@ import type {
   AdminActivityItem,
   AdminActivityStatus,
 } from '@package/shared';
-import {
-  type CSSProperties,
-  type FormEvent,
-  type KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { X } from 'lucide-react';
+import { motion } from 'motion/react';
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 type ActivityNoticeFormDialogProps = {
   activity: AdminActivityItem | null;
@@ -79,20 +74,13 @@ export function ActivityNoticeFormDialog({
             }
           : defaultFormState
       );
+      focusFirstDialogControl(dialogRef.current);
     }, 0);
 
     return () => {
       clearTimeout(timeoutId);
     };
   }, [activity, open]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    focusFirstDialogControl(dialogRef.current);
-  }, [open]);
 
   if (!open) {
     return null;
@@ -118,109 +106,151 @@ export function ActivityNoticeFormDialog({
   }
 
   return (
-    <div role="presentation" style={styles.backdrop}>
-      <section
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
+      <motion.div
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        onClick={submitting ? undefined : onClose}
+      />
+      <motion.section
+        animate={{ opacity: 1, scale: 1, y: 0 }}
         aria-labelledby={activityDialogTitleId}
         aria-modal="true"
+        className="relative w-full max-w-2xl overflow-hidden rounded-[40px] bg-white shadow-2xl"
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         onKeyDown={(event) => handleDialogKeyDown(event, onClose)}
         ref={(element) => {
           dialogRef.current = element as FocusableDialogElement | null;
         }}
         role="dialog"
-        style={styles.dialog}
         tabIndex={-1}
       >
-        <div style={styles.header}>
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/30 p-10">
           <div>
-            <p style={styles.eyebrow}>Operations / Activities</p>
-            <h2 id={activityDialogTitleId} style={styles.title}>
-              {activity ? '编辑活动通告' : '新建活动通告'}
-            </h2>
+            <h3
+              className="text-2xl font-black tracking-tight text-slate-900"
+              id={activityDialogTitleId}
+            >
+              {activity ? '编辑活动通告' : '发布新活动通告'}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">设置内容及发布状态</p>
           </div>
-          <button disabled={submitting} onClick={onClose} style={styles.closeButton} type="button">
-            关闭
+          <button
+            aria-label="关闭活动通告表单"
+            className="rounded-full p-3 text-slate-400 transition-all hover:bg-white hover:shadow-md"
+            disabled={submitting}
+            onClick={onClose}
+            type="button"
+          >
+            <X size={24} />
           </button>
         </div>
 
-        {error ? (
-          <p aria-live="polite" role="alert" style={styles.error}>
-            {error}
-          </p>
-        ) : null}
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-8 p-10">
+            {error ? (
+              <p
+                aria-live="polite"
+                className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+                role="alert"
+              >
+                {error}
+              </p>
+            ) : null}
 
-        {submitError ? (
-          <p aria-live="polite" role="alert" style={styles.error}>
-            {submitError}
-          </p>
-        ) : null}
+            {submitError ? (
+              <p
+                aria-live="polite"
+                className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+                role="alert"
+              >
+                {submitError}
+              </p>
+            ) : null}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.field}>
-            <span style={styles.label}>标题</span>
-            <input
-              onChange={(event) =>
-                setForm((current) => ({ ...current, title: readControlValue(event.currentTarget) }))
-              }
-              placeholder="例如：系统维护通告"
-              style={styles.input}
-              value={form.title}
-            />
-          </label>
+            <label className="space-y-3">
+              <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                标题
+              </span>
+              <input
+                className="focus:border-primary focus:ring-primary/10 w-full rounded-[20px] border border-slate-200 bg-slate-50 px-6 py-4 font-bold text-slate-800 transition-all outline-none placeholder:text-slate-300 focus:ring-4"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    title: readControlValue(event.currentTarget),
+                  }))
+                }
+                placeholder="请输入简明扼要的标题..."
+                value={form.title}
+              />
+            </label>
 
-          <label style={styles.field}>
-            <span style={styles.label}>正文</span>
-            <textarea
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  content: readControlValue(event.currentTarget),
-                }))
-              }
-              placeholder="输入活动、通告或功能更新内容"
-              style={styles.textarea}
-              value={form.content}
-            />
-          </label>
+            <label className="space-y-3">
+              <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                正文内容
+              </span>
+              <textarea
+                className="focus:border-primary focus:ring-primary/10 w-full resize-none rounded-[24px] border border-slate-200 bg-slate-50 px-6 py-4 font-medium text-slate-600 transition-all outline-none placeholder:text-slate-300 focus:ring-4"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    content: readControlValue(event.currentTarget),
+                  }))
+                }
+                placeholder="在此输入详细的活动通告内容..."
+                rows={6}
+                value={form.content}
+              />
+            </label>
 
-          <fieldset style={styles.fieldset}>
-            <legend style={styles.legend}>状态</legend>
-            <div style={styles.segmented}>
-              {statusOptions.map((option) => {
-                const selected = form.status === option.value;
-
-                return (
-                  <label key={option.value} style={styles.segmentedOption}>
-                    <input
-                      checked={selected}
-                      name="activity-status"
-                      onChange={() => setForm((current) => ({ ...current, status: option.value }))}
-                      style={styles.radio}
-                      type="radio"
-                    />
-                    <span style={selected ? styles.segmentedActive : styles.segmentedText}>
-                      {option.label}
-                    </span>
-                  </label>
-                );
-              })}
+            <div className="space-y-3">
+              <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                状态设置
+              </span>
+              <div className="flex rounded-2xl border border-slate-200/50 bg-slate-100 p-1.5">
+                {statusOptions.map((option) => (
+                  <button
+                    className={`flex-1 rounded-xl py-3 text-xs font-black transition-all ${
+                      form.status === option.value
+                        ? 'text-primary bg-white shadow-md'
+                        : 'text-slate-400'
+                    }`}
+                    key={option.value}
+                    onClick={() => setForm((current) => ({ ...current, status: option.value }))}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </fieldset>
+          </div>
 
-          <div style={styles.actions}>
+          <div className="flex gap-4 border-t border-slate-100 bg-slate-50/30 p-10">
             <button
+              className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-500 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={submitting}
               onClick={onClose}
-              style={styles.secondaryButton}
               type="button"
             >
-              取消
+              放弃修改
             </button>
-            <button disabled={submitting} style={styles.primaryButton} type="submit">
-              {submitting ? '保存中...' : '保存'}
+            <button
+              className="bg-primary hover:bg-primary-dark group shadow-primary/30 relative flex-1 overflow-hidden rounded-2xl py-4 font-black text-white shadow-2xl transition-all disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting}
+              type="submit"
+            >
+              <span className="relative z-10">
+                {submitting ? '保存中...' : activity ? '保存更改' : '确认并发布'}
+              </span>
+              <span className="absolute inset-0 translate-y-full bg-white/10 transition-transform duration-300 group-hover:translate-y-0" />
             </button>
           </div>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -284,186 +314,6 @@ function readControlValue(target: EventTarget): string {
 }
 
 const statusOptions: { label: string; value: AdminActivityStatus }[] = [
-  { label: '发布', value: 'published' },
-  { label: '草稿', value: 'draft' },
+  { label: '立即发布', value: 'published' },
+  { label: '存为草稿', value: 'draft' },
 ];
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '8px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 10,
-    justifyContent: 'end',
-    paddingTop: 14,
-  },
-  backdrop: {
-    alignItems: 'center',
-    background: 'rgba(15, 23, 42, 0.42)',
-    bottom: 0,
-    display: 'flex',
-    justifyContent: 'center',
-    left: 0,
-    padding: 20,
-    position: 'fixed',
-    right: 0,
-    top: 0,
-    zIndex: 40,
-  },
-  closeButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  dialog: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    boxShadow: '0 18px 50px rgba(15, 23, 42, 0.24)',
-    display: 'grid',
-    gap: 14,
-    maxHeight: 'calc(100vh - 40px)',
-    maxWidth: 720,
-    overflow: 'auto',
-    padding: 18,
-    width: 'min(100%, 720px)',
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  fieldset: {
-    border: 0,
-    display: 'grid',
-    gap: 8,
-    margin: 0,
-    padding: 0,
-  },
-  form: {
-    display: 'grid',
-    gap: 14,
-  },
-  header: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 38,
-    padding: '8px 10px',
-    width: '100%',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  legend: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-    padding: 0,
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  radio: {
-    height: 1,
-    opacity: 0,
-    position: 'absolute',
-    width: 1,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  segmented: {
-    border: '1px solid #c8d1dc',
-    borderRadius: 6,
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    overflow: 'hidden',
-  },
-  segmentedActive: {
-    background: '#0f766e',
-    color: '#ffffff',
-    display: 'block',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-    padding: '8px 10px',
-    textAlign: 'center',
-  },
-  segmentedOption: {
-    cursor: 'pointer',
-    minWidth: 0,
-    position: 'relative',
-  },
-  segmentedText: {
-    background: '#ffffff',
-    color: '#334155',
-    display: 'block',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-    padding: '8px 10px',
-    textAlign: 'center',
-  },
-  textarea: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '22px',
-    minHeight: 180,
-    padding: 10,
-    resize: 'vertical',
-    width: '100%',
-  },
-  title: {
-    color: '#172033',
-    fontSize: 18,
-    lineHeight: '24px',
-    margin: 0,
-  },
-} satisfies Record<string, CSSProperties>;

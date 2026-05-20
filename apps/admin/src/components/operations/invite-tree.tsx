@@ -1,7 +1,9 @@
 'use client';
 
 import type { AdminInviteTreeNode } from '@package/shared';
-import { type CSSProperties, useState } from 'react';
+import { ChevronDown, ChevronRight, User } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useState } from 'react';
 
 type InviteTreeProps = {
   expandedIds?: ReadonlySet<string>;
@@ -35,11 +37,15 @@ export function InviteTree({ expandedIds, nodes, onToggle }: InviteTreeProps) {
   }
 
   if (nodes.length === 0) {
-    return <p style={styles.stateText}>暂无邀请链路。</p>;
+    return (
+      <p className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm font-semibold text-slate-400">
+        暂无邀请链路。
+      </p>
+    );
   }
 
   return (
-    <div style={styles.tree}>
+    <div className="space-y-1">
       {nodes.map((node) => (
         <InviteTreeNode
           expandedIds={activeExpandedIds}
@@ -63,188 +69,94 @@ type InviteTreeNodeProps = {
 function InviteTreeNode({ expandedIds, level, node, onToggle }: InviteTreeNodeProps) {
   const hasChildren = node.children.length > 0;
   const expanded = expandedIds.has(node.id);
-  const displayName = node.name?.trim() || '未命名用户';
-  const rowStyle = {
-    ...styles.nodeRow,
-    marginLeft: level > 0 ? Math.min(level * 22, 88) : 0,
-  };
+  const displayName = node.name?.trim() || node.email;
 
   return (
-    <div style={styles.nodeBlock}>
-      <div style={rowStyle}>
-        {hasChildren ? (
-          <button
-            aria-expanded={expanded}
-            aria-label={`${expanded ? '收起' : '展开'} ${node.email} 的下级邀请`}
-            onClick={() => onToggle(node.id)}
-            style={styles.toggleButton}
-            type="button"
-          >
-            {expanded ? '-' : '+'}
-          </button>
-        ) : (
-          <span aria-hidden="true" style={styles.leafIcon} />
-        )}
+    <div className="select-none">
+      <div
+        className={`flex cursor-pointer items-center gap-4 rounded-xl border border-transparent px-4 py-3 transition-all duration-200 hover:bg-slate-50 ${
+          level > 0
+            ? 'relative ml-8 before:absolute before:top-1/2 before:left-[-16px] before:h-px before:w-4 before:bg-slate-200'
+            : ''
+        } ${expanded && hasChildren ? 'bg-slate-50' : ''}`}
+        onClick={() => hasChildren && onToggle(node.id)}
+      >
+        <button
+          aria-expanded={expanded}
+          aria-label={`${expanded ? '收起' : '展开'} ${node.email} 的下级邀请`}
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
+            hasChildren ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-300'
+          }`}
+          disabled={!hasChildren}
+          onClick={(event) => {
+            event.stopPropagation();
 
-        <span style={styles.identity}>
-          <strong style={styles.email}>{node.email}</strong>
-          <span style={styles.name}>{displayName}</span>
-          <span style={styles.inviteCode}>{node.inviteCode ?? '无邀请码'}</span>
-        </span>
+            if (hasChildren) {
+              onToggle(node.id);
+            }
+          }}
+          type="button"
+        >
+          {hasChildren ? (
+            expanded ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronRight size={14} />
+            )
+          ) : (
+            <User size={12} />
+          )}
+        </button>
 
-        <span style={styles.metrics}>
-          <span style={styles.metric}>
-            <span style={styles.metricLabel}>邀请数</span>
-            <strong style={styles.metricValue}>{node.totalInvited}</strong>
-          </span>
-          <span style={styles.metric}>
-            <span style={styles.metricLabel}>奖励</span>
-            <strong style={styles.rewardValue}>{node.rewardEarned}</strong>
-          </span>
-          <span style={styles.metric}>
-            <span style={styles.metricLabel}>下级</span>
-            <strong style={styles.metricValue}>{node.children.length}</strong>
-          </span>
-        </span>
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-6">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-800">{displayName}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 uppercase">
+                {node.inviteCode ?? '无邀请码'}
+              </span>
+              <span className="truncate text-[10px] font-semibold text-slate-400">
+                {node.email}
+              </span>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-6 text-right">
+            <div>
+              <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                Invited
+              </p>
+              <p className="text-sm font-bold text-slate-700">{node.totalInvited}</p>
+            </div>
+            <div className="w-24">
+              <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                Reward
+              </p>
+              <p className="text-sm font-bold text-green-600">+{node.rewardEarned}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {hasChildren && expanded ? (
-        <div style={styles.children}>
-          {node.children.map((child) => (
-            <InviteTreeNode
-              expandedIds={expandedIds}
-              key={child.id}
-              level={level + 1}
-              node={child}
-              onToggle={onToggle}
-            />
-          ))}
-        </div>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {hasChildren && expanded ? (
+          <motion.div
+            animate={{ opacity: 1, height: 'auto' }}
+            className="relative mt-1 overflow-hidden before:absolute before:top-0 before:bottom-4 before:left-7 before:w-px before:bg-slate-200"
+            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+          >
+            {node.children.map((child) => (
+              <InviteTreeNode
+                expandedIds={expandedIds}
+                key={child.id}
+                level={level + 1}
+                node={child}
+                onToggle={onToggle}
+              />
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
-
-const styles = {
-  children: {
-    display: 'grid',
-    gap: 8,
-    marginTop: 8,
-  },
-  email: {
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  identity: {
-    display: 'grid',
-    gap: 3,
-    minWidth: 0,
-    textAlign: 'left',
-  },
-  inviteCode: {
-    color: '#64748b',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '16px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  leafIcon: {
-    background: '#f1f5f9',
-    borderRadius: 6,
-    flex: '0 0 auto',
-    height: 24,
-    width: 24,
-  },
-  metric: {
-    display: 'grid',
-    gap: 2,
-    minWidth: 58,
-  },
-  metricLabel: {
-    color: '#64748b',
-    fontSize: 11,
-    lineHeight: '14px',
-    whiteSpace: 'nowrap',
-  },
-  metricValue: {
-    color: '#172033',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  metrics: {
-    display: 'grid',
-    gap: 10,
-    gridTemplateColumns: 'repeat(3, minmax(58px, auto))',
-    justifyContent: 'end',
-    textAlign: 'right',
-  },
-  name: {
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  nodeBlock: {
-    display: 'grid',
-  },
-  nodeRow: {
-    alignItems: 'center',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: '24px minmax(0, 1fr) auto',
-    minWidth: 0,
-    padding: 12,
-    textAlign: 'left',
-  },
-  rewardValue: {
-    color: '#0f766e',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  toggleButton: {
-    alignItems: 'center',
-    background: '#e6f4f1',
-    border: '1px solid #99d6cc',
-    borderRadius: 6,
-    color: '#0f766e',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    flex: '0 0 auto',
-    fontSize: 16,
-    fontWeight: 700,
-    height: 24,
-    justifyContent: 'center',
-    lineHeight: '20px',
-    width: 24,
-  },
-  tree: {
-    display: 'grid',
-    gap: 8,
-    overflowX: 'auto',
-  },
-} satisfies Record<string, CSSProperties>;

@@ -5,7 +5,9 @@ import type {
   AdminModelEngineItem,
   AdminModelEngineUpdateInput,
 } from '@package/shared';
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Plus } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   EngineFormDialog,
@@ -13,6 +15,23 @@ import {
 } from '../../../components/engines/engine-form-dialog';
 import { EngineTable } from '../../../components/engines/engine-table';
 import { useTrpcClient } from '../../../trpc/provider';
+
+type FocusableElement = {
+  focus: () => void;
+  offsetParent: unknown | null;
+};
+
+type FocusableDialogElement = FocusableElement & {
+  querySelectorAll: (selector: string) => ArrayLike<FocusableElement>;
+};
+
+type BrowserFocusGlobal = typeof globalThis & {
+  document?: {
+    activeElement?: unknown;
+  };
+};
+
+const deleteDialogTitleId = 'engine-delete-dialog-title';
 
 export default function AdminEngineDispatchPage() {
   const client = useTrpcClient();
@@ -25,7 +44,9 @@ export default function AdminEngineDispatchPage() {
   const [editingEngine, setEditingEngine] = useState<AdminModelEngineItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminModelEngineItem | null>(null);
   const requestSequence = useRef(0);
+  const deleteDialogRef = useRef<FocusableDialogElement | null>(null);
 
   const fetchEngines = useCallback(async () => {
     const result = await client.adminResources.engines.list.query();
@@ -83,6 +104,14 @@ export default function AdminEngineDispatchPage() {
 
     void loadEngines();
   }, [fetchEngines]);
+
+  useEffect(() => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    focusFirstDialogControl(deleteDialogRef.current);
+  }, [deleteTarget]);
 
   function handleCreateClick() {
     setEditingEngine(null);
@@ -144,19 +173,54 @@ export default function AdminEngineDispatchPage() {
     }
   }
 
-  async function handleDelete(engine: AdminModelEngineItem) {
-    if (!confirmInBrowser(`确认删除模型引擎“${engine.name}”？`)) {
+  function handleDeleteClick(engine: AdminModelEngineItem) {
+    if (deletingId) {
       return;
     }
 
-    setDeletingId(engine.id);
+    setMutationError(null);
+    setDeleteTarget(engine);
+  }
+
+  function handleDeleteModalClose() {
+    if (deletingId) {
+      return;
+    }
+
+    setDeleteTarget(null);
+  }
+
+  function handleDeleteDialogKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleDeleteModalClose();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    trapDialogFocus(event);
+  }
+
+  async function handleConfirmDelete() {
+    const activeTarget = deleteTarget;
+
+    if (!activeTarget || deletingId) {
+      return;
+    }
+
+    setDeletingId(activeTarget.id);
     setMutationError(null);
 
     try {
-      await client.adminResources.engines.delete.mutate({ id: engine.id });
+      await client.adminResources.engines.delete.mutate({ id: activeTarget.id });
       await refreshEngines();
+      setDeleteTarget(null);
     } catch {
-      setMutationError(`模型引擎“${engine.name}”删除失败，请确认没有智能体正在引用。`);
+      setMutationError(`模型引擎“${activeTarget.name}”删除失败，请确认没有智能体正在引用。`);
+      setDeleteTarget(null);
     } finally {
       setDeletingId(null);
     }
@@ -173,168 +237,193 @@ export default function AdminEngineDispatchPage() {
   }
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
+    <main className="space-y-8">
+      <header className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <p style={styles.eyebrow}>Admin / Operations / Engine Dispatch</p>
-          <h2 style={styles.heading}>模型引擎调度</h2>
+          <h3 className="text-2xl font-extrabold tracking-tight text-slate-900">引擎调度中心</h3>
+          <p className="mt-1 text-sm text-slate-500">配置与管理各 AI 模型引擎节点的地址及密钥</p>
         </div>
-        <div style={styles.headerActions}>
-          <div aria-label="模型引擎统计" style={styles.summary}>
-            <strong style={styles.summaryNumber}>{engines.length}</strong>
-            <span style={styles.summaryText}>个引擎</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            aria-label="模型引擎统计"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+          >
+            <strong className="text-primary text-xl leading-none">
+              {loading ? '...' : engines.length}
+            </strong>
+            <span className="ml-1 text-xs font-bold text-slate-400">个引擎</span>
           </div>
-          <div aria-label="启用模型引擎统计" style={styles.summary}>
-            <strong style={styles.summaryNumber}>{enabledCount}</strong>
-            <span style={styles.summaryText}>个启用</span>
+          <div
+            aria-label="启用模型引擎统计"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+          >
+            <strong className="text-primary text-xl leading-none">
+              {loading ? '...' : enabledCount}
+            </strong>
+            <span className="ml-1 text-xs font-bold text-slate-400">个启用</span>
           </div>
-          <button onClick={handleCreateClick} style={styles.primaryButton} type="button">
-            新建引擎
+          <button
+            className="bg-primary hover:bg-primary-dark shadow-primary/30 flex items-center gap-2 rounded-2xl px-6 py-3.5 font-bold text-white shadow-xl transition-all hover:-translate-y-0.5"
+            onClick={handleCreateClick}
+            type="button"
+          >
+            <Plus size={20} />
+            新增模型引擎
           </button>
         </div>
       </header>
 
       {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
       {mutationError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+          role="alert"
+        >
           {mutationError}
         </p>
       ) : null}
 
-      <section aria-busy={loading} aria-label="模型引擎列表" style={styles.section}>
-        {loading ? <p style={styles.stateText}>正在加载模型引擎...</p> : null}
+      <section aria-busy={loading} aria-label="模型引擎列表" className="space-y-4">
+        {loading ? (
+          <p className="rounded-[32px] border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-400 shadow-sm">
+            正在加载模型引擎...
+          </p>
+        ) : null}
 
-        {!loading && engines.length === 0 ? <p style={styles.stateText}>暂无模型引擎。</p> : null}
+        {!loading && engines.length === 0 ? (
+          <p className="rounded-[32px] border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-400 shadow-sm">
+            暂无模型引擎。
+          </p>
+        ) : null}
 
         {!loading && engines.length > 0 ? (
           <EngineTable
             deletingId={deletingId}
             items={engines}
-            onDelete={handleDelete}
+            onDelete={handleDeleteClick}
             onEdit={handleEditClick}
           />
         ) : null}
       </section>
 
-      {dialogOpen ? (
-        <EngineFormDialog
-          engine={editingEngine}
-          onClose={handleDialogClose}
-          onSubmit={handleSubmit}
-          open={dialogOpen}
-          submitting={submitting}
-          submitError={dialogError}
-        />
-      ) : null}
+      <AnimatePresence>
+        {dialogOpen ? (
+          <EngineFormDialog
+            engine={editingEngine}
+            onClose={handleDialogClose}
+            onSubmit={handleSubmit}
+            open={dialogOpen}
+            submitting={submitting}
+            submitError={dialogError}
+          />
+        ) : null}
+
+        {deleteTarget ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              onClick={handleDeleteModalClose}
+            />
+            <motion.div
+              animate={{ opacity: 1, scale: 1 }}
+              aria-labelledby={deleteDialogTitleId}
+              aria-modal="true"
+              className="relative w-full max-w-sm space-y-6 rounded-[32px] bg-white p-8 text-center shadow-2xl"
+              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              onKeyDown={handleDeleteDialogKeyDown}
+              ref={(element) => {
+                deleteDialogRef.current = element as FocusableDialogElement | null;
+              }}
+              role="dialog"
+              tabIndex={-1}
+            >
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800" id={deleteDialogTitleId}>
+                确认删除
+              </h3>
+              <p className="text-sm text-slate-500">
+                删除后将影响依赖此引擎的智能体，是否确认删除？
+              </p>
+              <div className="flex gap-4 pt-4">
+                <button
+                  className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={Boolean(deletingId)}
+                  onClick={handleDeleteModalClose}
+                  type="button"
+                >
+                  取消
+                </button>
+                <button
+                  className="flex-1 rounded-xl bg-red-500 py-3 font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={Boolean(deletingId)}
+                  onClick={handleConfirmDelete}
+                  type="button"
+                >
+                  {deletingId === deleteTarget.id ? '删除中...' : '确认删除'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
     </main>
   );
 }
 
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '8px 12px',
-} satisfies CSSProperties;
+function trapDialogFocus(event: KeyboardEvent) {
+  const dialogElement = event.currentTarget as unknown as FocusableDialogElement;
+  const focusableElements = getFocusableElements(dialogElement);
 
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  headerActions: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'end',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 26,
-    lineHeight: '34px',
-    margin: 0,
-  },
-  main: {
-    background: '#f8fafc',
-    color: '#172033',
-    display: 'grid',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    gap: 18,
-    minHeight: 0,
-    padding: 24,
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  section: {
-    display: 'grid',
-    gap: 12,
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  summary: {
-    alignItems: 'baseline',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 6,
-    padding: '10px 12px',
-  },
-  summaryNumber: {
-    color: '#0f766e',
-    fontSize: 22,
-    lineHeight: '28px',
-  },
-  summaryText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-} satisfies Record<string, CSSProperties>;
+  if (focusableElements.length === 0) {
+    event.preventDefault();
+    dialogElement.focus();
+    return;
+  }
 
-function confirmInBrowser(message: string): boolean {
-  const browserGlobal = globalThis as typeof globalThis & {
-    confirm?: (message?: string) => boolean;
-  };
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+  const activeElement = (globalThis as BrowserFocusGlobal).document?.activeElement;
 
-  return browserGlobal.confirm?.(message) ?? false;
+  if (event.shiftKey && (activeElement === firstElement || activeElement === dialogElement)) {
+    event.preventDefault();
+    lastElement?.focus();
+    return;
+  }
+
+  if (!event.shiftKey && (activeElement === lastElement || activeElement === dialogElement)) {
+    event.preventDefault();
+    firstElement?.focus();
+  }
+}
+
+function focusFirstDialogControl(container: FocusableDialogElement | null) {
+  if (!container) {
+    return;
+  }
+
+  getFocusableElements(container)[0]?.focus();
+}
+
+function getFocusableElements(container: FocusableDialogElement): FocusableElement[] {
+  return Array.from(
+    container.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((element) => element.offsetParent !== null);
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import type { SimulationFilters } from '@package/shared';
-import { type ChangeEvent, type CSSProperties, useState } from 'react';
+import { BookOpen, ChevronDown, ChevronRight, Filter, Search } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useState } from 'react';
 
 export type SimulationStatusFilter = 'all' | 'enabled' | 'disabled';
 
@@ -21,6 +23,12 @@ type SimulationTreeFilterProps = {
   status: SimulationStatusFilter;
 };
 
+const statusOptions: { label: string; value: SimulationStatusFilter }[] = [
+  { label: '全部', value: 'all' },
+  { label: '启用', value: 'enabled' },
+  { label: '停用', value: 'disabled' },
+];
+
 export function SimulationTreeFilter({
   disabled = false,
   filters,
@@ -36,7 +44,7 @@ export function SimulationTreeFilter({
   selectedSubjects,
   status,
 }: SimulationTreeFilterProps) {
-  const [focusedStatus, setFocusedStatus] = useState<SimulationStatusFilter | null>(null);
+  const [expandedNodes, setExpandedNodes] = useState<string[]>(['subjects', 'grades']);
   const hasFilters =
     search.trim().length > 0 ||
     selectedSubjects.length > 0 ||
@@ -44,267 +52,170 @@ export function SimulationTreeFilter({
     selectedGrades.length > 0 ||
     status !== 'all';
 
+  function toggleNode(id: string) {
+    setExpandedNodes((current) =>
+      current.includes(id) ? current.filter((nodeId) => nodeId !== id) : [...current, id]
+    );
+  }
+
   return (
-    <aside aria-label="仿真实验筛选" style={styles.panel}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>筛选</h2>
-        <button
-          disabled={!hasFilters || disabled}
-          onClick={onReset}
-          style={styles.reset}
-          type="button"
-        >
-          重置
-        </button>
-      </div>
-
-      <label style={styles.searchLabel}>
-        <span style={styles.labelText}>搜索</span>
-        <input
-          aria-label="搜索仿真实验"
-          disabled={disabled}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            onSearchChange(readInputValue(event.currentTarget))
-          }
-          placeholder="名称、学科或分类"
-          style={styles.input}
-          type="search"
-          value={search}
-        />
-      </label>
-
-      <fieldset style={styles.group}>
-        <legend style={styles.legend}>状态</legend>
-        <div style={styles.segmented}>
-          {statusOptions.map((option) => {
-            const selected = status === option.value;
-            const focused = focusedStatus === option.value;
-
-            return (
-              <label key={option.value} style={styles.segmentedOption}>
-                <input
-                  checked={selected}
-                  disabled={disabled}
-                  name="simulation-status"
-                  onBlur={() => setFocusedStatus(null)}
-                  onChange={() => onStatusChange(option.value)}
-                  onFocus={() => setFocusedStatus(option.value)}
-                  style={styles.radio}
-                  type="radio"
-                />
-                <span
-                  style={{
-                    ...(selected ? styles.segmentedActive : styles.segmentedText),
-                    ...(focused ? styles.segmentedFocus : {}),
-                  }}
-                >
-                  {option.label}
-                </span>
-              </label>
-            );
-          })}
+    <aside className="custom-scrollbar w-full shrink-0 space-y-8 overflow-y-auto border-r border-slate-100 bg-slate-50/20 p-8 lg:w-72">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <h4 className="ml-1 flex items-center gap-2 text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase">
+            <Filter className="text-primary" size={14} />
+            资源分类浏览器
+          </h4>
+          <button
+            className="hover:text-primary rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black tracking-widest text-slate-400 uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!hasFilters || disabled}
+            onClick={onReset}
+            type="button"
+          >
+            重置
+          </button>
         </div>
-      </fieldset>
 
-      <fieldset style={styles.group}>
-        <legend style={styles.legend}>学科与分类</legend>
-        <div style={styles.stack}>
-          {filters.subjects.map((subject) => (
-            <div key={subject.name} style={styles.subjectBlock}>
-              <label style={styles.optionStrong}>
-                <input
-                  checked={selectedSubjects.includes(subject.name)}
+        <label className="relative block">
+          <Search className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            aria-label="搜索仿真实验"
+            className="focus:border-primary focus:ring-primary/10 w-full rounded-[14px] border border-slate-200 bg-white py-3 pr-4 pl-11 text-xs text-slate-700 transition-all outline-none focus:ring-4 disabled:opacity-60"
+            disabled={disabled}
+            onChange={(event) => onSearchChange(readControlValue(event.currentTarget))}
+            placeholder="名称、主题或目标"
+            type="search"
+            value={search}
+          />
+        </label>
+
+        <div className="grid grid-cols-3 rounded-2xl border border-slate-200/50 bg-slate-100 p-1.5 shadow-inner">
+          {statusOptions.map((option) => (
+            <button
+              aria-pressed={status === option.value}
+              className={`rounded-xl py-2 text-xs font-black transition-all ${
+                status === option.value
+                  ? 'text-primary bg-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+              disabled={disabled}
+              key={option.value}
+              onClick={() => onStatusChange(option.value)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <nav className="space-y-1">
+          <TreeGroup
+            expanded={expandedNodes.includes('subjects')}
+            label="科目分类"
+            onToggle={() => toggleNode('subjects')}
+          >
+            {filters.subjects.map((subject) => (
+              <div className="space-y-1" key={subject.name}>
+                <FilterRow
+                  active={selectedSubjects.includes(subject.name)}
                   disabled={disabled}
-                  onChange={() => onSubjectToggle(subject.name)}
-                  type="checkbox"
+                  label={subject.name}
+                  onClick={() => onSubjectToggle(subject.name)}
                 />
-                <span>{subject.name}</span>
-              </label>
-              <div style={styles.categoryList}>
-                {subject.categories.map((category) => (
-                  <label key={category.id} style={styles.option}>
-                    <input
-                      checked={selectedCategoryIds.includes(category.id)}
+                <div className="ml-4 space-y-1">
+                  {subject.categories.map((category) => (
+                    <FilterRow
+                      active={selectedCategoryIds.includes(category.id)}
                       disabled={disabled}
-                      onChange={() => onCategoryToggle(category.id)}
-                      type="checkbox"
+                      key={category.id}
+                      label={category.name}
+                      onClick={() => onCategoryToggle(category.id)}
                     />
-                    <span>{category.name}</span>
-                  </label>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </fieldset>
+            ))}
+          </TreeGroup>
 
-      <fieldset style={styles.group}>
-        <legend style={styles.legend}>年级</legend>
-        <div style={styles.gradeGrid}>
-          {filters.grades.map((grade) => (
-            <label key={grade} style={styles.option}>
-              <input
-                checked={selectedGrades.includes(grade)}
+          <TreeGroup
+            expanded={expandedNodes.includes('grades')}
+            label="年级筛选"
+            onToggle={() => toggleNode('grades')}
+          >
+            {filters.grades.map((grade) => (
+              <FilterRow
+                active={selectedGrades.includes(grade)}
                 disabled={disabled}
-                onChange={() => onGradeToggle(grade)}
-                type="checkbox"
+                key={grade}
+                label={grade}
+                onClick={() => onGradeToggle(grade)}
               />
-              <span>{grade}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+            ))}
+          </TreeGroup>
+        </nav>
+      </div>
     </aside>
   );
 }
 
-const statusOptions: { label: string; value: SimulationStatusFilter }[] = [
-  { label: '全部', value: 'all' },
-  { label: '启用', value: 'enabled' },
-  { label: '停用', value: 'disabled' },
-];
+function TreeGroup({
+  children,
+  expanded,
+  label,
+  onToggle,
+}: {
+  children: ReactNode;
+  expanded: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="select-none">
+      <button
+        className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-slate-500 transition-all duration-200 hover:bg-slate-100/50 hover:text-slate-900"
+        onClick={onToggle}
+        type="button"
+      >
+        {expanded ? <ChevronDown className="shrink-0" size={14} /> : <ChevronRight size={14} />}
+        <span className="truncate">{label}</span>
+      </button>
+      {expanded ? <div className="mt-1 space-y-1">{children}</div> : null}
+    </div>
+  );
+}
 
-function readInputValue(target: EventTarget): string {
+function FilterRow({
+  active,
+  disabled,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  disabled: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={`flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+        active
+          ? 'bg-primary shadow-primary/20 font-bold text-white shadow-lg'
+          : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-900'
+      }`}
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      <span className={`h-1 w-1 shrink-0 rounded-full ${active ? 'bg-white' : 'bg-slate-300'}`} />
+      <span className="truncate">{label}</span>
+      {active ? <BookOpen className="ml-auto opacity-70" size={12} /> : null}
+    </button>
+  );
+}
+
+function readControlValue(target: EventTarget): string {
   const value = (target as { value?: unknown }).value;
 
   return typeof value === 'string' ? value : '';
 }
-
-const styles = {
-  categoryList: {
-    display: 'grid',
-    gap: 8,
-    paddingLeft: 22,
-  },
-  gradeGrid: {
-    display: 'grid',
-    gap: 8,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
-  },
-  group: {
-    border: 0,
-    display: 'grid',
-    gap: 10,
-    margin: 0,
-    padding: 0,
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    justifyContent: 'space-between',
-  },
-  input: {
-    border: '1px solid #b8c2d0',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    padding: '8px 10px',
-    width: '100%',
-  },
-  labelText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  legend: {
-    color: '#172033',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-    marginBottom: 10,
-    padding: 0,
-  },
-  option: {
-    alignItems: 'center',
-    color: '#334155',
-    display: 'flex',
-    fontSize: 13,
-    gap: 7,
-    lineHeight: '18px',
-  },
-  optionStrong: {
-    alignItems: 'center',
-    color: '#172033',
-    display: 'flex',
-    fontSize: 13,
-    fontWeight: 700,
-    gap: 7,
-    lineHeight: '18px',
-  },
-  panel: {
-    alignSelf: 'start',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 18,
-    padding: 16,
-  },
-  radio: {
-    height: 1,
-    opacity: 0,
-    position: 'absolute',
-    width: 1,
-  },
-  reset: {
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    borderRadius: 6,
-    color: '#334155',
-    cursor: 'pointer',
-    fontSize: 13,
-    lineHeight: '18px',
-    padding: '5px 9px',
-  },
-  searchLabel: {
-    display: 'grid',
-    gap: 6,
-  },
-  segmented: {
-    border: '1px solid #c8d1dc',
-    borderRadius: 6,
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    overflow: 'hidden',
-  },
-  segmentedActive: {
-    background: '#0f766e',
-    color: '#ffffff',
-    display: 'block',
-    fontSize: 13,
-    lineHeight: '18px',
-    padding: '7px 8px',
-    textAlign: 'center',
-  },
-  segmentedFocus: {
-    outline: '2px solid #2563eb',
-    outlineOffset: -2,
-  },
-  segmentedOption: {
-    cursor: 'pointer',
-    position: 'relative',
-  },
-  segmentedText: {
-    background: '#ffffff',
-    color: '#334155',
-    display: 'block',
-    fontSize: 13,
-    lineHeight: '18px',
-    padding: '7px 8px',
-    textAlign: 'center',
-  },
-  stack: {
-    display: 'grid',
-    gap: 14,
-  },
-  subjectBlock: {
-    display: 'grid',
-    gap: 8,
-  },
-  title: {
-    color: '#172033',
-    fontSize: 18,
-    lineHeight: '24px',
-    margin: 0,
-  },
-} satisfies Record<string, CSSProperties>;

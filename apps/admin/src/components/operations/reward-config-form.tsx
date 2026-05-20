@@ -4,7 +4,9 @@ import type {
   AdminFissionRewardConfig,
   AdminFissionRewardConfigUpdateInput,
 } from '@package/shared';
-import { type CSSProperties, type FormEvent, useState } from 'react';
+import { Gift, Plus, Save } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { type FormEvent, useState } from 'react';
 
 type RewardConfigFormProps = {
   config: AdminFissionRewardConfig;
@@ -52,115 +54,190 @@ export function RewardConfigForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
-      <section style={styles.switchPanel}>
-        <div style={styles.switchText}>
-          <h2 style={styles.panelTitle}>活动状态</h2>
-          <p style={styles.description}>开启后分享链接及邀请码正式生效。</p>
+    <form
+      className="max-w-3xl rounded-[32px] border border-slate-200 bg-white p-10 shadow-sm"
+      onSubmit={handleSubmit}
+    >
+      <div className="mb-10 flex items-center gap-3 border-b border-slate-100 pb-6">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+          <Gift size={24} />
         </div>
-        <label style={styles.switchLabel}>
-          <input
-            checked={form.isActive}
-            disabled={submitting}
-            onChange={(event) =>
-              updateForm({
-                isActive: readControlChecked(event.currentTarget),
-              })
-            }
-            type="checkbox"
-          />
-          <span>{form.isActive ? '已开启' : '已关闭'}</span>
-        </label>
-      </section>
-
-      <div style={styles.grid}>
-        <label style={styles.field}>
-          <span style={styles.label}>邀请者奖励额度</span>
-          <input
-            disabled={submitting}
-            min="0"
-            onChange={(event) =>
-              updateForm({
-                inviterQuota: readControlValue(event.currentTarget),
-              })
-            }
-            style={styles.input}
-            type="number"
-            value={form.inviterQuota}
-          />
-        </label>
-
-        <label style={styles.field}>
-          <span style={styles.label}>受邀者奖励额度</span>
-          <input
-            disabled={submitting}
-            min="0"
-            onChange={(event) =>
-              updateForm({
-                inviteeQuota: readControlValue(event.currentTarget),
-              })
-            }
-            style={styles.input}
-            type="number"
-            value={form.inviteeQuota}
-          />
-        </label>
+        <div>
+          <h4 className="text-xl font-black text-slate-900">裂变奖励规则</h4>
+          <p className="text-sm text-slate-500">动态调整邀请双方的额度奖励及多级提成</p>
+        </div>
       </div>
 
-      <section style={styles.switchPanel}>
-        <div style={styles.switchText}>
-          <h2 style={styles.panelTitle}>二级分销奖励</h2>
-          <p style={styles.description}>开启后可配置二级邀请奖励比例。</p>
-        </div>
-        <label style={styles.switchLabel}>
-          <input
-            checked={form.enableMultiTier}
+      <div className="space-y-8">
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-6">
+          <div>
+            <p className="font-bold text-slate-900">活动状态</p>
+            <p className="text-xs text-slate-500">开启后分享链接及邀请码正式生效</p>
+          </div>
+          <Switch
+            checked={form.isActive}
             disabled={submitting}
-            onChange={(event) =>
-              updateForm({
-                enableMultiTier: readControlChecked(event.currentTarget),
-              })
-            }
-            type="checkbox"
+            onChange={(checked) => updateForm({ isActive: checked })}
           />
-          <span>{form.enableMultiTier ? '已开启' : '已关闭'}</span>
-        </label>
-      </section>
+        </div>
 
-      <label style={styles.field}>
-        <span style={styles.label}>二级提成比例</span>
-        <input
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <label className="space-y-3">
+            <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+              邀请者奖励 (Quota)
+            </span>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
+                <Plus size={16} />
+              </div>
+              <input
+                className="focus:ring-primary/10 w-full rounded-[20px] border border-slate-200 bg-slate-50 py-4 pr-4 pl-10 font-bold text-slate-800 transition-all outline-none focus:ring-4"
+                disabled={submitting}
+                min="0"
+                onChange={(event) =>
+                  updateForm({ inviterQuota: readControlValue(event.currentTarget) })
+                }
+                type="number"
+                value={form.inviterQuota}
+              />
+            </div>
+          </label>
+
+          <label className="space-y-3">
+            <span className="ml-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+              受邀者奖励 (Quota)
+            </span>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
+                <Plus size={16} />
+              </div>
+              <input
+                className="focus:ring-primary/10 w-full rounded-[20px] border border-slate-200 bg-slate-50 py-4 pr-4 pl-10 font-bold text-slate-800 transition-all outline-none focus:ring-4"
+                disabled={submitting}
+                min="0"
+                onChange={(event) =>
+                  updateForm({ inviteeQuota: readControlValue(event.currentTarget) })
+                }
+                type="number"
+                value={form.inviteeQuota}
+              />
+            </div>
+          </label>
+        </div>
+
+        <div className="border-t border-slate-100 pt-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-slate-900">二级分销奖励</p>
+              <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black tracking-widest text-amber-600 uppercase">
+                高级
+              </span>
+            </div>
+            <Switch
+              checked={form.enableMultiTier}
+              disabled={submitting}
+              onChange={(checked) => updateForm({ enableMultiTier: checked })}
+              tone="amber"
+            />
+          </div>
+          <p className="mb-6 text-sm text-slate-500">
+            当邀请者邀请的用户再次邀请新用户时，原始邀请者可获得的额外奖励比例。
+          </p>
+
+          <AnimatePresence initial={false}>
+            {form.enableMultiTier ? (
+              <motion.div
+                animate={{ opacity: 1, height: 'auto' }}
+                className="overflow-hidden"
+                exit={{ opacity: 0, height: 0 }}
+                initial={{ opacity: 0, height: 0 }}
+              >
+                <div className="flex items-center gap-6 rounded-2xl border border-amber-100 bg-amber-50/50 p-6">
+                  <div className="flex-1 space-y-2">
+                    <label className="ml-1 text-[10px] font-black tracking-widest text-amber-700/60 uppercase">
+                      提成比例 (%)
+                    </label>
+                    <input
+                      className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-amber-200 accent-amber-500"
+                      disabled={submitting}
+                      max="100"
+                      min="0"
+                      onChange={(event) =>
+                        updateForm({ tier2RewardPct: readControlValue(event.currentTarget) })
+                      }
+                      step="1"
+                      type="range"
+                      value={form.tier2RewardPct}
+                    />
+                  </div>
+                  <div className="w-20 rounded-xl border border-amber-100 bg-white py-2 text-center text-2xl font-black text-amber-600 shadow-sm">
+                    {form.tier2RewardPct}%
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+
+        {error ? (
+          <p
+            aria-live="polite"
+            className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
+
+        {submitError ? (
+          <p
+            aria-live="polite"
+            className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+            role="alert"
+          >
+            {submitError}
+          </p>
+        ) : null}
+
+        <button
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-900 py-4 font-black text-white shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
           disabled={submitting}
-          min="0"
-          onChange={(event) =>
-            updateForm({
-              tier2RewardPct: readControlValue(event.currentTarget),
-            })
-          }
-          style={styles.input}
-          type="number"
-          value={form.tier2RewardPct}
-        />
-      </label>
-
-      {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {error}
-        </p>
-      ) : null}
-
-      {submitError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {submitError}
-        </p>
-      ) : null}
-
-      <div style={styles.actions}>
-        <button disabled={submitting} style={styles.primaryButton} type="submit">
-          {submitting ? '保存中...' : '保存奖励配置'}
+          type="submit"
+        >
+          <Save size={20} />
+          {submitting ? '保存中...' : '保存奖励规则'}
         </button>
       </div>
     </form>
+  );
+}
+
+function Switch({
+  checked,
+  disabled,
+  onChange,
+  tone = 'primary',
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+  tone?: 'amber' | 'primary';
+}) {
+  return (
+    <label className="relative inline-flex cursor-pointer items-center">
+      <input
+        checked={checked}
+        className="peer sr-only"
+        disabled={disabled}
+        onChange={(event) => onChange(readControlChecked(event.currentTarget))}
+        type="checkbox"
+      />
+      <span
+        className={`h-7 w-14 rounded-full bg-slate-200 shadow-inner after:absolute after:top-[2px] after:left-[2px] after:h-6 after:w-6 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white ${
+          tone === 'amber' ? 'peer-checked:bg-amber-500' : 'peer-checked:bg-primary'
+        }`}
+      />
+    </label>
   );
 }
 
@@ -233,108 +310,3 @@ function readControlValue(target: EventTarget): string {
 function readControlChecked(target: EventTarget): boolean {
   return Boolean((target as { checked?: unknown }).checked);
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '9px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    justifyContent: 'end',
-    paddingTop: 14,
-  },
-  description: {
-    color: '#64748b',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  form: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 16,
-    maxWidth: 720,
-    padding: 18,
-  },
-  grid: {
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 40,
-    padding: '8px 10px',
-    width: '100%',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  panelTitle: {
-    color: '#172033',
-    fontSize: 16,
-    lineHeight: '22px',
-    margin: 0,
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  switchLabel: {
-    alignItems: 'center',
-    color: '#334155',
-    display: 'flex',
-    flex: '0 0 auto',
-    fontSize: 13,
-    fontWeight: 700,
-    gap: 8,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  switchPanel: {
-    alignItems: 'center',
-    background: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-    padding: 14,
-  },
-  switchText: {
-    display: 'grid',
-    gap: 4,
-  },
-} satisfies Record<string, CSSProperties>;

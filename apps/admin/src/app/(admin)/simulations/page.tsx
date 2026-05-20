@@ -6,7 +6,8 @@ import type {
   SimulationItem,
   SimulationListResult,
 } from '@package/shared';
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LayoutGrid, List as ListIcon, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SimulationCard } from '../../../components/simulations/simulation-card';
 import {
@@ -172,56 +173,100 @@ export default function AdminSimulationsPage() {
   }
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
-        <div>
-          <p style={styles.eyebrow}>Admin / Simulations</p>
-          <h1 style={styles.heading}>仿真实验管理</h1>
+    <main className="flex h-full min-h-[750px] flex-col gap-4 overflow-hidden rounded-[40px] border border-slate-200 bg-white p-2 shadow-sm lg:flex-row lg:gap-10">
+      <SimulationTreeFilter
+        disabled={filtersLoading}
+        filters={filters}
+        onCategoryToggle={(categoryId) =>
+          setSelectedCategoryIds((current) => toggleValue(current, categoryId))
+        }
+        onGradeToggle={(grade) => setSelectedGrades((current) => toggleValue(current, grade))}
+        onReset={resetFilters}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        onSubjectToggle={(subject) =>
+          setSelectedSubjects((current) => toggleValue(current, subject))
+        }
+        search={search}
+        selectedCategoryIds={selectedCategoryIds}
+        selectedGrades={selectedGrades}
+        selectedSubjects={selectedSubjects}
+        status={status}
+      />
+
+      <section
+        aria-busy={listLoading}
+        aria-label="仿真实验列表"
+        className="flex min-w-0 flex-1 flex-col gap-8 overflow-hidden p-6 lg:p-8"
+      >
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <h3 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-900">
+              仿真实验资源
+              <span className="rounded-md border border-slate-200/50 bg-slate-100 px-2 py-0.5 text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                已筛选
+              </span>
+            </h3>
+            <p className="mt-1 text-sm font-medium text-slate-400">
+              当前查询条件下共有 {listLoading ? '...' : result.total} 个结果
+            </p>
+          </div>
+          <div className="flex w-max rounded-2xl border border-slate-200/50 bg-slate-100 p-1.5 shadow-inner">
+            <button
+              aria-label="卡片视图"
+              className="text-primary rounded-xl border border-slate-200/50 bg-white p-2.5 shadow-md"
+              type="button"
+            >
+              <LayoutGrid size={20} />
+            </button>
+            <button
+              aria-disabled="true"
+              aria-label="列表视图暂不可用"
+              className="cursor-not-allowed rounded-xl p-2.5 text-slate-400 opacity-60"
+              disabled
+              type="button"
+            >
+              <ListIcon size={20} />
+            </button>
+          </div>
         </div>
-        <div style={styles.summary} aria-label="仿真实验统计">
-          <strong style={styles.summaryNumber}>{result.total}</strong>
-          <span style={styles.summaryText}>条结果</span>
-        </div>
-      </header>
 
-      {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {error}
-        </p>
-      ) : null}
+        {error ? (
+          <p
+            aria-live="polite"
+            className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+            role="alert"
+          >
+            {error}
+          </p>
+        ) : null}
 
-      {toggleError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {toggleError}
-        </p>
-      ) : null}
+        {toggleError ? (
+          <p
+            aria-live="polite"
+            className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+            role="alert"
+          >
+            {toggleError}
+          </p>
+        ) : null}
 
-      <div style={styles.layout}>
-        <SimulationTreeFilter
-          disabled={filtersLoading}
-          filters={filters}
-          onCategoryToggle={(categoryId) =>
-            setSelectedCategoryIds((current) => toggleValue(current, categoryId))
-          }
-          onGradeToggle={(grade) => setSelectedGrades((current) => toggleValue(current, grade))}
-          onReset={resetFilters}
-          onSearchChange={setSearch}
-          onStatusChange={setStatus}
-          onSubjectToggle={(subject) =>
-            setSelectedSubjects((current) => toggleValue(current, subject))
-          }
-          search={search}
-          selectedCategoryIds={selectedCategoryIds}
-          selectedGrades={selectedGrades}
-          selectedSubjects={selectedSubjects}
-          status={status}
-        />
-
-        <section aria-busy={listLoading} aria-label="仿真实验列表" style={styles.results}>
-          {listLoading ? <p style={styles.stateText}>正在加载仿真实验...</p> : null}
+        <div className="custom-scrollbar grid grid-cols-1 gap-8 overflow-y-auto pr-1 pb-10 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {listLoading ? (
+            <p className="col-span-full rounded-[28px] border border-slate-100 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-400">
+              正在加载仿真实验...
+            </p>
+          ) : null}
 
           {!listLoading && result.items.length === 0 ? (
-            <p style={styles.stateText}>没有匹配的仿真实验。</p>
+            <div className="col-span-full space-y-4 py-20 text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 text-slate-200">
+                <Search size={40} />
+              </div>
+              <p className="font-medium tracking-tight text-slate-400">
+                在该过滤条件下未找到任何资源
+              </p>
+            </div>
           ) : null}
 
           {result.items.map((item) => (
@@ -232,8 +277,8 @@ export default function AdminSimulationsPage() {
               toggling={togglingIds.includes(item.id)}
             />
           ))}
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
   );
 }
@@ -363,84 +408,3 @@ function unknownArrayToStrings(value: unknown[] | null): string[] {
 
   return value.filter((item): item is string => typeof item === 'string');
 }
-
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 26,
-    lineHeight: '34px',
-    margin: 0,
-  },
-  layout: {
-    alignItems: 'start',
-    display: 'grid',
-    gap: 18,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  },
-  main: {
-    background: '#f8fafc',
-    color: '#172033',
-    display: 'grid',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    gap: 18,
-    minHeight: 0,
-    padding: 24,
-  },
-  results: {
-    display: 'grid',
-    gap: 12,
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  summary: {
-    alignItems: 'baseline',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 6,
-    padding: '10px 12px',
-  },
-  summaryNumber: {
-    color: '#0f766e',
-    fontSize: 22,
-    lineHeight: '28px',
-  },
-  summaryText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-} satisfies Record<string, CSSProperties>;
