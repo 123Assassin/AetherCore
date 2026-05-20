@@ -89,7 +89,7 @@ Rejected alternative: **完整复制旧 Vite 项目逻辑。** 这会把 `@googl
 
 - Create: `docs/migration/visual-parity/source-ui-baseline.md`
 
-- [ ] **Step 1: Confirm source servers**
+- [x] **Step 1: Confirm source servers**
 
 Run:
 
@@ -100,7 +100,7 @@ lsof -nP -iTCP:3001 -sTCP:LISTEN
 
 Expected: `3000` and `3001` both have a `node` listener.
 
-- [ ] **Step 2: Capture source screenshots**
+- [x] **Step 2: Capture source screenshots**
 
 Use Playwright MCP if available. If MCP reports an existing profile lock, use Playwright CLI/Node with Chrome channel. Capture these states:
 
@@ -116,7 +116,7 @@ username: admin
 password: admin123
 ```
 
-- [ ] **Step 3: Write baseline matrix**
+- [x] **Step 3: Write baseline matrix**
 
 Document each route with:
 
@@ -128,7 +128,7 @@ Document each route with:
 
 Repeat rows for every source state listed in Step 2.
 
-- [ ] **Step 4: Verify baseline file**
+- [x] **Step 4: Verify baseline file**
 
 Run:
 
