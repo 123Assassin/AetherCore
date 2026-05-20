@@ -1806,19 +1806,19 @@ git commit -m "test: add web integration checklist"
 - Modify: `apps/admin/src/components/layout/admin-header.tsx`
 - Create: `docs/migration/admin/integration-checklist.md`
 
-- [ ] **Step 1: Wire final admin navigation**
+- [x] **Step 1: Wire final admin navigation**
   - Ensure every documented admin route appears in sidebar.
   - Ensure unknown admin route redirects to `/dashboard`.
 
-- [ ] **Step 2: Create admin integration checklist**
+- [x] **Step 2: Create admin integration checklist**
   - Record manual checks for auth, resource CRUD, simulations, users, operations, security, alarm, settings.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Every admin route loads.
   - Sidebar active state is correct.
   - Unauthenticated access redirects to `/login`.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1827,7 +1827,7 @@ pnpm build:admin
 rg -n "/dashboard|/resources/agents|/resources/prompts|/resources/sensitive-words|/simulations|/engine-dispatch|/users|/settings" docs/migration/admin/integration-checklist.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/admin/src/components/layout docs/migration/admin/integration-checklist.md
