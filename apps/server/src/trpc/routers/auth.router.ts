@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 
 import { resolveAdminSession } from '../../common/guards/admin-session.guard.js';
-import type { AuthService } from '../../modules/auth/auth.service.js';
+import { AuthServiceError, type AuthService } from '../../modules/auth/auth.service.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
 
 type RouterTools = {
@@ -17,6 +17,9 @@ type AdminLoginInput = {
 export function createAuthRouter(authService: AuthService, tools: RouterTools) {
   return tools.createTRPCRouter({
     wechatLoginUrl: tools.publicProcedure.query(() => authService.getWeChatLoginUrl()),
+    mockLogin: tools.publicProcedure.mutation(({ ctx }) =>
+      mapAuthServiceError(() => authService.mockLogin(ctx))
+    ),
     logout: tools.publicProcedure.mutation(({ ctx }) => authService.userLogout(ctx)),
   });
 }
@@ -69,4 +72,19 @@ function throwInvalidInput(): never {
     code: 'BAD_REQUEST',
     message: 'Admin login requires username and password',
   });
+}
+
+async function mapAuthServiceError<T>(callback: () => Promise<T>): Promise<T> {
+  try {
+    return await callback();
+  } catch (error) {
+    if (error instanceof AuthServiceError) {
+      throw new TRPCError({
+        code: error.code,
+        message: error.message,
+      });
+    }
+
+    throw error;
+  }
 }

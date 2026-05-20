@@ -2,20 +2,26 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
+import { useTrpcClient } from '../../trpc/provider';
+
 type WeChatLoginModalProps = {
   open: boolean;
   onClose: () => void;
 };
 
 type ScanState = 'waiting' | 'scanned' | 'confirmed';
+type LoginState = 'idle' | 'submitting' | 'error';
 type FocusTarget = {
   focus: () => void;
 };
 
 export function WeChatLoginModal({ open, onClose }: WeChatLoginModalProps) {
+  const client = useTrpcClient();
   const closeButtonRef = useRef<FocusTarget | null>(null);
   const footerButtonRef = useRef<FocusTarget | null>(null);
   const [scanState, setScanState] = useState<ScanState>('waiting');
+  const [loginState, setLoginState] = useState<LoginState>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -48,6 +54,23 @@ export function WeChatLoginModal({ open, onClose }: WeChatLoginModalProps) {
 
   function focusLastControl() {
     footerButtonRef.current?.focus();
+  }
+
+  async function handleMockLogin() {
+    if (loginState === 'submitting') {
+      return;
+    }
+
+    setLoginState('submitting');
+    setError(null);
+
+    try {
+      await client.auth.mockLogin.mutate();
+      onClose();
+    } catch (loginError) {
+      setLoginState('error');
+      setError(getLoginErrorMessage(loginError));
+    }
   }
 
   function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -109,6 +132,11 @@ export function WeChatLoginModal({ open, onClose }: WeChatLoginModalProps) {
           <span style={styles.notice}>
             测试环境使用模拟扫码面板，不在前端读取或展示服务端密钥。
           </span>
+          {error ? (
+            <span aria-live="assertive" role="alert" style={styles.error}>
+              {error}
+            </span>
+          ) : null}
         </div>
 
         <div style={styles.footer}>
@@ -120,6 +148,18 @@ export function WeChatLoginModal({ open, onClose }: WeChatLoginModalProps) {
             style={styles.secondaryButton}
           >
             关闭
+          </button>
+          <button
+            disabled={scanState !== 'confirmed' || loginState === 'submitting'}
+            onClick={handleMockLogin}
+            style={{
+              ...styles.primaryButton,
+              ...(scanState !== 'confirmed' || loginState === 'submitting'
+                ? styles.primaryButtonDisabled
+                : {}),
+            }}
+          >
+            {loginState === 'submitting' ? '登录中...' : '完成模拟登录'}
           </button>
         </div>
         <button
@@ -239,8 +279,15 @@ const styles = {
     lineHeight: '18px',
     textAlign: 'center',
   },
+  error: {
+    color: '#b42318',
+    fontSize: 12,
+    lineHeight: '18px',
+    textAlign: 'center',
+  },
   footer: {
     display: 'flex',
+    gap: 10,
     justifyContent: 'flex-end',
     marginTop: 18,
   },
@@ -253,6 +300,20 @@ const styles = {
     fontSize: 14,
     padding: '8px 14px',
   },
+  primaryButton: {
+    background: '#12645c',
+    border: '1px solid #12645c',
+    borderRadius: 6,
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontSize: 14,
+    padding: '8px 14px',
+  },
+  primaryButtonDisabled: {
+    background: '#9ca3af',
+    borderColor: '#9ca3af',
+    cursor: 'not-allowed',
+  },
   focusSentinel: {
     border: 0,
     height: 1,
@@ -262,3 +323,11 @@ const styles = {
     width: 1,
   },
 } as const;
+
+function getLoginErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return '模拟登录失败，请稍后重试。';
+}

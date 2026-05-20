@@ -141,6 +141,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           min-width: 0;
         }
 
+        .app-header__actions {
+          display: flex;
+          min-width: 0;
+          align-items: center;
+          gap: 10px;
+        }
+
         .app-header__eyebrow {
           color: #6b7280;
           font-size: 12px;
@@ -170,6 +177,26 @@ export function AppShell({ children }: { children: ReactNode }) {
           padding: 6px 10px;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+
+        .app-header__login-button {
+          min-height: 32px;
+          flex: 0 0 auto;
+          border: 1px solid #12645c;
+          border-radius: 6px;
+          background: #12645c;
+          color: #ffffff;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 18px;
+          padding: 6px 12px;
+          white-space: nowrap;
+        }
+
+        .app-header__login-button:hover {
+          background: #0f4f47;
+          border-color: #0f4f47;
         }
 
         @media (max-width: 760px) {

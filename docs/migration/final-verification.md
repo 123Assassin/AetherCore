@@ -15,6 +15,8 @@ Date: 2026-05-20
 - Imported `AdminOperationsModule` into `TrpcModule` so `AdminOperationsService` is available to `TrpcService`.
 - Added a minimal `GET /trpc` Fastify health response for the planned server smoke command; procedure calls remain under the tRPC plugin prefix.
 - Ignored generated `next-env.d.ts` files in the shared ESLint config so `pnpm build` followed by `pnpm lint` is stable with Next-generated route type references.
+- Added `auth.mockLogin` for local and test user-session smoke flows. It is enabled outside production by default and requires `AUTH_MOCK_LOGIN_ENABLED=true` in production.
+- Added an `.env.example` and Docker Compose default for `AETHERCORE_ENGINE_API_KEY_SECRET` so admin engine CRUD can encrypt API keys under the documented local runtime.
 
 ## Command Results
 
@@ -43,6 +45,24 @@ Date: 2026-05-20
 - App containers print `husky: git command not found` during prepare inside the Alpine image, then continue successfully.
 - App containers print pnpm's ignored-build-scripts warning for packages including `@nestjs/core`, `esbuild`, and `sharp`.
 - Server startup prints Node's `DEP0190` warning from the Nest watch command.
+
+## Final Review Remediation
+
+- Final review found that user-side AI workflows had no reachable local login/session path. Remediation added the mock WeChat modal action and `auth.mockLogin`, which creates or reuses a normal user, writes a `sessions` row, stores the Redis `session:{token}` payload, and sets the HttpOnly user cookie.
+- Final review found that admin engine CRUD failed under `.env.example` because the engine API key encryption secret was not configured. Remediation added the local secret default to `.env.example` and the Compose `server` environment.
+- Targeted remediation checks:
+  - `pnpm exec tsx --test apps/server/src/trpc/routers/auth.router.spec.ts`: PASS, 3/3 tests.
+  - `pnpm --filter server type-check`: PASS.
+  - `pnpm --filter server lint`: PASS.
+  - `pnpm --filter web type-check`: PASS.
+  - `pnpm --filter web lint`: PASS.
+  - `pnpm db:generate`: PASS.
+  - `pnpm type-check`: PASS, 17/17 tasks.
+  - `pnpm build`: PASS, 11/11 tasks.
+  - `pnpm lint`: PASS, 10/10 tasks with the existing db-init console warnings.
+  - `pnpm exec dotenv -e .env.example -- tsx -e "<engine create smoke>"`: PASS, created an engine through the encrypted path and returned `sk-e...7890`.
+  - `docker compose --env-file .env.example --profile app config`: PASS, server environment includes `AETHERCORE_ENGINE_API_KEY_SECRET`.
+  - Docker app-profile runtime smoke: PASS. `auth.mockLogin` set `aether_session`, `me.profile` returned `dev.user@aethercore.local`, admin login succeeded, and `adminResources.engines.create` returned the encrypted API key mask `sk-r...7890`.
 
 ## Cleanup And Restoration
 

@@ -1,19 +1,24 @@
+import { randomBytes } from 'node:crypto';
+
 import { Injectable } from '@nestjs/common';
 import {
   adminSessionKey,
+  hashPassword,
   parseSessionPayload,
   redis,
   serializeSessionPayload,
   sessionKey,
   verifyPassword,
 } from '@package/auth';
-import { randomBytes } from 'node:crypto';
 
 import type { TRPCContext } from '../../trpc/context.js';
 import { AuthRepository, type AuthUserRow } from './auth.repository.js';
 
 const ADMIN_SESSION_TTL_SECONDS = 2 * 60 * 60;
+const USER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const WECHAT_STATE_TTL_SECONDS = 10 * 60;
+const DEFAULT_MOCK_USER_EMAIL = 'dev.user@aethercore.local';
+const DEFAULT_MOCK_USER_NAME = 'AetherCore Dev User';
 
 const INVALID_ADMIN_LOGIN: AdminLoginResult = {
   success: false,
@@ -70,6 +75,13 @@ type LogoutResult = {
   success: true;
 };
 
+type MockLoginResult = {
+  success: true;
+  data: {
+    user: AuthUserSummary;
+  };
+};
+
 type WeChatLoginUrlResult = {
   url: string;
   state: string;
@@ -104,8 +116,25 @@ export type AdminSession = {
   user: AuthenticatedUser & { role: 'admin' };
 };
 
+export class AuthServiceError extends Error {
+  constructor(
+    readonly code: 'FORBIDDEN' | 'CONFLICT',
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+type SessionStore = {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, mode: 'EX', ttlSeconds: number): Promise<unknown>;
+  del(key: string): Promise<unknown>;
+};
+
 @Injectable()
 export class AuthService {
+  private readonly sessionStore: SessionStore = redis;
+
   constructor(private readonly authRepository: AuthRepository) {}
 
   async getWeChatLoginUrl(): Promise<WeChatLoginUrlResult> {
@@ -127,6 +156,38 @@ export class AuthService {
       url: `https://open.weixin.qq.com/connect/qrconnect?${params.toString()}#wechat_redirect`,
       state,
       expiresInSeconds: WECHAT_STATE_TTL_SECONDS,
+    };
+  }
+
+  async mockLogin(context: TRPCContext): Promise<MockLoginResult> {
+    if (!isMockLoginEnabled()) {
+      throw new AuthServiceError('FORBIDDEN', 'Mock login is disabled');
+    }
+
+    const user = await this.findOrCreateMockUser();
+    const token = createToken();
+    const expiresAt = expiresFromNow(USER_SESSION_TTL_SECONDS);
+
+    await this.authRepository.createSession({
+      userId: user.id,
+      token,
+      userAgent: getUserAgent(context),
+      ip: getIp(context),
+      expiresAt,
+    });
+    await this.sessionStore.set(
+      sessionKey(token),
+      serializeSessionPayload({ userId: user.id, role: 'user' }),
+      'EX',
+      USER_SESSION_TTL_SECONDS
+    );
+    setCookie(context, getUserCookieName(), token, USER_SESSION_TTL_SECONDS);
+
+    return {
+      success: true,
+      data: {
+        user: toAuthUserSummary(user),
+      },
     };
   }
 
@@ -153,7 +214,7 @@ export class AuthService {
       ip: getIp(context),
       expiresAt,
     });
-    await redis.set(
+    await this.sessionStore.set(
       adminSessionKey(token),
       serializeSessionPayload({ userId: user.id, role: 'admin' }),
       'EX',
@@ -298,7 +359,7 @@ export class AuthService {
 
   private async getSessionPayload(token: string, admin: boolean) {
     try {
-      const value = await redis.get(admin ? adminSessionKey(token) : sessionKey(token));
+      const value = await this.sessionStore.get(admin ? adminSessionKey(token) : sessionKey(token));
 
       return value ? parseSessionPayload(value) : null;
     } catch {
@@ -308,17 +369,44 @@ export class AuthService {
 
   private async deleteSession(token: string, admin: boolean): Promise<void> {
     await Promise.allSettled([
-      redis.del(admin ? adminSessionKey(token) : sessionKey(token)),
+      this.sessionStore.del(admin ? adminSessionKey(token) : sessionKey(token)),
       this.authRepository.deleteSessionByToken(token),
     ]);
   }
 
   private async storeWeChatStateBestEffort(state: string): Promise<void> {
     try {
-      await redis.set(`auth:wechat:state:${state}`, '1', 'EX', WECHAT_STATE_TTL_SECONDS);
+      await this.sessionStore.set(
+        `auth:wechat:state:${state}`,
+        '1',
+        'EX',
+        WECHAT_STATE_TTL_SECONDS
+      );
     } catch {
       // Local development should still be able to render a mock WeChat login URL without Redis.
     }
+  }
+
+  private async findOrCreateMockUser(): Promise<AuthUserRow> {
+    const email = getMockUserEmail();
+    const existingUser = await this.authRepository.findUserByEmail(email);
+
+    if (existingUser) {
+      if (existingUser.role !== 'user' || !existingUser.isActive) {
+        throw new AuthServiceError('CONFLICT', 'Mock login user is not an active normal user');
+      }
+
+      return existingUser;
+    }
+
+    return this.authRepository.createUser({
+      email,
+      name: getMockUserName(),
+      password: await hashPassword(createToken(16)),
+      role: 'user',
+      isActive: true,
+      isBlacklisted: false,
+    });
   }
 }
 
@@ -357,6 +445,22 @@ function getUserCookieName(): string {
 
 function getAdminCookieName(): string {
   return process.env.ADMIN_SESSION_COOKIE_NAME || 'aether_admin_session';
+}
+
+function getMockUserEmail(): string {
+  return process.env.AUTH_MOCK_USER_EMAIL || DEFAULT_MOCK_USER_EMAIL;
+}
+
+function getMockUserName(): string {
+  return process.env.AUTH_MOCK_USER_NAME || DEFAULT_MOCK_USER_NAME;
+}
+
+function isMockLoginEnabled(): boolean {
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.AUTH_MOCK_LOGIN_ENABLED === 'true';
+  }
+
+  return process.env.AUTH_MOCK_LOGIN_ENABLED !== 'false';
 }
 
 function getUserAgent(context: TRPCContext): string | null {
