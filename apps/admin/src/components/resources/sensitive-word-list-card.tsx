@@ -1,5 +1,8 @@
+'use client';
+
 import type { AdminSensitiveWordListItem } from '@package/shared';
-import type { CSSProperties } from 'react';
+import { Edit, ShieldAlert, Trash2 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 type SensitiveWordListCardProps = {
   deleting?: boolean;
@@ -14,210 +17,75 @@ export function SensitiveWordListCard({
   onDelete,
   onEdit,
 }: SensitiveWordListCardProps) {
-  const previewWords = item.words.slice(0, 12);
+  const previewWords = item.words.slice(0, 20);
   const hiddenWordCount = Math.max(item.words.length - previewWords.length, 0);
 
   return (
-    <article style={styles.card}>
-      <div style={styles.cardHeader}>
-        <div style={styles.titleGroup}>
-          <h2 style={styles.name}>{item.name}</h2>
-          <p style={styles.meta}>{item.words.length} 个词条</p>
+    <motion.article
+      className="rounded-[32px] border border-slate-200 bg-white p-7 shadow-sm transition-all hover:shadow-xl"
+      layout
+    >
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+          <ShieldAlert size={24} />
         </div>
-        <span style={styles.countBadge}>{item.words.length}</span>
+        <span className="text-xs font-bold text-slate-400">{item.words.length} 个敏感词</span>
       </div>
 
-      <div aria-label={`${item.name} 词条预览`} style={styles.wordList}>
+      <h4 className="text-lg font-bold text-slate-900">{item.name}</h4>
+
+      <div className="mt-4 flex min-h-8 flex-wrap gap-2">
         {previewWords.map((word, index) => (
-          <span key={`${word}-${index}`} style={styles.wordTag}>
+          <span
+            className="max-w-44 truncate rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600"
+            key={`${word}-${index}`}
+          >
             {word}
           </span>
         ))}
-        {hiddenWordCount > 0 ? <span style={styles.moreTag}>+{hiddenWordCount}</span> : null}
+        {hiddenWordCount > 0 ? (
+          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
+            +{hiddenWordCount}
+          </span>
+        ) : null}
       </div>
 
-      <dl style={styles.details}>
-        <div style={styles.detailItem}>
-          <dt style={styles.detailLabel}>创建时间</dt>
-          <dd style={styles.detailValue}>{formatDateTime(item.createdAt)}</dd>
-        </div>
-        <div style={styles.detailItem}>
-          <dt style={styles.detailLabel}>更新时间</dt>
-          <dd style={styles.detailValue}>{formatDateTime(item.updatedAt)}</dd>
-        </div>
-      </dl>
-
-      <div style={styles.footer}>
-        <span style={styles.idText}>{item.id}</span>
-        <div style={styles.actions}>
-          <button onClick={() => onEdit(item)} style={styles.secondaryButton} type="button">
-            编辑
-          </button>
+      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
+        <span className="text-xs text-slate-400">更新于 {formatDate(item.updatedAt)}</span>
+        <div className="flex gap-2">
           <button
-            disabled={deleting}
-            onClick={() => onDelete(item)}
-            style={styles.dangerButton}
+            aria-label={`编辑敏感词库 ${item.name}`}
+            className="hover:text-primary rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100"
+            onClick={() => onEdit(item)}
             type="button"
           >
-            {deleting ? '删除中...' : '删除'}
+            <Edit size={16} />
+          </button>
+          <button
+            aria-label={`删除敏感词库 ${item.name}`}
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={deleting}
+            onClick={() => onDelete(item)}
+            type="button"
+          >
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
-function formatDateTime(value: string): string {
+function formatDate(value: string): string {
   const timestamp = Date.parse(value);
 
   if (!Number.isFinite(timestamp)) {
     return value;
   }
 
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Intl.DateTimeFormat('zh-CN', {
     day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  });
+  }).format(timestamp);
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '7px 11px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'end',
-  },
-  card: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 14,
-    padding: 16,
-  },
-  cardHeader: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  countBadge: {
-    background: '#e6f4f1',
-    borderRadius: 999,
-    color: '#0f766e',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-    padding: '4px 9px',
-    whiteSpace: 'nowrap',
-  },
-  dangerButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-  },
-  detailItem: {
-    display: 'grid',
-    gap: 4,
-  },
-  detailLabel: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: '16px',
-  },
-  details: {
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    margin: 0,
-  },
-  detailValue: {
-    color: '#172033',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  footer: {
-    alignItems: 'center',
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-    paddingTop: 12,
-  },
-  idText: {
-    color: '#64748b',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '16px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  meta: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  moreTag: {
-    background: '#f1f5f9',
-    border: '1px solid #d8dee8',
-    borderRadius: 999,
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: '16px',
-    padding: '4px 8px',
-  },
-  name: {
-    color: '#172033',
-    fontSize: 16,
-    lineHeight: '22px',
-    margin: 0,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  titleGroup: {
-    display: 'grid',
-    gap: 4,
-    minWidth: 0,
-  },
-  wordList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    minHeight: 30,
-  },
-  wordTag: {
-    background: '#f8fafc',
-    border: '1px solid #d8dee8',
-    borderRadius: 999,
-    color: '#334155',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: 180,
-    overflow: 'hidden',
-    padding: '4px 8px',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-} satisfies Record<string, CSSProperties>;

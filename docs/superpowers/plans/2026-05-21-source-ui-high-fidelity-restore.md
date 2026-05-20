@@ -605,23 +605,23 @@ Expected: login is dark Nexus page; authenticated shell uses blue/dark Nexus sid
 - Modify: `apps/admin/src/components/resources/sensitive-word-form-dialog.tsx`
 - Modify: `apps/admin/src/components/resources/sensitive-word-list-card.tsx`
 
-- [ ] **Step 1: Restore dashboard**
+- [x] **Step 1: Restore dashboard**
 
 Port source `Dashboard.tsx` layout and visual tokens. Keep target data source if available; when API returns no data, use the same source-style placeholders instead of current inline-style placeholders.
 
-- [ ] **Step 2: Restore agents**
+- [x] **Step 2: Restore agents**
 
 Port source `Agents.tsx` card grid and modal style. Keep target CRUD event handlers and tRPC calls.
 
-- [ ] **Step 3: Restore prompts**
+- [x] **Step 3: Restore prompts**
 
 Port source `AIPrompts.tsx` list, action buttons and modal style. Keep current `react-markdown` preview if it already works.
 
-- [ ] **Step 4: Restore sensitive words**
+- [x] **Step 4: Restore sensitive words**
 
 Port source `SensitiveWords.tsx` list card, tag chips and delete confirmation style.
 
-- [ ] **Step 5: Verify dashboard/resources**
+- [x] **Step 5: Verify dashboard/resources**
 
 Run:
 

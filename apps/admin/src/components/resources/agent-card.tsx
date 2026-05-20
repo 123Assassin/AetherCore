@@ -1,5 +1,8 @@
+'use client';
+
 import type { AdminAgentItem } from '@package/shared';
-import type { CSSProperties } from 'react';
+import { Cpu, Settings2, Trash2 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 type AgentCardProps = {
   deleting?: boolean;
@@ -23,60 +26,109 @@ export function AgentCard({
   const enabled = item.status === 'enabled';
 
   return (
-    <article style={styles.card}>
-      <div style={styles.cardHeader}>
-        <div style={styles.titleGroup}>
-          <h2 style={styles.name}>{item.name}</h2>
-          <p style={styles.meta}>
-            {agentKeyLabels[item.key]} / {item.key}
-          </p>
+    <motion.article
+      className="group hover:border-primary/20 relative overflow-hidden rounded-[32px] border border-slate-200 bg-white p-7 shadow-sm transition-all duration-300 hover:shadow-2xl"
+      layout
+    >
+      <div className="mb-8 flex items-start justify-between">
+        <div className="text-primary group-hover:bg-primary group-hover:shadow-primary/30 flex h-14 w-14 items-center justify-center rounded-[22px] border border-slate-100 bg-slate-50 shadow-sm transition-all duration-500 group-hover:text-white group-hover:shadow-lg">
+          <Cpu size={28} />
         </div>
-        <span style={enabled ? styles.enabledBadge : styles.disabledBadge}>
-          {enabled ? '启用' : '停用'}
-        </span>
-      </div>
-
-      <dl style={styles.details}>
-        <div style={styles.detailItem}>
-          <dt style={styles.detailLabel}>模型引擎</dt>
-          <dd style={styles.detailValue}>{engineName}</dd>
-        </div>
-        <div style={styles.detailItem}>
-          <dt style={styles.detailLabel}>Prompt</dt>
-          <dd style={item.promptId ? styles.detailValue : styles.mutedValue}>{promptTitle}</dd>
-        </div>
-        <div style={styles.detailItem}>
-          <dt style={styles.detailLabel}>敏感词库</dt>
-          <dd style={item.sensitiveListId ? styles.detailValue : styles.mutedValue}>
-            {sensitiveListName}
-          </dd>
-        </div>
-        <div style={styles.detailItem}>
-          <dt style={styles.detailLabel}>采样参数</dt>
-          <dd style={styles.detailValue}>
-            T {item.temperature} / TopP {item.topP} / {item.maxTokens}
-          </dd>
-        </div>
-      </dl>
-
-      <div style={styles.footer}>
-        <span style={styles.idText}>{item.id}</span>
-        <div style={styles.actions}>
-          <button onClick={() => onEdit(item)} style={styles.secondaryButton} type="button">
-            编辑
-          </button>
+        <div className="flex gap-1.5 opacity-100 transition-opacity duration-300 md:opacity-0 md:group-hover:opacity-100">
           <button
-            disabled={deleting}
-            onClick={() => onDelete(item)}
-            style={styles.dangerButton}
+            aria-label={`编辑智能体 ${item.name}`}
+            className="hover:text-primary rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-slate-100"
+            onClick={() => onEdit(item)}
             type="button"
           >
-            {deleting ? '删除中…' : '删除'}
+            <Settings2 size={18} />
+          </button>
+          <button
+            aria-label={`删除智能体 ${item.name}`}
+            className="rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={deleting}
+            onClick={() => onDelete(item)}
+            type="button"
+          >
+            <Trash2 size={18} />
           </button>
         </div>
       </div>
-    </article>
+
+      <div className="space-y-5">
+        <div>
+          <h4 className="group-hover:text-primary truncate text-lg font-bold text-slate-900 transition-colors">
+            {item.name}
+          </h4>
+          <div className="mt-2 flex items-center gap-1.5 text-slate-400">
+            <div
+              className={`h-1.5 w-1.5 rounded-full ${
+                enabled ? 'animate-pulse bg-green-500' : 'bg-slate-300'
+              }`}
+            />
+            <span className="truncate font-mono text-xs tracking-tight">
+              {agentKeyLabels[item.key]} / {engineName}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 border-t border-slate-100 pt-6">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">温度</p>
+            <p className="text-sm font-bold text-slate-700">{item.temperature}</p>
+          </div>
+          <div className="space-y-1 text-right">
+            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Top-P</p>
+            <p className="text-sm font-bold text-slate-700">{item.topP}</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-[24px] border border-slate-100 bg-slate-50/80 p-4">
+          <ResourceLine label="Prompt" value={promptTitle} />
+          <ResourceLine label="敏感词库" value={sensitiveListName} />
+          <ResourceLine label="Max Tokens" value={String(item.maxTokens)} />
+        </div>
+      </div>
+
+      <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-5">
+        <span
+          className={`rounded-lg border px-3 py-1 text-[10px] font-black tracking-widest uppercase ${
+            enabled
+              ? 'border-blue-100/50 bg-blue-50 text-blue-600'
+              : 'border-slate-200 bg-slate-50 text-slate-500'
+          }`}
+        >
+          {enabled ? '运行中' : '已停止'}
+        </span>
+        <span className="text-[10px] font-bold text-slate-400 italic">
+          {formatDate(item.createdAt)}
+        </span>
+      </div>
+    </motion.article>
   );
+}
+
+function ResourceLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <span className="shrink-0 font-bold text-slate-400">{label}</span>
+      <span className="truncate font-semibold text-slate-600">{value}</span>
+    </div>
+  );
+}
+
+function formatDate(value: string): string {
+  const timestamp = Date.parse(value);
+
+  if (!Number.isFinite(timestamp)) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(timestamp);
 }
 
 const agentKeyLabels: Record<AdminAgentItem['key'], string> = {
@@ -85,131 +137,3 @@ const agentKeyLabels: Record<AdminAgentItem['key'], string> = {
   inspiration: '灵感智能体',
   teaching: '教学智能体',
 };
-
-const badgeBase = {
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: '16px',
-  padding: '3px 8px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '7px 11px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'end',
-  },
-  card: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 14,
-    padding: 16,
-  },
-  cardHeader: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  dangerButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-  },
-  detailItem: {
-    display: 'grid',
-    gap: 4,
-  },
-  detailLabel: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: '16px',
-  },
-  details: {
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(126px, 1fr))',
-    margin: 0,
-  },
-  detailValue: {
-    color: '#172033',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  disabledBadge: {
-    ...badgeBase,
-    background: '#f1f5f9',
-    color: '#64748b',
-  },
-  enabledBadge: {
-    ...badgeBase,
-    background: '#dcfce7',
-    color: '#166534',
-  },
-  footer: {
-    alignItems: 'center',
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-    paddingTop: 12,
-  },
-  idText: {
-    color: '#64748b',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '16px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  meta: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  mutedValue: {
-    color: '#94a3b8',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  name: {
-    color: '#172033',
-    fontSize: 16,
-    lineHeight: '22px',
-    margin: 0,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  titleGroup: {
-    display: 'grid',
-    gap: 4,
-    minWidth: 0,
-  },
-} satisfies Record<string, CSSProperties>;

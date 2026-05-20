@@ -7,14 +7,9 @@ import {
   type AdminPromptItem,
   type AdminSensitiveWordListItem,
 } from '@package/shared';
-import {
-  type CSSProperties,
-  type FormEvent,
-  type KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Settings2, X } from 'lucide-react';
+import { motion } from 'motion/react';
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 type AgentFormDialogProps = {
   agent: AdminAgentItem | null;
@@ -168,218 +163,275 @@ export function AgentFormDialog({
   }
 
   return (
-    <div role="presentation" style={styles.backdrop}>
-      <section
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
+      <motion.div
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        onClick={submitting ? undefined : onClose}
+      />
+      <motion.section
+        animate={{ opacity: 1, scale: 1, y: 0 }}
         aria-labelledby={agentDialogTitleId}
         aria-modal="true"
-        onKeyDown={(event) => handleDialogKeyDown(event, onClose)}
+        className="custom-scrollbar relative max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-[32px] bg-white shadow-2xl"
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        onKeyDown={(event) => handleDialogKeyDown(event, onClose, submitting)}
         ref={(element) => {
           dialogRef.current = element as FocusableDialogElement | null;
         }}
         role="dialog"
-        style={styles.dialog}
         tabIndex={-1}
       >
-        <div style={styles.header}>
+        <div className="flex items-center justify-between border-b border-slate-100 p-8">
           <div>
-            <p style={styles.eyebrow}>Resources / Agents</p>
-            <h2 id={agentDialogTitleId} style={styles.title}>
-              {agent ? '编辑智能体' : '新建智能体'}
-            </h2>
+            <h3 className="text-xl font-bold text-slate-800" id={agentDialogTitleId}>
+              {agent ? '编辑智能体' : '配置新智能体'}
+            </h3>
+            <p className="text-sm text-slate-500">
+              {agent ? '修改当前运行的智能体配置' : '设置智能体参数及部署环境'}
+            </p>
           </div>
-          <button onClick={onClose} style={styles.closeButton} type="button">
-            关闭
+          <button
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100"
+            disabled={submitting}
+            onClick={onClose}
+            type="button"
+          >
+            <X size={24} />
           </button>
         </div>
 
-        {error ? (
-          <p aria-live="polite" role="alert" style={styles.error}>
-            {error}
-          </p>
-        ) : null}
+        <form onSubmit={handleSubmit}>
+          <div className="custom-scrollbar max-h-[64vh] space-y-6 overflow-y-auto p-8">
+            {error ? (
+              <p
+                aria-live="polite"
+                className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+                role="alert"
+              >
+                {error}
+              </p>
+            ) : null}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.field}>
-            <span style={styles.label}>智能体 Key</span>
-            <select
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="ml-1 block text-sm font-bold text-slate-700">智能体名称</span>
+                <input
+                  className="focus:border-primary focus:ring-primary/10 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none focus:ring-4"
+                  onChange={(event) => {
+                    const value = readFormValue(event.currentTarget);
 
-                setForm((current) => ({
-                  ...current,
-                  key: value as AgentFormState['key'],
-                }));
-              }}
-              style={styles.input}
-              value={form.key}
-            >
-              {agentKeyOptions.map((key) => (
-                <option key={key} value={key}>
-                  {agentKeyLabels[key]} / {key}
-                </option>
-              ))}
-            </select>
-          </label>
+                    setForm((current) => ({ ...current, name: value }));
+                  }}
+                  placeholder="如：智能评语助手"
+                  value={form.name}
+                />
+              </label>
 
-          <label style={styles.field}>
-            <span style={styles.label}>名称</span>
-            <input
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
+              <label className="space-y-2">
+                <span className="ml-1 block text-sm font-bold text-slate-700">智能体 Key</span>
+                <select
+                  className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none focus:ring-4"
+                  onChange={(event) => {
+                    const value = readFormValue(event.currentTarget);
 
-                setForm((current) => ({ ...current, name: value }));
-              }}
-              placeholder="例如：对话助手"
-              style={styles.input}
-              value={form.name}
-            />
-          </label>
+                    setForm((current) => ({ ...current, key: value as AgentFormState['key'] }));
+                  }}
+                  value={form.key}
+                >
+                  {agentKeyOptions.map((key) => (
+                    <option key={key} value={key}>
+                      {agentKeyLabels[key]} / {key}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-          <label style={styles.field}>
-            <span style={styles.label}>模型引擎</span>
-            <select
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
+            <div className="space-y-6 rounded-[24px] border border-slate-100 bg-slate-50 p-6">
+              <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
+                <Settings2 className="text-primary" size={18} />
+                参数与资源配置
+              </div>
 
-                setForm((current) => ({ ...current, engineId: value }));
-              }}
-              style={styles.input}
-              value={form.engineId}
-            >
-              <option value="">请选择模型引擎</option>
-              {engines.map((engine) => (
-                <option key={engine.id} value={engine.id}>
-                  {engine.name} / {engine.provider}
-                </option>
-              ))}
-            </select>
-          </label>
+              <div className="grid grid-cols-1 items-end gap-6 md:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    模型引擎
+                  </span>
+                  <select
+                    className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all outline-none focus:ring-4"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
 
-          <label style={styles.field}>
-            <span style={styles.label}>绑定 Prompt</span>
-            <select
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
+                      setForm((current) => ({ ...current, engineId: value }));
+                    }}
+                    value={form.engineId}
+                  >
+                    <option value="">请选择模型引擎</option>
+                    {engines.map((engine) => (
+                      <option key={engine.id} value={engine.id}>
+                        {engine.name} / {engine.provider}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                setForm((current) => ({ ...current, promptId: value }));
-              }}
-              style={styles.input}
-              value={form.promptId}
-            >
-              <option value="">不绑定</option>
-              {prompts.map((prompt) => (
-                <option key={prompt.id} value={prompt.id}>
-                  {prompt.title} / {prompt.version}
-                </option>
-              ))}
-            </select>
-          </label>
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    状态
+                  </span>
+                  <select
+                    className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all outline-none focus:ring-4"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
 
-          <label style={styles.field}>
-            <span style={styles.label}>敏感词库</span>
-            <select
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
+                      setForm((current) => ({
+                        ...current,
+                        status: value as AgentFormState['status'],
+                      }));
+                    }}
+                    value={form.status}
+                  >
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status === 'enabled' ? '启用' : '停用'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-                setForm((current) => ({
-                  ...current,
-                  sensitiveListId: value,
-                }));
-              }}
-              style={styles.input}
-              value={form.sensitiveListId}
-            >
-              <option value="">不绑定</option>
-              {sensitiveWordLists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              <div className="grid grid-cols-1 items-end gap-6 md:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    系统提示词 (Prompt)
+                  </span>
+                  <select
+                    className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all outline-none focus:ring-4"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
 
-          <div style={styles.inlineFields}>
-            <label style={styles.field}>
-              <span style={styles.label}>Temperature</span>
-              <input
-                inputMode="decimal"
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
+                      setForm((current) => ({ ...current, promptId: value }));
+                    }}
+                    value={form.promptId}
+                  >
+                    <option value="">不绑定</option>
+                    {prompts.map((prompt) => (
+                      <option key={prompt.id} value={prompt.id}>
+                        {prompt.title} / {prompt.version}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                  setForm((current) => ({
-                    ...current,
-                    temperature: value,
-                  }));
-                }}
-                style={styles.input}
-                value={form.temperature}
-              />
-            </label>
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    敏感词库过滤
+                  </span>
+                  <select
+                    className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all outline-none focus:ring-4"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
 
-            <label style={styles.field}>
-              <span style={styles.label}>TopP</span>
-              <input
-                inputMode="decimal"
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
+                      setForm((current) => ({ ...current, sensitiveListId: value }));
+                    }}
+                    value={form.sensitiveListId}
+                  >
+                    <option value="">不绑定</option>
+                    {sensitiveWordLists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
-                  setForm((current) => ({ ...current, topP: value }));
-                }}
-                style={styles.input}
-                value={form.topP}
-              />
-            </label>
+              <div className="grid grid-cols-1 items-end gap-6 md:grid-cols-3">
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    温度 ({form.temperature})
+                  </span>
+                  <div className="flex h-[50px] items-center rounded-xl border border-slate-200 bg-white px-4">
+                    <input
+                      className="accent-primary h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200"
+                      max="2"
+                      min="0"
+                      onChange={(event) => {
+                        const value = readFormValue(event.currentTarget);
 
-            <label style={styles.field}>
-              <span style={styles.label}>Max Tokens</span>
-              <input
-                inputMode="numeric"
-                onChange={(event) => {
-                  const value = readFormValue(event.currentTarget);
+                        setForm((current) => ({ ...current, temperature: value }));
+                      }}
+                      step="0.1"
+                      type="range"
+                      value={form.temperature}
+                    />
+                  </div>
+                </label>
 
-                  setForm((current) => ({
-                    ...current,
-                    maxTokens: value,
-                  }));
-                }}
-                style={styles.input}
-                value={form.maxTokens}
-              />
-            </label>
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    Top-P ({form.topP})
+                  </span>
+                  <div className="flex h-[50px] items-center rounded-xl border border-slate-200 bg-white px-4">
+                    <input
+                      className="accent-primary h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200"
+                      max="1"
+                      min="0"
+                      onChange={(event) => {
+                        const value = readFormValue(event.currentTarget);
+
+                        setForm((current) => ({ ...current, topP: value }));
+                      }}
+                      step="0.1"
+                      type="range"
+                      value={form.topP}
+                    />
+                  </div>
+                </label>
+
+                <label className="space-y-2">
+                  <span className="ml-1 block h-4 text-xs font-bold text-slate-500 uppercase">
+                    Max Tokens
+                  </span>
+                  <input
+                    className="focus:border-primary focus:ring-primary/10 h-[50px] w-full rounded-xl border border-slate-200 bg-white px-4 transition-all outline-none focus:ring-4"
+                    inputMode="numeric"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
+
+                      setForm((current) => ({ ...current, maxTokens: value }));
+                    }}
+                    value={form.maxTokens}
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
-          <label style={styles.field}>
-            <span style={styles.label}>状态</span>
-            <select
-              onChange={(event) => {
-                const value = readFormValue(event.currentTarget);
-
-                setForm((current) => ({
-                  ...current,
-                  status: value as AgentFormState['status'],
-                }));
-              }}
-              style={styles.input}
-              value={form.status}
+          <div className="flex gap-4 border-t border-slate-100 bg-slate-50/50 p-8">
+            <button
+              className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-600 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting}
+              onClick={onClose}
+              type="button"
             >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status === 'enabled' ? '启用' : '停用'}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div style={styles.actions}>
-            <button onClick={onClose} style={styles.secondaryButton} type="button">
-              取消
+              取消更改
             </button>
-            <button disabled={submitting} style={styles.primaryButton} type="submit">
-              {submitting ? '保存中…' : '保存'}
+            <button
+              className="bg-primary shadow-primary/20 hover:bg-primary-dark flex-1 rounded-2xl py-4 font-bold text-white shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting}
+              type="submit"
+            >
+              {submitting ? '保存中...' : agent ? '保存更改' : '确认新增智能体'}
             </button>
           </div>
         </form>
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -448,10 +500,14 @@ function parseRequiredPositiveInteger(value: string, label: string): ParsedNumbe
   };
 }
 
-function handleDialogKeyDown(event: KeyboardEvent, onClose: () => void) {
+function handleDialogKeyDown(event: KeyboardEvent, onClose: () => void, submitting: boolean) {
   if (event.key === 'Escape') {
     event.preventDefault();
-    onClose();
+
+    if (!submitting) {
+      onClose();
+    }
+
     return;
   }
 
@@ -510,124 +566,3 @@ const agentKeyLabels: Record<AdminAgentCreateInput['key'], string> = {
   inspiration: '灵感智能体',
   teaching: '教学智能体',
 };
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '8px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 10,
-    justifyContent: 'end',
-    paddingTop: 14,
-  },
-  backdrop: {
-    alignItems: 'center',
-    background: 'rgba(15, 23, 42, 0.42)',
-    bottom: 0,
-    display: 'flex',
-    justifyContent: 'center',
-    left: 0,
-    padding: 20,
-    position: 'fixed',
-    right: 0,
-    top: 0,
-    zIndex: 40,
-  },
-  closeButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  dialog: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    boxShadow: '0 18px 50px rgba(15, 23, 42, 0.24)',
-    display: 'grid',
-    gap: 14,
-    maxHeight: 'calc(100vh - 40px)',
-    maxWidth: 760,
-    overflow: 'auto',
-    padding: 18,
-    width: 'min(100%, 760px)',
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  form: {
-    display: 'grid',
-    gap: 14,
-  },
-  header: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  inlineFields: {
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 38,
-    padding: '8px 10px',
-    width: '100%',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  title: {
-    color: '#172033',
-    fontSize: 18,
-    lineHeight: '24px',
-    margin: 0,
-  },
-} satisfies Record<string, CSSProperties>;

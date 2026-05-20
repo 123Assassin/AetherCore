@@ -1,5 +1,8 @@
+'use client';
+
 import type { AdminPromptItem } from '@package/shared';
-import type { CSSProperties } from 'react';
+import { Edit, TerminalSquare, Trash2 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 import { PromptMarkdownPreview } from './prompt-markdown-preview';
 
@@ -12,43 +15,54 @@ type PromptCardProps = {
 
 export function PromptCard({ deleting = false, item, onDelete, onEdit }: PromptCardProps) {
   return (
-    <article style={styles.card}>
-      <div style={styles.cardHeader}>
-        <div style={styles.titleGroup}>
-          <h2 style={styles.name}>{item.title}</h2>
-          <p style={styles.meta}>版本 {item.version}</p>
+    <motion.article
+      className="rounded-[32px] border border-slate-200 bg-white p-7 shadow-sm transition-all hover:shadow-xl"
+      layout
+    >
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+          <TerminalSquare size={24} />
         </div>
-        <span style={styles.updatedAt}>更新 {formatDate(item.updatedAt)}</span>
+        <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+          {item.version}
+        </span>
       </div>
 
-      <div style={styles.previewBox}>
+      <h4 className="truncate text-lg font-bold text-slate-900">{item.title}</h4>
+      <div className="mt-2 line-clamp-3 min-h-[72px] overflow-hidden text-sm text-slate-500">
         <PromptMarkdownPreview content={item.content} />
       </div>
 
-      <div style={styles.footer}>
-        <span style={styles.idText}>{item.id}</span>
-        <div style={styles.actions}>
-          <button onClick={() => onEdit(item)} style={styles.secondaryButton} type="button">
-            编辑
-          </button>
+      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
+        <span className="text-xs text-slate-400">{formatDate(item.updatedAt)}</span>
+        <div className="flex gap-2">
           <button
-            disabled={deleting}
-            onClick={() => onDelete(item)}
-            style={styles.dangerButton}
+            aria-label={`编辑 Prompt ${item.title}`}
+            className="hover:text-primary rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100"
+            onClick={() => onEdit(item)}
             type="button"
           >
-            {deleting ? '删除中…' : '删除'}
+            <Edit size={16} />
+          </button>
+          <button
+            aria-label={`删除 Prompt ${item.title}`}
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={deleting}
+            onClick={() => onDelete(item)}
+            type="button"
+          >
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
 function formatDate(value: string): string {
-  const date = new Date(value);
+  const timestamp = Date.parse(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (!Number.isFinite(timestamp)) {
     return value;
   }
 
@@ -56,98 +70,5 @@ function formatDate(value: string): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(date);
+  }).format(timestamp);
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '7px 11px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'end',
-  },
-  card: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 14,
-    padding: 16,
-  },
-  cardHeader: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  dangerButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-  },
-  footer: {
-    alignItems: 'center',
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-    paddingTop: 12,
-  },
-  idText: {
-    color: '#64748b',
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    fontSize: 12,
-    lineHeight: '16px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  meta: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  name: {
-    color: '#172033',
-    fontSize: 16,
-    lineHeight: '22px',
-    margin: 0,
-  },
-  previewBox: {
-    background: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: 8,
-    maxHeight: 220,
-    overflow: 'auto',
-    padding: 12,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  titleGroup: {
-    display: 'grid',
-    gap: 4,
-    minWidth: 0,
-  },
-  updatedAt: {
-    color: '#64748b',
-    fontSize: 12,
-    lineHeight: '16px',
-    whiteSpace: 'nowrap',
-  },
-} satisfies Record<string, CSSProperties>;

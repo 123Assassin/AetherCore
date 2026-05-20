@@ -5,14 +5,9 @@ import type {
   AdminPromptItem,
   AdminPromptUpdateInput,
 } from '@package/shared';
-import {
-  type CSSProperties,
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { AlertTriangle, Plus, Search } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 
 import { PromptCard } from '../../../../components/resources/prompt-card';
 import { PromptFormDialog } from '../../../../components/resources/prompt-form-dialog';
@@ -31,6 +26,7 @@ export default function AdminPromptsPage() {
   const [editingPrompt, setEditingPrompt] = useState<AdminPromptItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminPromptItem | null>(null);
   const requestSequence = useRef(0);
   const queryRef = useRef(query);
 
@@ -151,93 +147,101 @@ export default function AdminPromptsPage() {
     }
   }
 
-  async function handleDelete(prompt: AdminPromptItem) {
-    if (!confirmInBrowser(`确认删除 Prompt“${prompt.title} / ${prompt.version}”？`)) {
+  async function handleConfirmDelete() {
+    if (!deleteTarget) {
       return;
     }
 
-    setDeletingId(prompt.id);
+    const activeTarget = deleteTarget;
+    setDeletingId(activeTarget.id);
     setMutationError(null);
 
     try {
-      await client.adminResources.prompts.delete.mutate({ id: prompt.id });
+      await client.adminResources.prompts.delete.mutate({ id: activeTarget.id });
       await refreshPrompts();
+      setDeleteTarget(null);
     } catch {
-      setMutationError(`Prompt“${prompt.title}”删除失败，请确认没有智能体正在引用。`);
+      setMutationError(`Prompt“${activeTarget.title}”删除失败，请确认没有智能体正在引用。`);
     } finally {
       setDeletingId(null);
     }
   }
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p style={styles.eyebrow}>Admin / Resources / Prompts</p>
-          <h2 style={styles.heading}>AI Prompt 管理</h2>
+          <h3 className="text-2xl font-extrabold tracking-tight text-slate-900">AI Prompt 管理</h3>
+          <p className="mt-1 text-sm text-slate-500">管理和维护系统使用的模型提示词模板版本</p>
         </div>
-        <div style={styles.headerActions}>
-          <div aria-label="Prompt 统计" style={styles.summary}>
-            <strong style={styles.summaryNumber}>{total}</strong>
-            <span style={styles.summaryText}>个版本</span>
+        <button
+          className="bg-primary shadow-primary/30 hover:bg-primary-dark flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 font-bold text-white shadow-xl transition-all hover:-translate-y-0.5"
+          onClick={handleCreateClick}
+          type="button"
+        >
+          <Plus size={20} />
+          新建 Prompt
+        </button>
+      </div>
+
+      <form
+        className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-end"
+        onSubmit={handleSearchSubmit}
+      >
+        <label className="flex-1 space-y-2">
+          <span className="ml-1 block text-xs font-bold tracking-widest text-slate-400 uppercase">
+            搜索 Prompt
+          </span>
+          <div className="relative">
+            <Search className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              aria-label="搜索 Prompt"
+              className="focus:border-primary focus:ring-primary/10 w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pr-4 pl-11 transition-all outline-none focus:ring-4"
+              onChange={(event) => setSearchInput(readFormValue(event.currentTarget))}
+              placeholder="按标题或版本搜索"
+              value={searchInput}
+            />
           </div>
-          <button onClick={handleCreateClick} style={styles.primaryButton} type="button">
-            新建 Prompt
-          </button>
-        </div>
-      </header>
-
-      {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {error}
-        </p>
-      ) : null}
-
-      {mutationError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {mutationError}
-        </p>
-      ) : null}
-
-      <form onSubmit={handleSearchSubmit} style={styles.toolbar}>
-        <label style={styles.searchLabel}>
-          <span style={styles.labelText}>搜索 Prompt</span>
-          <input
-            aria-label="搜索 Prompt"
-            onChange={(event) => setSearchInput(readFormValue(event.currentTarget))}
-            placeholder="按标题或版本搜索"
-            style={styles.searchInput}
-            value={searchInput}
-          />
         </label>
-        <button style={styles.secondaryButton} type="submit">
+        <button
+          className="rounded-2xl bg-slate-900 px-5 py-3 font-bold text-white transition-colors hover:bg-slate-800"
+          type="submit"
+        >
           搜索
         </button>
         <button
+          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-50"
           onClick={() => {
             setSearchInput('');
             setQuery('');
           }}
-          style={styles.secondaryButton}
           type="button"
         >
           重置
         </button>
+        <div className="text-primary rounded-2xl bg-blue-50 px-5 py-3 text-sm font-bold">
+          {total} 个版本
+        </div>
       </form>
 
-      <section aria-busy={loading} aria-label="Prompt 列表" style={styles.grid}>
-        {loading ? <p style={styles.stateText}>正在加载 Prompt...</p> : null}
+      <PageMessage message={error} />
+      <PageMessage message={mutationError} />
 
-        {!loading && prompts.length === 0 ? (
-          <p style={styles.stateText}>没有匹配的 Prompt。</p>
-        ) : null}
+      <section
+        aria-busy={loading}
+        aria-label="Prompt 列表"
+        className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3"
+      >
+        {loading ? <EmptyState text="正在加载 Prompt..." /> : null}
+
+        {!loading && prompts.length === 0 ? <EmptyState text="没有匹配的 Prompt。" /> : null}
 
         {prompts.map((prompt) => (
           <PromptCard
             deleting={deletingId === prompt.id}
             item={prompt}
             key={prompt.id}
-            onDelete={handleDelete}
+            onDelete={setDeleteTarget}
             onEdit={handleEditClick}
           />
         ))}
@@ -250,150 +254,103 @@ export default function AdminPromptsPage() {
         prompt={editingPrompt}
         submitting={submitting}
       />
-    </main>
+
+      <DeleteDialog
+        deleting={deletingId === deleteTarget?.id}
+        message="删除后将无法恢复，是否确认删除该 Prompt？"
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        open={Boolean(deleteTarget)}
+        title="确认删除"
+      />
+    </div>
   );
 }
 
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '8px 12px',
-} satisfies CSSProperties;
+function PageMessage({ message }: { message: string | null }) {
+  if (!message) {
+    return null;
+  }
 
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  grid: {
-    display: 'grid',
-    gap: 12,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  headerActions: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'end',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 26,
-    lineHeight: '34px',
-    margin: 0,
-  },
-  labelText: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  main: {
-    background: '#f8fafc',
-    color: '#172033',
-    display: 'grid',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    gap: 18,
-    minHeight: 0,
-    padding: 24,
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  searchInput: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 38,
-    padding: '8px 10px',
-    width: 'min(100%, 320px)',
-  },
-  searchLabel: {
-    display: 'grid',
-    gap: 6,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  summary: {
-    alignItems: 'baseline',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 6,
-    padding: '10px 12px',
-  },
-  summaryNumber: {
-    color: '#0f766e',
-    fontSize: 22,
-    lineHeight: '28px',
-  },
-  summaryText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-  toolbar: {
-    alignItems: 'end',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 10,
-    padding: 14,
-  },
-} satisfies Record<string, CSSProperties>;
+  return (
+    <p
+      aria-live="polite"
+      className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600"
+      role="alert"
+    >
+      {message}
+    </p>
+  );
+}
 
-function confirmInBrowser(message: string): boolean {
-  const browserGlobal = globalThis as typeof globalThis & {
-    confirm?: (message?: string) => boolean;
-  };
+function EmptyState({ text }: { text: string }) {
+  return (
+    <p className="rounded-[32px] border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-500 shadow-sm">
+      {text}
+    </p>
+  );
+}
 
-  return browserGlobal.confirm?.(message) ?? false;
+function DeleteDialog({
+  deleting,
+  message,
+  onClose,
+  onConfirm,
+  open,
+  title,
+}: {
+  deleting: boolean;
+  message: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  open: boolean;
+  title: string;
+}) {
+  return (
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={deleting ? undefined : onClose}
+          />
+          <motion.div
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative w-full max-w-sm space-y-6 rounded-[32px] bg-white p-8 text-center shadow-2xl"
+            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+          >
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">{title}</h3>
+            <p className="text-sm text-slate-500">{message}</p>
+            <div className="flex gap-4 pt-4">
+              <button
+                className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={deleting}
+                onClick={onClose}
+                type="button"
+              >
+                取消
+              </button>
+              <button
+                className="flex-1 rounded-xl bg-red-500 py-3 font-bold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={deleting}
+                onClick={onConfirm}
+                type="button"
+              >
+                {deleting ? '删除中...' : '确认删除'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      ) : null}
+    </AnimatePresence>
+  );
 }
 
 function readFormValue(target: EventTarget): string {

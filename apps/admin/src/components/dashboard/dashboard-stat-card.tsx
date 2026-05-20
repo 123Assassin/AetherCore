@@ -1,84 +1,72 @@
-import type { CSSProperties } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { motion } from 'motion/react';
 
 type DashboardStatCardProps = {
+  bg: string;
+  change: string;
+  color: string;
+  icon: LucideIcon;
+  index: number;
+  isPositive?: boolean;
   label: string;
-  tone: 'green' | 'blue' | 'amber' | 'slate';
-  trend: string;
+  pulse?: boolean;
   value: string;
 };
 
-export function DashboardStatCard({ label, tone, trend, value }: DashboardStatCardProps) {
+export function DashboardStatCard({
+  bg,
+  change,
+  color,
+  icon: Icon,
+  index,
+  isPositive = true,
+  label,
+  pulse = false,
+  value,
+}: DashboardStatCardProps) {
+  const realTime = change === 'Real-time';
+
   return (
-    <article style={styles.card}>
-      <div style={styles.cardHeader}>
-        <span style={styles.label}>{label}</span>
-        <span style={toneStyles[tone]}>{trend}</span>
+    <motion.article
+      animate={{ opacity: 1, y: 0 }}
+      className="group hover:border-primary/20 relative overflow-hidden rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm transition-colors"
+      initial={{ opacity: 0, y: 20 }}
+      transition={{ delay: index * 0.1 }}
+    >
+      <div className="mb-6 flex items-start justify-between">
+        <div
+          className={`${bg} ${color} flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl`}
+        >
+          <Icon className={pulse ? 'animate-pulse' : ''} size={24} />
+        </div>
+        <div
+          className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black tracking-widest uppercase ${
+            realTime
+              ? 'bg-slate-100 text-slate-500'
+              : isPositive
+                ? 'bg-green-50 text-green-600'
+                : 'bg-red-50 text-red-600'
+          }`}
+        >
+          {!realTime && (isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />)}
+          {change}
+        </div>
       </div>
-      <strong style={styles.value}>{value}</strong>
-    </article>
+
+      <div>
+        <strong className="block text-3xl font-extrabold tracking-tight text-slate-900">
+          {value}
+        </strong>
+        <p className="mt-1 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+          {label}
+        </p>
+      </div>
+
+      <div
+        aria-hidden="true"
+        className={`${bg} pointer-events-none absolute -right-8 -bottom-8 h-24 w-24 rounded-full opacity-0 transition-opacity group-hover:opacity-50`}
+      />
+    </motion.article>
   );
 }
-
-const badgeBase = {
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: '16px',
-  padding: '3px 8px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const styles = {
-  card: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 12,
-    minHeight: 104,
-    padding: 16,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  value: {
-    color: '#172033',
-    fontSize: 26,
-    lineHeight: '34px',
-  },
-} satisfies Record<string, CSSProperties>;
-
-const toneStyles = {
-  amber: {
-    ...badgeBase,
-    background: '#fef3c7',
-    color: '#92400e',
-  },
-  blue: {
-    ...badgeBase,
-    background: '#dbeafe',
-    color: '#1d4ed8',
-  },
-  green: {
-    ...badgeBase,
-    background: '#dcfce7',
-    color: '#166534',
-  },
-  slate: {
-    ...badgeBase,
-    background: '#f1f5f9',
-    color: '#475569',
-  },
-} satisfies Record<DashboardStatCardProps['tone'], CSSProperties>;
