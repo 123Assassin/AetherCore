@@ -1,6 +1,7 @@
 'use client';
 
 import type { AiStreamEvent } from '@package/shared';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import { type FormEvent, useCallback, useRef, useState } from 'react';
 
 import {
@@ -15,7 +16,6 @@ import {
   teachingModeCopy,
 } from '../../../../components/teaching/teaching.data';
 import { TeachingContextForm } from '../../../../components/teaching/teaching-context-form';
-import { TeachingExampleCards } from '../../../../components/teaching/teaching-example-cards';
 import { TeachingInputModeToggle } from '../../../../components/teaching/teaching-input-mode-toggle';
 import { TeachingPromptInput } from '../../../../components/teaching/teaching-prompt-input';
 import {
@@ -274,478 +274,111 @@ export default function OfficeTeachingPage() {
   const isPromptEmpty = !formValues.prompt.trim();
 
   return (
-    <div className="teaching-page">
-      <section aria-label="命题输入" className="teaching-page__controls">
-        <form aria-label="教学命题表单" className="teaching-form" onSubmit={handleSubmit}>
-          <TeachingContextForm disabled={loading} onChange={handleFormChange} values={formValues} />
-          <TeachingInputModeToggle
-            disabled={loading}
-            mode={formValues.mode}
-            onChange={handleModeChange}
-          />
-          <TeachingPromptInput
-            disabled={loading}
-            error={formError}
-            onChange={handleFormChange}
-            values={formValues}
-          />
-          {formError ? (
-            <div className="teaching-form__alert" id="teaching-prompt-error" role="alert">
-              {formError}
-            </div>
-          ) : null}
-          <TransformationLevelSelector
-            disabled={loading}
-            onChange={handleFormChange}
-            values={formValues}
-          />
-          <button
-            className="teaching-form__submit"
-            disabled={loading || isPromptEmpty}
-            type="submit"
+    <div className="flex h-full min-h-0 flex-col bg-white p-4 md:p-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
+        <section
+          aria-label="命题输入"
+          className="custom-scrollbar h-full w-full shrink-0 overflow-y-auto pr-0 lg:w-[420px] lg:pr-2"
+        >
+          <form
+            aria-label="教学命题表单"
+            className="flex flex-col gap-8 rounded-[2rem] border border-slate-100 bg-slate-50/50 p-6"
+            onSubmit={handleSubmit}
           >
-            {loading
-              ? teachingModeCopy[formValues.mode].loadingLabel
-              : teachingModeCopy[formValues.mode].submitLabel}
-          </button>
-        </form>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-500">
+                  1
+                </span>
+                <label className="text-sm font-black text-slate-700">配置教学上下文</label>
+              </div>
+              <TeachingContextForm
+                disabled={loading}
+                onChange={handleFormChange}
+                values={formValues}
+              />
+            </div>
 
-        <TeachingExampleCards
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-500">
+                    2
+                  </span>
+                  <label className="text-sm font-black text-slate-700">
+                    {teachingModeCopy[formValues.mode].inputLabel}
+                  </label>
+                </div>
+                <TeachingInputModeToggle
+                  disabled={loading}
+                  mode={formValues.mode}
+                  onChange={handleModeChange}
+                />
+              </div>
+              <TeachingPromptInput
+                disabled={loading}
+                error={formError}
+                onChange={handleFormChange}
+                values={formValues}
+              />
+              {formError ? (
+                <div
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600"
+                  id="teaching-prompt-error"
+                  role="alert"
+                >
+                  {formError}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-500">
+                  3
+                </span>
+                <label className="text-sm font-black text-slate-700">
+                  {teachingModeCopy[formValues.mode].levelLabel}
+                </label>
+              </div>
+              <TransformationLevelSelector
+                disabled={loading}
+                onChange={handleFormChange}
+                values={formValues}
+              />
+            </div>
+
+            <button
+              className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-blue-600 py-4.5 font-black text-white shadow-2xl shadow-blue-200 transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-30 disabled:grayscale"
+              disabled={loading || isPromptEmpty}
+              type="submit"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 opacity-0 transition-opacity group-hover:opacity-100" />
+              {loading ? (
+                <RefreshCw className="h-5 w-5 animate-spin" />
+              ) : (
+                <Sparkles className="h-5 w-5 text-blue-400" />
+              )}
+              <span className="relative z-10">
+                {loading
+                  ? teachingModeCopy[formValues.mode].loadingLabel
+                  : teachingModeCopy[formValues.mode].submitLabel}
+              </span>
+            </button>
+          </form>
+        </section>
+
+        <TeachingResultPanel
           disabled={loading}
+          error={resultError}
           examples={teachingExampleCards}
-          onSelect={handleExampleSelect}
+          messages={messages}
+          onExampleSelect={handleExampleSelect}
+          onFollowUp={handleFollowUp}
+          sessionId={sessionId}
+          suggestions={suggestions}
         />
-      </section>
-
-      <TeachingResultPanel
-        disabled={loading}
-        error={resultError}
-        messages={messages}
-        onFollowUp={handleFollowUp}
-        sessionId={sessionId}
-        suggestions={suggestions}
-      />
-
-      <style>{`
-        .teaching-page {
-          display: grid;
-          min-width: 0;
-          flex: 1;
-          grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
-          gap: 16px;
-        }
-
-        .teaching-page__controls {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .teaching-form,
-        .teaching-examples,
-        .teaching-result {
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #ffffff;
-        }
-
-        .teaching-form {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 14px;
-        }
-
-        .teaching-form__grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .teaching-field {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .teaching-field__label,
-        .teaching-follow-up__label {
-          color: #374151;
-          font-size: 13px;
-          font-weight: 700;
-          line-height: 18px;
-        }
-
-        .teaching-field__control,
-        .teaching-follow-up__input {
-          width: 100%;
-          min-height: 38px;
-          border: 1px solid #cbd5df;
-          border-radius: 6px;
-          color: #17202a;
-          font: inherit;
-          font-size: 14px;
-          line-height: 20px;
-          padding: 8px 10px;
-        }
-
-        .teaching-field__textarea {
-          min-height: 132px;
-          resize: vertical;
-        }
-
-        .teaching-field__control:focus,
-        .teaching-follow-up__input:focus {
-          border-color: #12645c;
-          outline: 2px solid rgba(18, 100, 92, 0.18);
-          outline-offset: 0;
-        }
-
-        .teaching-field__control:disabled,
-        .teaching-follow-up__input:disabled {
-          background: #f3f4f6;
-          cursor: not-allowed;
-        }
-
-        .teaching-mode,
-        .teaching-levels {
-          min-width: 0;
-          margin: 0;
-          border: 0;
-          padding: 0;
-        }
-
-        .teaching-mode__options {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px;
-          margin-top: 6px;
-        }
-
-        .teaching-mode__button,
-        .teaching-levels__button,
-        .teaching-examples__item,
-        .teaching-suggestions__button {
-          cursor: pointer;
-          border: 1px solid #d8dee8;
-          background: #f8fafb;
-          color: inherit;
-          font: inherit;
-        }
-
-        .teaching-mode__button {
-          min-height: 38px;
-          border-radius: 6px;
-          color: #334155;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-          padding: 8px 10px;
-        }
-
-        .teaching-mode__button--active,
-        .teaching-levels__button--active {
-          border-color: #12645c;
-          background: #eef7f5;
-          color: #0f4f47;
-        }
-
-        .teaching-levels__list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          margin-top: 6px;
-        }
-
-        .teaching-levels__button {
-          display: flex;
-          min-height: 58px;
-          flex-direction: column;
-          gap: 4px;
-          border-radius: 6px;
-          padding: 9px 10px;
-          text-align: left;
-        }
-
-        .teaching-levels__button:hover:not(:disabled),
-        .teaching-mode__button:hover:not(:disabled),
-        .teaching-examples__item:hover:not(:disabled),
-        .teaching-suggestions__button:hover:not(:disabled) {
-          border-color: #12645c;
-          background: #f1f8f6;
-        }
-
-        .teaching-levels__title {
-          color: #17202a;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-        }
-
-        .teaching-levels__description,
-        .teaching-examples__meta,
-        .teaching-examples__description {
-          color: #5f6b7a;
-          font-size: 12px;
-          line-height: 17px;
-        }
-
-        .teaching-form__alert,
-        .teaching-result__alert {
-          border: 1px solid #f0b8b8;
-          border-radius: 6px;
-          background: #fff1f1;
-          color: #9f1f1f;
-          font-size: 13px;
-          line-height: 18px;
-          padding: 8px 10px;
-        }
-
-        .teaching-form__submit,
-        .teaching-follow-up__button {
-          min-height: 38px;
-          cursor: pointer;
-          border: 0;
-          border-radius: 6px;
-          background: #12645c;
-          color: #ffffff;
-          font: inherit;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-          padding: 8px 14px;
-        }
-
-        .teaching-form__submit:hover:not(:disabled),
-        .teaching-follow-up__button:hover:not(:disabled) {
-          background: #0f4f47;
-        }
-
-        .teaching-form__submit:disabled,
-        .teaching-follow-up__button:disabled,
-        .teaching-mode__button:disabled,
-        .teaching-levels__button:disabled,
-        .teaching-examples__item:disabled,
-        .teaching-suggestions__button:disabled {
-          cursor: not-allowed;
-          opacity: 0.6;
-        }
-
-        .teaching-examples {
-          padding: 14px;
-        }
-
-        .teaching-examples__header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 10px;
-        }
-
-        .teaching-examples__header h2 {
-          margin: 0;
-          color: #111827;
-          font-size: 15px;
-          line-height: 22px;
-        }
-
-        .teaching-examples__list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .teaching-examples__item {
-          display: flex;
-          width: 100%;
-          flex-direction: column;
-          gap: 5px;
-          border-radius: 6px;
-          padding: 10px;
-          text-align: left;
-        }
-
-        .teaching-examples__title {
-          color: #17202a;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-        }
-
-        .teaching-result {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 12px;
-          padding: 14px;
-        }
-
-        .teaching-result__messages {
-          display: flex;
-          min-height: 520px;
-          flex: 1;
-          flex-direction: column;
-          gap: 12px;
-          overflow: auto;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #ffffff;
-          padding: 14px;
-        }
-
-        .teaching-result__empty {
-          display: flex;
-          min-height: 320px;
-          flex: 1;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: #5f6b7a;
-          text-align: center;
-        }
-
-        .teaching-result__empty h2 {
-          margin: 0 0 8px;
-          color: #17202a;
-          font-size: 20px;
-          line-height: 28px;
-        }
-
-        .teaching-result__empty p {
-          max-width: 460px;
-          margin: 0;
-          font-size: 14px;
-          line-height: 22px;
-        }
-
-        .teaching-result__loading {
-          align-self: flex-start;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #f6f7f9;
-          color: #4b5563;
-          font-size: 14px;
-          line-height: 20px;
-          padding: 10px 12px;
-        }
-
-        .teaching-message {
-          display: flex;
-          max-width: min(780px, 88%);
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .teaching-message--user {
-          align-self: flex-end;
-          align-items: flex-end;
-        }
-
-        .teaching-message--assistant {
-          align-self: flex-start;
-          align-items: flex-start;
-        }
-
-        .teaching-message__meta {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #6b7280;
-          font-size: 12px;
-          font-weight: 600;
-          line-height: 16px;
-        }
-
-        .teaching-message__copy {
-          cursor: pointer;
-          border: 0;
-          background: transparent;
-          color: #12645c;
-          font: inherit;
-          font-size: 12px;
-          font-weight: 700;
-          line-height: 16px;
-          padding: 0;
-        }
-
-        .teaching-message__content {
-          white-space: pre-wrap;
-          word-break: break-word;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #f8fafb;
-          color: #17202a;
-          font-size: 14px;
-          line-height: 22px;
-          padding: 11px 13px;
-        }
-
-        .teaching-message--user .teaching-message__content {
-          border-color: #12645c;
-          background: #12645c;
-          color: #ffffff;
-        }
-
-        .teaching-suggestions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .teaching-suggestions__button {
-          min-width: 0;
-          max-width: 100%;
-          min-height: 34px;
-          border-radius: 999px;
-          color: #334155;
-          font-size: 13px;
-          line-height: 18px;
-          overflow-wrap: anywhere;
-          padding: 7px 12px;
-          text-align: left;
-          word-break: break-word;
-        }
-
-        .teaching-follow-up {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .teaching-follow-up__row {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 10px;
-        }
-
-        .teaching-follow-up__button {
-          min-width: 76px;
-        }
-
-        @media (max-width: 980px) {
-          .teaching-page {
-            grid-template-columns: 1fr;
-          }
-
-          .teaching-result__messages {
-            min-height: 380px;
-          }
-        }
-
-        @media (max-width: 560px) {
-          .teaching-form__grid,
-          .teaching-mode__options,
-          .teaching-follow-up__row {
-            grid-template-columns: 1fr;
-          }
-
-          .teaching-message {
-            max-width: 100%;
-          }
-        }
-      `}</style>
+      </div>
     </div>
   );
 }

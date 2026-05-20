@@ -1,6 +1,7 @@
 'use client';
 
 import type { CommentGender, CommentGrade, CommentTag } from '@package/shared';
+import { Sparkles } from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
 
 import { commentGenderOptions, commentGradeOptions, defaultCommentTone } from './comment-tags.data';
@@ -41,7 +42,7 @@ export function SingleCommentForm({
     });
   }
 
-  function handleGenderChange(event: ChangeEvent<HTMLSelectElement>) {
+  function handleGenderChange(event: ChangeEvent<HTMLInputElement>) {
     const target = event.currentTarget as unknown as { value: SingleCommentFormValues['gender'] };
 
     updateField('gender', target.value);
@@ -74,61 +75,32 @@ export function SingleCommentForm({
   }
 
   return (
-    <form aria-label="单人评语生成表单" className="single-comment-form" onSubmit={handleSubmit}>
-      <div className="single-comment-form__grid">
-        <label className="comment-field">
-          <span className="comment-field__label">学生昵称</span>
+    <form
+      aria-label="单人评语生成表单"
+      className="h-fit space-y-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 md:p-6"
+      onSubmit={handleSubmit}
+    >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">学生昵称/标识</span>
           <input
             aria-label="学生昵称"
-            className="comment-field__control"
+            className="w-full rounded-xl border-0 bg-slate-50/50 px-4 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-emerald-500"
             disabled={disabled}
             onChange={handleTextChange('nickname')}
-            placeholder="例如：小林"
+            placeholder="如：小明 / A同学"
             type="text"
             value={values.nickname}
           />
         </label>
 
-        <label className="comment-field">
-          <span className="comment-field__label">语气</span>
-          <input
-            aria-label="语气"
-            className="comment-field__control"
-            disabled={disabled}
-            onChange={handleTextChange('tone')}
-            placeholder={defaultCommentTone}
-            type="text"
-            value={values.tone}
-          />
-        </label>
-
-        <label className="comment-field">
-          <span className="comment-field__label">性别</span>
-          <select
-            aria-describedby={error ? 'single-comment-form-error' : undefined}
-            aria-invalid={error ? true : undefined}
-            aria-label="性别"
-            className="comment-field__control"
-            disabled={disabled}
-            onChange={handleGenderChange}
-            value={values.gender}
-          >
-            <option value="">请选择</option>
-            {commentGenderOptions.map((gender) => (
-              <option key={gender} value={gender}>
-                {gender}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="comment-field">
-          <span className="comment-field__label">年级</span>
+        <label>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">年级</span>
           <select
             aria-describedby={error ? 'single-comment-form-error' : undefined}
             aria-invalid={error ? true : undefined}
             aria-label="年级"
-            className="comment-field__control"
+            className="w-full rounded-xl border-0 bg-slate-50/50 px-4 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-emerald-500"
             disabled={disabled}
             onChange={handleGradeChange}
             value={values.grade}
@@ -143,8 +115,45 @@ export function SingleCommentForm({
         </label>
       </div>
 
+      <fieldset>
+        <legend className="mb-1.5 block text-xs font-bold text-slate-700">性别</legend>
+        <div className="flex gap-6">
+          {commentGenderOptions.map((gender) => (
+            <label className="flex cursor-pointer items-center gap-2" key={gender}>
+              <input
+                checked={values.gender === gender}
+                className="h-4 w-4 accent-emerald-600"
+                disabled={disabled}
+                name="gender"
+                onChange={handleGenderChange}
+                type="radio"
+                value={gender}
+              />
+              <span className="text-sm font-medium text-slate-700">{gender}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <label>
+        <span className="mb-1.5 block text-xs font-bold text-slate-700">评价语气</span>
+        <input
+          aria-label="语气"
+          className="w-full rounded-xl border-0 bg-slate-50/50 px-4 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-emerald-500"
+          disabled={disabled}
+          onChange={handleTextChange('tone')}
+          placeholder={defaultCommentTone}
+          type="text"
+          value={values.tone}
+        />
+      </label>
+
       {error ? (
-        <div className="single-comment-form__alert" id="single-comment-form-error" role="alert">
+        <div
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600"
+          id="single-comment-form-error"
+          role="alert"
+        >
           {error}
         </div>
       ) : null}
@@ -155,21 +164,26 @@ export function SingleCommentForm({
         selectedTags={values.tags}
       />
 
-      <label className="comment-field">
-        <span className="comment-field__label">关键词或细节</span>
+      <label>
+        <span className="mb-1.5 block text-xs font-bold text-slate-700">个性化细节补充</span>
         <textarea
           aria-label="关键词或细节"
-          className="comment-field__control comment-field__textarea"
+          className="h-24 w-full resize-none rounded-xl border-0 bg-slate-50/50 px-4 py-3 text-sm ring-1 ring-slate-200 transition-all outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-emerald-500"
           disabled={disabled}
           onChange={handleTextChange('keywords')}
-          placeholder="可补充课堂表现、进步点、需要提醒的方向。"
+          placeholder="细节描述..."
           rows={5}
           value={values.keywords}
         />
       </label>
 
-      <button className="single-comment-form__submit" disabled={disabled} type="submit">
-        {disabled ? '生成中...' : '生成评语'}
+      <button
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-700 disabled:opacity-50"
+        disabled={disabled}
+        type="submit"
+      >
+        <Sparkles className="h-4 w-4" />
+        {disabled ? '正在生成...' : '一键生成评语'}
       </button>
     </form>
   );

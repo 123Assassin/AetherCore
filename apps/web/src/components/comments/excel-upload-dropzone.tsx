@@ -1,7 +1,8 @@
 'use client';
 
+import { UploadCloud } from 'lucide-react';
 import type { ChangeEvent, DragEvent } from 'react';
-import { useRef, useState } from 'react';
+import { useId, useState } from 'react';
 
 const supportedExcelExtensions = ['.xlsx', '.xls'] as const;
 const maxExcelFileSizeBytes = 10 * 1024 * 1024;
@@ -20,7 +21,6 @@ type ExcelUploadDropzoneProps = {
 };
 
 type FileInputTarget = {
-  click: () => void;
   files?: {
     [index: number]: File | undefined;
   };
@@ -61,12 +61,9 @@ export function ExcelUploadDropzone({
   onFileAccepted,
   uploading,
 }: ExcelUploadDropzoneProps) {
-  const inputRef = useRef<FileInputTarget | null>(null);
+  const inputId = useId();
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const dropzoneClassName = isDragging
-    ? 'excel-upload__dropzone excel-upload__dropzone--dragging'
-    : 'excel-upload__dropzone';
   const visibleError = localError ?? error;
 
   function acceptFile(file: File | undefined) {
@@ -92,7 +89,7 @@ export function ExcelUploadDropzone({
     target.value = '';
   }
 
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
     const dataTransfer = event.dataTransfer as unknown as DropDataTransfer;
 
     event.preventDefault();
@@ -100,7 +97,7 @@ export function ExcelUploadDropzone({
     acceptFile(dataTransfer.files[0]);
   }
 
-  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault();
 
     if (!disabled) {
@@ -108,50 +105,53 @@ export function ExcelUploadDropzone({
     }
   }
 
-  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+  function handleDragLeave(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault();
     setIsDragging(false);
   }
 
   return (
-    <section aria-label="上传批量评语表格" className="excel-upload">
-      <div
-        className={dropzoneClassName}
+    <section
+      aria-label="上传批量评语表格"
+      className="flex flex-1 flex-col items-center justify-center p-8 text-center md:p-12"
+    >
+      <label
+        className={`group flex w-full max-w-xl cursor-pointer flex-col items-center justify-center rounded-[2.5rem] border-4 border-dashed p-10 transition-all md:p-16 ${
+          isDragging
+            ? 'border-emerald-500 bg-emerald-50/50'
+            : 'border-slate-100 hover:border-emerald-200 hover:bg-slate-50/50'
+        } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+        htmlFor={inputId}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
         <input
           accept={excelAcceptValue}
-          aria-hidden="true"
-          className="excel-upload__input"
+          aria-describedby={visibleError ? 'excel-upload-error' : undefined}
+          className="sr-only"
           disabled={disabled}
+          id={inputId}
           onChange={handleInputChange}
-          ref={(node) => {
-            inputRef.current = node as FileInputTarget | null;
-          }}
-          tabIndex={-1}
           type="file"
         />
-        <div className="excel-upload__copy">
-          <h2>{uploading ? '正在创建队列' : '上传 Excel'}</h2>
-          <p>拖拽文件到这里，或选择本地 .xlsx / .xls 文件。</p>
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-emerald-50 shadow-inner shadow-emerald-100/50 transition-transform group-hover:scale-110">
+          <UploadCloud className="h-10 w-10 text-emerald-500" />
         </div>
-        <button
-          aria-describedby={visibleError ? 'excel-upload-error' : undefined}
-          className="excel-upload__button"
-          disabled={disabled}
-          onClick={() => inputRef.current?.click()}
-          type="button"
-        >
-          选择文件
-        </button>
-      </div>
+        <h3 className="mb-2 text-xl font-black tracking-tight text-slate-700">
+          {uploading ? '正在创建队列' : '点击或拖拽上传表格'}
+        </h3>
+        <p className="max-w-[260px] text-sm leading-relaxed font-medium text-slate-400">
+          支持 .xlsx / .xls 格式文件
+          <br />
+          请确保表格内容符合模板格式
+        </p>
+      </label>
 
       {visibleError ? (
         <div
           aria-live="assertive"
-          className="excel-upload__alert"
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600"
           id="excel-upload-error"
           role="alert"
         >

@@ -482,11 +482,11 @@ Expected: source left-form/right-output layout and source simulation filter/side
 - Modify: `apps/web/src/components/teaching/teaching-result-panel.tsx`
 - Modify: `apps/web/src/components/teaching/transformation-level-selector.tsx`
 
-- [ ] **Step 1: Restore office wrapper**
+- [x] **Step 1: Restore office wrapper**
 
 Use source `OfficeModule.tsx` wrapper with the same `rounded-2xl shadow-sm ring-1` visual treatment as lesson.
 
-- [ ] **Step 2: Restore comment assistant**
+- [x] **Step 2: Restore comment assistant**
 
 Port source `CommentAssistant.tsx` visual states:
 
@@ -499,7 +499,7 @@ emerald active color
 
 Keep existing tRPC calls for single generation, batch upload, row generation and export.
 
-- [ ] **Step 3: Restore teaching assist**
+- [x] **Step 3: Restore teaching assist**
 
 Port source `TeachingAssist.tsx` visual layout:
 
@@ -514,7 +514,7 @@ example cards
 
 Keep existing tRPC calls for generation and follow-up.
 
-- [ ] **Step 4: Verify office pages**
+- [x] **Step 4: Verify office pages**
 
 Run:
 

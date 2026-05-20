@@ -29,19 +29,16 @@ export function TeachingPromptInput({
   }
 
   return (
-    <label className="teaching-field">
-      <span className="teaching-field__label">{copy.inputLabel}</span>
-      <textarea
-        aria-describedby={error ? 'teaching-prompt-error' : undefined}
-        aria-invalid={error ? true : undefined}
-        aria-label={copy.inputLabel}
-        className="teaching-field__control teaching-field__textarea"
-        disabled={disabled}
-        onChange={handleChange}
-        placeholder={copy.placeholder}
-        rows={6}
-        value={values.prompt}
-      />
-    </label>
+    <textarea
+      aria-describedby={error ? 'teaching-prompt-error' : undefined}
+      aria-invalid={error ? true : undefined}
+      aria-label={copy.inputLabel}
+      className="h-56 w-full resize-none rounded-[1.5rem] border border-slate-200 bg-white px-5 py-5 text-sm leading-relaxed font-medium shadow-inner transition-all outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-blue-600/20"
+      disabled={disabled}
+      onChange={handleChange}
+      placeholder={copy.placeholder}
+      rows={8}
+      value={values.prompt}
+    />
   );
 }
