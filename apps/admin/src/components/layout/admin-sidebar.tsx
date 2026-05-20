@@ -48,6 +48,16 @@ const navGroups: AdminNavGroup[] = [
       { href: '/simulations', label: '仿真案例库' },
     ],
   },
+  {
+    id: 'security',
+    label: '安全与告警',
+    items: [
+      { href: '/security/system-audit', label: '系统审计日志' },
+      { href: '/security/content-audit', label: 'AI 内容审计' },
+      { href: '/security/traffic-monitor', label: '流量监控' },
+      { href: '/alarm', label: '消息告警中心' },
+    ],
+  },
 ];
 
 type AdminSidebarProps = {

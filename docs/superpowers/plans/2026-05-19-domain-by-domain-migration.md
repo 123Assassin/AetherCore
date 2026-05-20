@@ -1643,21 +1643,23 @@ git commit -m "feat: add admin activities fission ui"
 - Create: `apps/admin/src/components/security/export-csv-dialog.tsx`
 - Create: `apps/admin/src/components/security/traffic-engine-card.tsx`
 - Create: `apps/admin/src/components/alarm/alarm-config-form.tsx`
+- Modify: `apps/admin/src/components/layout/admin-sidebar.tsx`
+- Modify: `apps/admin/src/components/layout/admin-header.tsx`
 
-- [ ] **Step 1: Add audit pages**
+- [x] **Step 1: Add audit pages**
   - System audit table with date export.
   - Content audit table with soft delete and export.
 
-- [ ] **Step 2: Add traffic and alarm pages**
+- [x] **Step 2: Add traffic and alarm pages**
   - Traffic cards per engine.
   - Alarm threshold/email form.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Export date range validates start <= end.
   - Content delete hides row without physical deletion.
   - Alarm email validates before save.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1665,10 +1667,10 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/admin/src/app/'(admin)'/security apps/admin/src/app/'(admin)'/alarm apps/admin/src/components/security apps/admin/src/components/alarm
+git add apps/admin/src/app/'(admin)'/security apps/admin/src/app/'(admin)'/alarm apps/admin/src/components/security apps/admin/src/components/alarm apps/admin/src/components/layout/admin-sidebar.tsx apps/admin/src/components/layout/admin-header.tsx
 git commit -m "feat: add admin security traffic alarm ui"
 ```
 

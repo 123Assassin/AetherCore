@@ -18,6 +18,10 @@ const routeTitles = [
   { href: '/operations/fission', title: '裂变管理', section: 'Operations' },
   { href: '/engine-dispatch', title: '模型引擎调度', section: 'Engine' },
   { href: '/simulations', title: '仿真案例库管理', section: 'Simulations' },
+  { href: '/security/system-audit', title: '系统审计日志', section: 'Security' },
+  { href: '/security/content-audit', title: 'AI 内容审计', section: 'Security' },
+  { href: '/security/traffic-monitor', title: '流量监控', section: 'Security' },
+  { href: '/alarm', title: '消息告警中心', section: 'Alarm' },
   { href: '/users', title: '用户管理', section: 'Users' },
   { href: '/settings', title: '系统设置', section: 'Settings' },
 ];
