@@ -1556,20 +1556,22 @@ git commit -m "feat: add admin operations backend"
 - Create: `apps/admin/src/components/users/quota-badge.tsx`
 - Create: `apps/admin/src/components/settings/password-settings-form.tsx`
 - Create: `apps/admin/src/components/settings/sign-out-panel.tsx`
+- Modify: `apps/admin/src/components/layout/admin-sidebar.tsx`
+- Modify: `apps/admin/src/components/layout/admin-header.tsx`
 
-- [ ] **Step 1: Add users page**
+- [x] **Step 1: Add users page**
   - List users, search/filter, status toggle, blacklist toggle, delete.
 
-- [ ] **Step 2: Add settings page**
+- [x] **Step 2: Add settings page**
   - Password update form.
   - Sign-out panel.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Status and blacklist buttons are independent.
   - Password confirmation mismatch blocks submit.
   - Sign-out clears admin session.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1577,10 +1579,10 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/admin/src/app/'(admin)'/users apps/admin/src/app/'(admin)'/settings apps/admin/src/components/users apps/admin/src/components/settings
+git add apps/admin/src/app/'(admin)'/users apps/admin/src/app/'(admin)'/settings apps/admin/src/components/users apps/admin/src/components/settings apps/admin/src/components/layout/admin-sidebar.tsx apps/admin/src/components/layout/admin-header.tsx
 git commit -m "feat: add admin users settings ui"
 ```
 

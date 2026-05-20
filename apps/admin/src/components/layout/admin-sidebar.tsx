@@ -22,6 +22,14 @@ const navGroups: AdminNavGroup[] = [
     items: [{ href: '/dashboard', label: '数据看板' }],
   },
   {
+    id: 'administration',
+    label: '用户与系统',
+    items: [
+      { href: '/users', label: '用户管理' },
+      { href: '/settings', label: '系统设置' },
+    ],
+  },
+  {
     id: 'resources',
     label: '内容与资源',
     items: [
