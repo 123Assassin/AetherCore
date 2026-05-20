@@ -1,6 +1,7 @@
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
+import './globals.css';
 
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';

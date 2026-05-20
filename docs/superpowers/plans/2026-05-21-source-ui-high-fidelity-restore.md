@@ -153,7 +153,7 @@ Expected: all key visual anchors are present and no whitespace errors are report
 - Modify: `apps/admin/src/app/layout.tsx`
 - Modify: `pnpm-lock.yaml`
 
-- [ ] **Step 1: Add visual dependencies**
+- [x] **Step 1: Add visual dependencies**
 
 Add `lucide-react` to both `apps/web` and `apps/admin`. Add `motion` to `apps/admin`; add it to `apps/web` only if restoring source modal/loading animation requires it. Add `@tailwindcss/postcss` where PostCSS processing needs Tailwind v4.
 
@@ -167,7 +167,7 @@ pnpm add -D @tailwindcss/postcss -w
 
 Expected: `pnpm-lock.yaml` updates and no workspace package is removed.
 
-- [ ] **Step 2: Enable Tailwind v4 PostCSS**
+- [x] **Step 2: Enable Tailwind v4 PostCSS**
 
 Set both app PostCSS configs to use Tailwind v4:
 
@@ -179,7 +179,7 @@ export default {
 };
 ```
 
-- [ ] **Step 3: Add web global CSS**
+- [x] **Step 3: Add web global CSS**
 
 Create `apps/web/src/app/globals.css` from `source/source-web/src/index.css`, replacing Google Fonts import with existing `@fontsource/inter` imports in layout:
 
@@ -213,7 +213,7 @@ body {
 }
 ```
 
-- [ ] **Step 4: Add admin global CSS**
+- [x] **Step 4: Add admin global CSS**
 
 Create `apps/admin/src/app/globals.css` from `source/source-admin/src/index.css`:
 
@@ -255,7 +255,7 @@ body {
 }
 ```
 
-- [ ] **Step 5: Import global CSS**
+- [x] **Step 5: Import global CSS**
 
 Import each `globals.css` in its app root layout directly after font imports:
 
@@ -263,7 +263,7 @@ Import each `globals.css` in its app root layout directly after font imports:
 import './globals.css';
 ```
 
-- [ ] **Step 6: Verify visual stack**
+- [x] **Step 6: Verify visual stack**
 
 Run:
 
