@@ -1387,20 +1387,20 @@ git commit -m "feat: add admin agents prompts ui"
 - Create: `apps/admin/src/components/engines/engine-table.tsx`
 - Create: `apps/admin/src/components/engines/engine-form-dialog.tsx`
 
-- [ ] **Step 1: Add sensitive words page**
+- [x] **Step 1: Add sensitive words page**
   - List, create, edit, delete word lists.
   - Parse comma-separated words into arrays.
 
-- [ ] **Step 2: Add engine dispatch page**
+- [x] **Step 2: Add engine dispatch page**
   - List, create, edit, delete engines.
   - Mask API key in table and edit flows.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Empty word list is rejected.
   - API key plaintext is not displayed after save.
   - Engine URL is validated.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1408,7 +1408,7 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/admin/src/app/'(admin)'/resources/sensitive-words apps/admin/src/app/'(admin)'/engine-dispatch apps/admin/src/components/resources apps/admin/src/components/engines
