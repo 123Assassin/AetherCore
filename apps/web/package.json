@@ -11,6 +11,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ant-design/x": "^2.7.0",
+    "@fontsource/inter": "^5.2.8",
     "@package/api": "workspace:*",
     "@package/shared": "workspace:*",
     "@package/ui": "workspace:*",

@@ -1728,19 +1728,19 @@ git commit -m "feat: extract shared ui primitives"
 - Modify: `apps/web/src/app/layout.tsx`
 - Modify: `apps/admin/src/app/layout.tsx`
 
-- [ ] **Step 1: Add allowed frontend dependencies**
+- [x] **Step 1: Add allowed frontend dependencies**
   - Web may use `@ant-design/x` and `@fontsource/inter`.
   - Admin may use `react-markdown` for prompt preview.
 
-- [ ] **Step 2: Remove forbidden frontend dependencies**
+- [x] **Step 2: Remove forbidden frontend dependencies**
   - Web must not depend on `@google/genai`, `react-markdown`, or `xlsx`.
   - Admin must not depend on `@google/genai` or Vite packages.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Font import works in layouts.
   - Forbidden frontend packages are absent or not direct dependencies.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm install
@@ -1751,7 +1751,7 @@ pnpm why xlsx
 pnpm why react-markdown
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/package.json apps/admin/package.json pnpm-lock.yaml apps/web/src/app/layout.tsx apps/admin/src/app/layout.tsx
