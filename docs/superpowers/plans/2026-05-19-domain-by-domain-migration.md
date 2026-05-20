@@ -1886,22 +1886,26 @@ git commit -m "test: document docker compose runtime"
 **Files:**
 
 - Create: `docs/migration/final-verification.md`
+- Modify: `packages/shared/src/types/index.ts` (Task 45 verification fix: sort shared type exports for lint)
+- Modify: `apps/server/src/trpc/trpc.module.ts` (Task 45 verification fix: import `AdminOperationsModule`)
+- Modify: `apps/server/src/trpc/trpc.service.ts` (Task 45 verification fix: add bare `/trpc` smoke health response)
+- Modify: `packages/eslint-config/base.js` (Task 45 verification fix: ignore generated Next env files)
 
-- [ ] **Step 1: Run workspace checks**
+- [x] **Step 1: Run workspace checks**
   - Run DB generation, type-check, builds, and lint.
   - Run Docker app profile smoke checks after successful build.
 
-- [ ] **Step 2: Record final verification**
+- [x] **Step 2: Record final verification**
   - Save command outputs summary in `docs/migration/final-verification.md`.
   - Record unresolved issues with exact failing command and owner task.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Web smoke routes load.
   - Admin smoke routes load.
   - Server tRPC endpoint responds.
   - pgAdmin remains accessible.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm db:generate
@@ -1917,10 +1921,10 @@ docker compose --env-file .env.example logs --tail=100
 docker compose --env-file .env.example down
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add docs/migration/final-verification.md
+git add docs/migration/final-verification.md packages/shared/src/types/index.ts apps/server/src/trpc/trpc.module.ts apps/server/src/trpc/trpc.service.ts packages/eslint-config/base.js docs/superpowers/plans/2026-05-19-domain-by-domain-migration.md
 git commit -m "test: record final migration verification"
 ```
 

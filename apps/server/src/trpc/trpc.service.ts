@@ -23,22 +23,22 @@ export class TrpcService {
   ) {}
 
   registerTrpcPlugin(app: NestFastifyApplication): void {
-    app
-      .getHttpAdapter()
-      .getInstance()
-      .register(fastifyTRPCPlugin, {
-        prefix: '/trpc',
-        trpcOptions: {
-          router: createAppRouter(
-            this.authService,
-            this.aiService,
-            this.simulationsService,
-            this.commentsService,
-            this.adminResourcesService,
-            this.adminOperationsService
-          ),
-          createContext: createTRPCContext,
-        } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
-      });
+    const fastify = app.getHttpAdapter().getInstance();
+
+    fastify.get('/trpc', async () => ({ status: 'ok' }));
+    fastify.register(fastifyTRPCPlugin, {
+      prefix: '/trpc',
+      trpcOptions: {
+        router: createAppRouter(
+          this.authService,
+          this.aiService,
+          this.simulationsService,
+          this.commentsService,
+          this.adminResourcesService,
+          this.adminOperationsService
+        ),
+        createContext: createTRPCContext,
+      } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
+    });
   }
 }
