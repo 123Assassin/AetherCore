@@ -1,6 +1,7 @@
 'use client';
 
 import type { AiStreamEvent } from '@package/shared';
+import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
 
 import type { ChatMessage } from '../../../components/chat/ai-message-bubble';
@@ -19,6 +20,7 @@ function getMutationErrorMessage(error: unknown) {
 
 function collectAssistantResponse(events: AiStreamEvent[]) {
   let content = '';
+  let redirectTo: ChatWorkflowRoute | null = null;
   let suggestions: string[] = [];
   let errorMessage: string | null = null;
 
@@ -31,16 +33,21 @@ function collectAssistantResponse(events: AiStreamEvent[]) {
       suggestions = event.suggestions;
     }
 
+    if (event.type === 'workflow') {
+      redirectTo = getChatWorkflowRoute(event.redirectTo);
+    }
+
     if (event.type === 'error') {
       errorMessage = event.message;
     }
   }
 
-  return { content, errorMessage, suggestions };
+  return { content, errorMessage, redirectTo, suggestions };
 }
 
 export default function ChatPage() {
   const client = useTrpcClient();
+  const router = useRouter();
   const nextMessageId = useRef(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -93,13 +100,17 @@ export default function ChatPage() {
             createMessage('assistant', assistantResponse.content),
           ]);
         }
+
+        if (assistantResponse.redirectTo) {
+          router.push(assistantResponse.redirectTo);
+        }
       } catch (mutationError) {
         setError(getMutationErrorMessage(mutationError));
       } finally {
         setLoading(false);
       }
     },
-    [client, createMessage, loading, sessionId]
+    [client, createMessage, loading, router, sessionId]
   );
 
   return (
@@ -355,4 +366,14 @@ export default function ChatPage() {
       `}</style>
     </div>
   );
+}
+
+const chatWorkflowRoutes = ['/office/comment', '/lesson/inspiration', '/office/teaching'] as const;
+
+type ChatWorkflowRoute = (typeof chatWorkflowRoutes)[number];
+
+function getChatWorkflowRoute(redirectTo: string): ChatWorkflowRoute | null {
+  return (chatWorkflowRoutes as readonly string[]).includes(redirectTo)
+    ? (redirectTo as ChatWorkflowRoute)
+    : null;
 }

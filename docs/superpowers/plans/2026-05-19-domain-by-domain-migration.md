@@ -1768,19 +1768,19 @@ git commit -m "chore: align frontend dependencies"
 - Modify: `apps/web/src/components/layout/app-header.tsx`
 - Create: `docs/migration/web/integration-checklist.md`
 
-- [ ] **Step 1: Wire final web navigation**
+- [x] **Step 1: Wire final web navigation**
   - Ensure sidebar/header routes cover `/chat`, `/lesson/inspiration`, `/lesson/simulation`, `/office/comment`, `/office/teaching`.
 
-- [ ] **Step 2: Create web integration checklist**
+- [x] **Step 2: Create web integration checklist**
   - Record manual checks for all user-facing workflows.
   - Record mock data expectations.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Every web route loads.
   - Navigation active state is correct.
   - Workflow redirect from chat reaches correct page.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter web type-check
@@ -1789,7 +1789,7 @@ pnpm build:web
 rg -n "/chat|/lesson/inspiration|/lesson/simulation|/office/comment|/office/teaching" docs/migration/web/integration-checklist.md
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
 git add apps/web/src/components/layout docs/migration/web/integration-checklist.md
