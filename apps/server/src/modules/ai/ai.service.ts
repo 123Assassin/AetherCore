@@ -171,6 +171,7 @@ export class AiService {
   }
 
   async sendChat(input: AiChatSendInput): Promise<AiChatSendResult> {
+    const startedAt = Date.now();
     const content = input.message.trim();
 
     if (!content) {
@@ -206,6 +207,15 @@ export class AiService {
         suggestions,
         workflowName: workflow?.workflowName ?? null,
         redirectTo: workflow?.redirectTo ?? null,
+      },
+      modelCall: {
+        modelName: 'Mock AI',
+        promptTokens: estimateTokens(content),
+        completionTokens: estimateTokens(assistantContent),
+        totalTokens: estimateTokens(content) + estimateTokens(assistantContent),
+        latencyMs: Math.max(Date.now() - startedAt, 0),
+        costAmount: 0,
+        currency: 'CNY',
       },
     });
 
@@ -634,6 +644,10 @@ function isTeachingFollowUpPayload(value: unknown): value is {
 
 function isTeachingMode(value: unknown): value is AiTeachingMode {
   return typeof value === 'string' && TEACHING_MODES.includes(value as AiTeachingMode);
+}
+
+function estimateTokens(value: string): number {
+  return Math.max(1, Math.ceil(value.trim().length / 4));
 }
 
 function normalizeLimit(limit: number | undefined): number {

@@ -28,3 +28,19 @@ export async function requireUserSession(
 
   return session;
 }
+
+export async function requireAiUserSession(
+  authService: AuthService,
+  context: TRPCContext
+): Promise<UserSession> {
+  const session = await requireUserSession(authService, context);
+
+  if (session.user.isBlacklisted) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'User is blacklisted',
+    });
+  }
+
+  return session;
+}

@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import type { Database } from '@package/db';
 import { db } from '@package/db';
-import { aiConversations, aiMessages } from '@package/db/schema';
+import {
+  aiConversations,
+  aiMessages,
+  aiModelCalls,
+  contentAuditSessions,
+  users,
+} from '@package/db/schema';
 import type { ConversationCategory, MessageRole } from '@package/db/schema';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 
 export type AiConversationRow = typeof aiConversations.$inferSelect;
 export type AiMessageRow = typeof aiMessages.$inferSelect;
@@ -25,6 +31,15 @@ type ChatExchangeInput = {
     suggestions?: string[] | null;
     workflowName?: string | null;
     redirectTo?: string | null;
+  };
+  modelCall: {
+    modelName: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    latencyMs: number;
+    costAmount: number;
+    currency: string;
   };
 };
 
@@ -195,6 +210,20 @@ export class AiRepository {
         throw new Error('Failed to create assistant AI message');
       }
 
+      await transaction.insert(aiModelCalls).values({
+        conversationId: conversation.id,
+        messageId: assistantMessage.id,
+        userId: conversation.userId,
+        modelName: input.modelCall.modelName,
+        promptTokens: input.modelCall.promptTokens,
+        completionTokens: input.modelCall.completionTokens,
+        totalTokens: input.modelCall.totalTokens,
+        latencyMs: input.modelCall.latencyMs,
+        costAmount: input.modelCall.costAmount,
+        currency: input.modelCall.currency,
+        status: 'success',
+      });
+
       const [updatedConversation] = await transaction
         .update(aiConversations)
         .set({ updatedAt: now })
@@ -204,6 +233,40 @@ export class AiRepository {
       if (!updatedConversation) {
         throw new Error('Failed to update AI conversation');
       }
+
+      const [user] = await transaction
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, updatedConversation.userId))
+        .limit(1);
+
+      await transaction
+        .insert(contentAuditSessions)
+        .values({
+          conversationId: updatedConversation.id,
+          userId: updatedConversation.userId,
+          userEmail: user?.email ?? 'unknown',
+          category: updatedConversation.category,
+          title: updatedConversation.title,
+          messageCount: 2,
+          lastMessageAt: assistantMessage.createdAt,
+          metadata: updatedConversation.metadata,
+          isDeleted: updatedConversation.isDeleted,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: contentAuditSessions.conversationId,
+          set: {
+            userEmail: user?.email ?? 'unknown',
+            category: updatedConversation.category,
+            title: updatedConversation.title,
+            messageCount: sql`${contentAuditSessions.messageCount} + 2`,
+            lastMessageAt: assistantMessage.createdAt,
+            metadata: updatedConversation.metadata,
+            isDeleted: updatedConversation.isDeleted,
+            updatedAt: now,
+          },
+        });
 
       return {
         conversation: updatedConversation,
@@ -226,21 +289,33 @@ export class AiRepository {
   }
 
   async softDeleteConversation(userId: string, conversationId: string): Promise<boolean> {
-    const [conversation] = await this.database
-      .update(aiConversations)
-      .set({
-        isDeleted: true,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(aiConversations.id, conversationId),
-          eq(aiConversations.userId, userId),
-          eq(aiConversations.isDeleted, false)
+    return this.database.transaction(async (transaction) => {
+      const now = new Date();
+      const [conversation] = await transaction
+        .update(aiConversations)
+        .set({
+          isDeleted: true,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(aiConversations.id, conversationId),
+            eq(aiConversations.userId, userId),
+            eq(aiConversations.isDeleted, false)
+          )
         )
-      )
-      .returning({ id: aiConversations.id });
+        .returning({ id: aiConversations.id });
 
-    return Boolean(conversation);
+      if (!conversation) {
+        return false;
+      }
+
+      await transaction
+        .update(contentAuditSessions)
+        .set({ isDeleted: true, updatedAt: now })
+        .where(eq(contentAuditSessions.conversationId, conversation.id));
+
+      return true;
+    });
   }
 }

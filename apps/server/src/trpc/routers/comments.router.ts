@@ -1,6 +1,9 @@
 import { TRPCError } from '@trpc/server';
 
-import { requireUserSession } from '../../common/guards/user-session.guard.js';
+import {
+  requireAiUserSession,
+  requireUserSession,
+} from '../../common/guards/user-session.guard.js';
 import type { AuthService } from '../../modules/auth/auth.service.js';
 import {
   CommentsServiceError,
@@ -29,7 +32,7 @@ export function createCommentsRouter(
       generate: tools.publicProcedure
         .input(parseSingleGenerateInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             commentsService.generateSingle({
@@ -55,7 +58,7 @@ export function createCommentsRouter(
       generateRow: tools.publicProcedure
         .input(parseGenerateRowInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             commentsService.generateRow({
@@ -67,7 +70,7 @@ export function createCommentsRouter(
       generateAll: tools.publicProcedure
         .input(parseGenerateAllInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             commentsService.generateAll({

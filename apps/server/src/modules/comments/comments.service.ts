@@ -276,6 +276,7 @@ export class CommentsService {
       tone: batch.job.tone,
     });
     const updated = await this.commentsRepository.updateRowGenerated({
+      userId: input.userId,
       jobId,
       rowId,
       generatedResults: generated,
@@ -319,6 +320,7 @@ export class CommentsService {
         tone: batch.job.tone,
       });
       const updated = await this.commentsRepository.updateRowGenerated({
+        userId: input.userId,
         jobId,
         rowId: row.id,
         generatedResults: generated,

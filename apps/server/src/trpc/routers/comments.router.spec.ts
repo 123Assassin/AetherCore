@@ -38,8 +38,35 @@ test('comments.batch.generateRow requires a user session', async () => {
   assert.equal(fakeCommentsService.rowCalls, 0);
 });
 
+test('comments AI generation rejects blacklisted users before service call', async () => {
+  const fakeCommentsService = new FakeCommentsService();
+  const caller = createCaller(
+    new FakeAuthService(true, true).asAuthService(),
+    fakeCommentsService.asCommentsService()
+  );
+
+  await assert.rejects(
+    () =>
+      caller.comments.single.generate({
+        gender: '男',
+        grade: '三年级',
+        tags: ['思维活跃'],
+      }),
+    trpcError('FORBIDDEN', 'User is blacklisted')
+  );
+  await assert.rejects(
+    () => caller.comments.batch.generateAll({ jobId: 'job-1' }),
+    trpcError('FORBIDDEN', 'User is blacklisted')
+  );
+  assert.equal(fakeCommentsService.singleCalls, 0);
+  assert.equal(fakeCommentsService.allCalls, 0);
+});
+
 class FakeAuthService {
-  constructor(private readonly hasUserSession: boolean) {}
+  constructor(
+    private readonly hasUserSession: boolean,
+    private readonly isBlacklisted = false
+  ) {}
 
   asAuthService(): AuthService {
     return this as unknown as AuthService;
@@ -57,6 +84,7 @@ class FakeAuthService {
         email: 'teacher@example.com',
         name: 'Teacher',
         role: 'user',
+        isBlacklisted: this.isBlacklisted,
       },
     };
   }
@@ -65,6 +93,7 @@ class FakeAuthService {
 class FakeCommentsService {
   singleCalls = 0;
   rowCalls = 0;
+  allCalls = 0;
 
   asCommentsService(): CommentsService {
     return this as unknown as CommentsService;
@@ -78,6 +107,12 @@ class FakeCommentsService {
 
   async generateRow() {
     this.rowCalls += 1;
+
+    return null;
+  }
+
+  async generateAll() {
+    this.allCalls += 1;
 
     return null;
   }

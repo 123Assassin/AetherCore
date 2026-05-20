@@ -28,6 +28,7 @@ type AuthenticatedUser = {
   email: string;
   name: string | null;
   role: 'user' | 'admin';
+  isBlacklisted: boolean;
 };
 
 type AuthUserSummary = {
@@ -338,6 +339,7 @@ function toAuthenticatedUser<TRole extends 'user' | 'admin'>(
     email: user.email,
     name: user.name,
     role,
+    isBlacklisted: user.isBlacklisted,
   };
 }
 

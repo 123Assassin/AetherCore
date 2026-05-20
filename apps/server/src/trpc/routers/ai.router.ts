@@ -1,6 +1,9 @@
 import { TRPCError } from '@trpc/server';
 
-import { requireUserSession } from '../../common/guards/user-session.guard.js';
+import {
+  requireAiUserSession,
+  requireUserSession,
+} from '../../common/guards/user-session.guard.js';
 import { AiServiceError, type AiService } from '../../modules/ai/ai.service.js';
 import type { AuthService } from '../../modules/auth/auth.service.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
@@ -60,7 +63,7 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
   return tools.createTRPCRouter({
     chat: tools.createTRPCRouter({
       create: tools.publicProcedure.input(parseCreateInput).mutation(async ({ ctx, input }) => {
-        const session = await requireUserSession(authService, ctx);
+        const session = await requireAiUserSession(authService, ctx);
 
         return aiService.createChat({
           userId: session.user.id,
@@ -68,7 +71,7 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
         });
       }),
       send: tools.publicProcedure.input(parseSendInput).mutation(async ({ ctx, input }) => {
-        const session = await requireUserSession(authService, ctx);
+        const session = await requireAiUserSession(authService, ctx);
 
         return mapServiceError(() =>
           aiService.sendChat({
@@ -104,7 +107,7 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
       generate: tools.publicProcedure
         .input(parseInspirationGenerateInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             aiService.generateInspiration({
@@ -116,7 +119,7 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
       followUp: tools.publicProcedure
         .input(parseInspirationFollowUpInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             aiService.followUpInspiration({
@@ -130,7 +133,7 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
       generate: tools.publicProcedure
         .input(parseTeachingGenerateInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             aiService.generateTeaching({
@@ -142,7 +145,7 @@ export function createAiRouter(authService: AuthService, aiService: AiService, t
       followUp: tools.publicProcedure
         .input(parseTeachingFollowUpInput)
         .mutation(async ({ ctx, input }) => {
-          const session = await requireUserSession(authService, ctx);
+          const session = await requireAiUserSession(authService, ctx);
 
           return mapServiceError(() =>
             aiService.followUpTeaching({

@@ -1,6 +1,11 @@
 import { initTRPC, type TRPCDefaultErrorShape } from '@trpc/server';
 
 import {
+  isAdminOperationsDomainErrorCode,
+  type AdminOperationsDomainErrorCode,
+  type AdminOperationsService,
+} from '../modules/admin-operations/admin-operations.service.js';
+import {
   isAdminResourcesDomainErrorCode,
   type AdminResourcesDomainErrorCode,
   type AdminResourcesService,
@@ -10,6 +15,7 @@ import type { AuthService } from '../modules/auth/auth.service.js';
 import type { CommentsService } from '../modules/comments/comments.service.js';
 import type { SimulationsService } from '../modules/simulations/simulations.service.js';
 import type { TRPCContext } from './context.js';
+import { createAdminOperationsRouter } from './routers/admin-operations.router.js';
 import { createAdminResourcesRouter } from './routers/admin-resources.router.js';
 import { createAiRouter } from './routers/ai.router.js';
 import { createAuthRouter, createAdminAuthRouter } from './routers/auth.router.js';
@@ -27,7 +33,7 @@ const t = initTRPC.context<TRPCContext>().create({
 });
 
 type AdminResourcesErrorData = TRPCDefaultErrorShape['data'] & {
-  domainCode?: AdminResourcesDomainErrorCode;
+  domainCode?: AdminResourcesDomainErrorCode | AdminOperationsDomainErrorCode;
 };
 
 export function formatTRPCErrorShape(
@@ -49,14 +55,20 @@ export function formatTRPCErrorShape(
   };
 }
 
-function getDomainCodeFromCause(cause: unknown): AdminResourcesDomainErrorCode | undefined {
+function getDomainCodeFromCause(
+  cause: unknown
+): AdminResourcesDomainErrorCode | AdminOperationsDomainErrorCode | undefined {
   if (typeof cause !== 'object' || cause === null || !('domainCode' in cause)) {
     return undefined;
   }
 
   const domainCode = cause.domainCode;
 
-  return isAdminResourcesDomainErrorCode(domainCode) ? domainCode : undefined;
+  if (isAdminResourcesDomainErrorCode(domainCode)) {
+    return domainCode;
+  }
+
+  return isAdminOperationsDomainErrorCode(domainCode) ? domainCode : undefined;
 }
 
 export const createTRPCRouter = t.router;
@@ -71,7 +83,8 @@ export const createAppRouter = (
   aiService: AiService,
   simulationsService: SimulationsService,
   commentsService: CommentsService,
-  adminResourcesService: AdminResourcesService
+  adminResourcesService: AdminResourcesService,
+  adminOperationsService = {} as AdminOperationsService
 ) =>
   createTRPCRouter({
     health: healthRouter,
@@ -92,6 +105,10 @@ export const createAppRouter = (
       publicProcedure,
     }),
     adminResources: createAdminResourcesRouter(authService, adminResourcesService, {
+      createTRPCRouter,
+      publicProcedure,
+    }),
+    adminOperations: createAdminOperationsRouter(authService, adminOperationsService, {
       createTRPCRouter,
       publicProcedure,
     }),

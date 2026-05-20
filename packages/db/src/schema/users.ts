@@ -8,8 +8,10 @@ export const users = pgTable('users', {
   password: text('password').notNull(),
   role: varchar('role', { length: 20 }).notNull().default('user'),
   isActive: boolean('is_active').notNull().default(true),
+  isBlacklisted: boolean('is_blacklisted').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const insertUserSchema = createInsertSchema(users);

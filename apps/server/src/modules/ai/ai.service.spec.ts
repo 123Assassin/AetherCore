@@ -47,6 +47,14 @@ test('sendChat creates a conversation when sessionId is absent', async () => {
     type: 'session',
     sessionId: repository.conversations[0]?.id,
   });
+  assert.equal(repository.modelCalls.length, 1);
+  assert.equal(repository.modelCalls[0]?.modelName, 'Mock AI');
+  assert.equal(repository.modelCalls[0]?.currency, 'CNY');
+  assert.equal(
+    repository.modelCalls[0]?.totalTokens,
+    (repository.modelCalls[0]?.promptTokens ?? 0) +
+      (repository.modelCalls[0]?.completionTokens ?? 0)
+  );
 });
 
 test('listHistory returns only chat conversations for the chat filter', async () => {
@@ -530,6 +538,15 @@ test('followUpTeaching preserves multi-turn order when timestamps tie', async ()
 class FakeAiRepository {
   readonly conversations: ConversationRow[] = [];
   readonly messages: MessageRow[] = [];
+  readonly modelCalls: Array<{
+    modelName: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    latencyMs: number;
+    costAmount: number;
+    currency: string;
+  }> = [];
   reverseMessageListOrder = false;
 
   private conversationCounter = 0;
@@ -674,6 +691,15 @@ class FakeAiRepository {
       workflowName?: string | null;
       redirectTo?: string | null;
     };
+    modelCall: {
+      modelName: string;
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      latencyMs: number;
+      costAmount: number;
+      currency: string;
+    };
   }): Promise<{
     conversation: ConversationRow;
     userMessage: MessageRow;
@@ -701,6 +727,7 @@ class FakeAiRepository {
       workflowName: input.assistantMessage.workflowName ?? null,
       redirectTo: input.assistantMessage.redirectTo ?? null,
     });
+    this.modelCalls.push(input.modelCall);
 
     return {
       conversation,

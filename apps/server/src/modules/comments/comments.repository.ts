@@ -4,12 +4,15 @@ import { db } from '@package/db';
 import {
   aiConversations,
   aiMessages,
+  aiModelCalls,
   commentBatchJobs,
   commentBatchRows,
+  contentAuditSessions,
   type CommentBatchJobStatus,
   type CommentBatchRowStatus,
+  users,
 } from '@package/db/schema';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
 export type CommentBatchJobRow = typeof commentBatchJobs.$inferSelect;
 export type CommentBatchRowRecord = typeof commentBatchRows.$inferSelect;
@@ -91,12 +94,24 @@ export class CommentsRepository {
         conversation = createdConversation;
       }
 
+      const [updatedConversation] = await transaction
+        .update(aiConversations)
+        .set({ updatedAt: now })
+        .where(and(eq(aiConversations.id, conversation.id), eq(aiConversations.isDeleted, false)))
+        .returning();
+
+      if (!updatedConversation) {
+        return null;
+      }
+
+      conversation = updatedConversation;
+      const userContent = createCommentUserMessage(input);
       const [userMessage] = await transaction
         .insert(aiMessages)
         .values({
           conversationId: conversation.id,
           role: 'user',
-          content: createCommentUserMessage(input),
+          content: userContent,
           payload: {
             nickname: input.nickname ?? null,
             gender: input.gender,
@@ -113,31 +128,69 @@ export class CommentsRepository {
         throw new Error('Failed to create comment user message');
       }
 
+      const assistantContent = input.comments.join('\n\n');
       const [assistantMessage] = await transaction
         .insert(aiMessages)
         .values({
           conversationId: conversation.id,
           role: 'assistant',
-          content: input.comments.join('\n\n'),
+          content: assistantContent,
           updatedAt: now,
         })
-        .returning({ id: aiMessages.id });
+        .returning({ id: aiMessages.id, createdAt: aiMessages.createdAt });
 
       if (!assistantMessage) {
         throw new Error('Failed to create comment assistant message');
       }
 
-      const [updatedConversation] = await transaction
-        .update(aiConversations)
-        .set({ updatedAt: now })
-        .where(and(eq(aiConversations.id, conversation.id), eq(aiConversations.isDeleted, false)))
-        .returning({ id: aiConversations.id });
+      await transaction.insert(aiModelCalls).values({
+        conversationId: conversation.id,
+        messageId: assistantMessage.id,
+        userId: input.userId,
+        modelName: 'Mock AI',
+        promptTokens: estimateTokens(userContent),
+        completionTokens: estimateTokens(assistantContent),
+        totalTokens: estimateTokens(userContent) + estimateTokens(assistantContent),
+        latencyMs: Math.max(Date.now() - now.getTime(), 0),
+        costAmount: 0,
+        currency: 'CNY',
+        status: 'success',
+      });
 
-      if (!updatedConversation) {
-        return null;
-      }
+      const [user] = await transaction
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1);
 
-      return { sessionId: updatedConversation.id };
+      await transaction
+        .insert(contentAuditSessions)
+        .values({
+          conversationId: conversation.id,
+          userId: input.userId,
+          userEmail: user?.email ?? 'unknown',
+          category: 'comment',
+          title: conversation.title,
+          messageCount: 2,
+          lastMessageAt: assistantMessage.createdAt,
+          metadata: conversation.metadata,
+          isDeleted: conversation.isDeleted,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: contentAuditSessions.conversationId,
+          set: {
+            userEmail: user?.email ?? 'unknown',
+            title: conversation.title,
+            messageCount: sql`${contentAuditSessions.messageCount} + 2`,
+            lastMessageAt: assistantMessage.createdAt,
+            metadata: conversation.metadata,
+            isDeleted: conversation.isDeleted,
+            updatedAt: now,
+          },
+        });
+
+      return { sessionId: conversation.id };
     });
   }
 
@@ -212,6 +265,7 @@ export class CommentsRepository {
   }
 
   async updateRowGenerated(input: {
+    userId: string;
     jobId: string;
     rowId: string;
     generatedResults: string[];
@@ -243,6 +297,27 @@ export class CommentsRepository {
       if (!row) {
         return null;
       }
+
+      const prompt = createCommentUserMessage({
+        nickname: row.nickname,
+        grade: row.grade,
+        tags: row.tags,
+        keywords: row.keywords,
+        tone: '批量评语',
+      });
+      const assistantContent = input.generatedResults.join('\n\n');
+
+      await transaction.insert(aiModelCalls).values({
+        userId: input.userId,
+        modelName: 'Mock AI',
+        promptTokens: estimateTokens(prompt),
+        completionTokens: estimateTokens(assistantContent),
+        totalTokens: estimateTokens(prompt) + estimateTokens(assistantContent),
+        latencyMs: Math.max(Date.now() - now.getTime(), 0),
+        costAmount: 0,
+        currency: 'CNY',
+        status: 'success',
+      });
 
       const rows = await transaction
         .select()
@@ -307,4 +382,8 @@ function createCommentUserMessage(input: {
   const keywords = input.keywords ? `，关注点：${input.keywords}` : '';
 
   return `请为${name}生成${input.grade}评语，语气：${input.tone}，表现标签：${tags}${keywords}`;
+}
+
+function estimateTokens(value: string): number {
+  return Math.max(1, Math.ceil(value.trim().length / 4));
 }

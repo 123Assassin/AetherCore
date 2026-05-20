@@ -1498,39 +1498,48 @@ git commit -m "feat: add admin operations schema"
 - Create: `apps/server/src/modules/admin-operations/admin-operations.module.ts`
 - Create: `apps/server/src/modules/admin-operations/admin-operations.service.ts`
 - Create: `apps/server/src/modules/admin-operations/admin-operations.repository.ts`
+- Create: `apps/server/src/modules/admin-operations/admin-operations.service.spec.ts`
 - Create: `apps/server/src/trpc/routers/admin-operations.router.ts`
+- Create: `apps/server/src/trpc/routers/admin-operations.router.spec.ts`
 - Modify: `apps/server/src/trpc/router.ts`
 - Create: `packages/shared/src/types/admin-operations.ts`
 - Modify: `packages/shared/src/types/index.ts`
+- Modify: `packages/db/src/schema/users.ts`
+- Create: `packages/db/src/schema/ai-model-calls.ts`
+- Modify: `packages/db/src/schema/index.ts`
+- Modify: `packages/db/drizzle`
 
-- [ ] **Step 1: Add users and operations procedures**
+- [x] **Step 1: Add users and operations procedures**
   - Admin users query/status/blacklist/delete/invite/activity.
   - Activity CRUD.
   - Fission read/update.
   - Alarm config read/update.
 
-- [ ] **Step 2: Add audit procedures**
+- [x] **Step 2: Add audit procedures**
   - System audit query/export.
   - Content audit query/export/soft-delete.
   - Traffic stats query.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - User status and blacklist mutate independently.
   - Content audit delete sets soft-delete marker.
   - High-risk mutations write system audit log.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter @package/shared type-check
+pnpm db:generate
+pnpm --filter @package/db type-check
+pnpm --filter @package/db lint
 pnpm --filter server type-check
 pnpm --filter server lint
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/server/src packages/shared/src/types
+git add apps/server/src packages/shared/src/types packages/db/src/schema packages/db/drizzle
 git commit -m "feat: add admin operations backend"
 ```
 
