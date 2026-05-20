@@ -6,6 +6,7 @@ export type InspirationFormValues = {
 };
 
 export type FeaturedInspirationCase = InspirationFormValues & {
+  icon: string;
   id: string;
   title: string;
   description: string;
@@ -29,30 +30,33 @@ export const subjectOptions = [
 
 export const featuredInspirationCases: FeaturedInspirationCase[] = [
   {
-    context: '学生已经掌握一次函数，希望通过真实问题理解参数变化。',
-    description: '把函数参数和城市交通票价、等待时间联系起来。',
+    context: '',
+    description: '别再死背公式了！带上摩天轮，30秒看透 sin/cos。',
     grade: '高中',
-    id: 'function-transport',
+    icon: '🎡',
+    id: 'trigonometric-functions',
     subject: '数学',
-    title: '函数与城市交通',
-    topic: '一次函数的实际应用',
+    title: '三角函数',
+    topic: '三角函数',
   },
   {
-    context: '班级正在做跨学科阅读，需要兼顾表达训练和科学观察。',
-    description: '从校园植物观察切入，生成阅读、记录和表达活动。',
+    context: '',
+    description: '电子就是“债务”，带学生用“还债”逻辑秒懂氧化还原。',
     grade: '初中',
-    id: 'plant-observation',
-    subject: '语文',
-    title: '校园植物观察',
-    topic: '观察描写与说明表达',
-  },
-  {
-    context: '学生对抽象实验兴趣不足，希望用低门槛材料组织探究。',
-    description: '围绕家用材料设计安全、可讨论的课堂探究。',
-    grade: '初中',
-    id: 'chemistry-home',
+    icon: '💰',
+    id: 'redox-reaction',
     subject: '化学',
-    title: '厨房里的化学',
-    topic: '酸碱指示剂',
+    title: '氧化还原反应',
+    topic: '氧化还原反应',
+  },
+  {
+    context: '',
+    description: '磁铁是客人，线圈是主人。用“傲娇规律”破解增反减同。',
+    grade: '高中',
+    icon: '🧲',
+    id: 'lenz-law',
+    subject: '物理',
+    title: '楞次定律',
+    topic: '楞次定律',
   },
 ];

@@ -1,19 +1,12 @@
 import type { SimulationFilters } from '@package/shared';
-import type { ChangeEvent } from 'react';
-
-type SearchInputElement = HTMLInputElement & {
-  value: string;
-};
+import { CheckSquare, Plus } from 'lucide-react';
 
 type SimulationFiltersProps = {
   disabled?: boolean;
   filters: SimulationFilters;
-  onReset: () => void;
-  onSearchChange: (value: string) => void;
   onToggleCategory: (categoryId: string) => void;
   onToggleGrade: (grade: string) => void;
   onToggleSubject: (subject: string) => void;
-  search: string;
   selectedCategoryIds: string[];
   selectedGrades: string[];
   selectedSubjects: string[];
@@ -23,109 +16,155 @@ function isSelected(values: string[], value: string) {
   return values.includes(value);
 }
 
-function getInputValue(event: ChangeEvent<SearchInputElement>) {
-  const target = event.currentTarget;
+function FilterBox({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded border transition-all ${
+        checked ? 'border-red-500 bg-red-500' : 'border-slate-300 group-hover:border-red-400'
+      } h-5 w-5`}
+    >
+      {checked ? <CheckSquare aria-hidden="true" className="h-4 w-4 text-white" /> : null}
+    </span>
+  );
+}
 
-  return target.value;
+function SmallFilterBox({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded border transition-all ${
+        checked ? 'border-red-400 bg-red-400' : 'border-slate-300 group-hover:border-red-300'
+      } h-4 w-4`}
+    >
+      {checked ? <CheckSquare aria-hidden="true" className="h-3 w-3 text-white" /> : null}
+    </span>
+  );
 }
 
 export function SimulationFiltersPanel({
   disabled = false,
   filters,
-  onReset,
-  onSearchChange,
   onToggleCategory,
   onToggleGrade,
   onToggleSubject,
-  search,
   selectedCategoryIds,
   selectedGrades,
   selectedSubjects,
 }: SimulationFiltersProps) {
-  const hasFilters =
-    selectedSubjects.length > 0 ||
-    selectedCategoryIds.length > 0 ||
-    selectedGrades.length > 0 ||
-    search.trim().length > 0;
-
   return (
-    <aside aria-label="仿真筛选" className="simulation-filters">
-      <label className="simulation-filters__search">
-        <span>搜索</span>
-        <input
-          aria-label="搜索仿真实验"
-          disabled={disabled}
-          onChange={(event: ChangeEvent<SearchInputElement>) =>
-            onSearchChange(getInputValue(event))
-          }
-          placeholder="搜索仿真实验..."
-          type="search"
-          value={search}
-        />
-      </label>
+    <aside
+      aria-label="仿真筛选"
+      className="max-h-72 w-full shrink-0 overflow-y-auto border-b border-slate-100 p-6 lg:max-h-none lg:w-72 lg:border-r lg:border-b-0"
+    >
+      <div className="mb-8">
+        <h2 className="mb-6 flex items-center justify-between text-lg font-bold text-slate-800">
+          科目
+          <button
+            aria-label="科目筛选"
+            className="text-slate-400 transition-colors hover:text-slate-600"
+            disabled
+            type="button"
+          >
+            <Plus aria-hidden="true" className="h-4 w-4" />
+          </button>
+        </h2>
+        <div className="space-y-4">
+          {filters.subjects.map((subject) => {
+            const subjectChecked = isSelected(selectedSubjects, subject.name);
 
-      <div className="simulation-filters__header">
-        <h2>筛选</h2>
-        <button disabled={!hasFilters || disabled} onClick={onReset} type="button">
-          重置
-        </button>
-      </div>
-
-      <fieldset className="simulation-filter-group">
-        <legend>学科</legend>
-        <div className="simulation-filter-group__options">
-          {filters.subjects.map((subject) => (
-            <label className="simulation-filter-option" key={subject.name}>
-              <input
-                checked={isSelected(selectedSubjects, subject.name)}
-                disabled={disabled}
-                onChange={() => onToggleSubject(subject.name)}
-                type="checkbox"
-              />
-              <span>{subject.name}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="simulation-filter-group">
-        <legend>分类</legend>
-        <div className="simulation-filter-group__options simulation-filter-group__options--stacked">
-          {filters.subjects.map((subject) => (
-            <div className="simulation-filter-subject" key={subject.name}>
-              <p>{subject.name}</p>
-              {subject.categories.map((category) => (
-                <label className="simulation-filter-option" key={category.id}>
+            return (
+              <div className="space-y-2" key={subject.name}>
+                <label className="group flex cursor-pointer items-center gap-3">
                   <input
-                    checked={isSelected(selectedCategoryIds, category.id)}
+                    checked={subjectChecked}
+                    className="sr-only"
                     disabled={disabled}
-                    onChange={() => onToggleCategory(category.id)}
+                    onChange={() => onToggleSubject(subject.name)}
                     type="checkbox"
                   />
-                  <span>{category.name}</span>
+                  <FilterBox checked={subjectChecked} />
+                  <span
+                    className={`text-sm font-medium ${
+                      subjectChecked ? 'text-red-600' : 'text-slate-600'
+                    }`}
+                  >
+                    {subject.name}
+                  </span>
                 </label>
-              ))}
-            </div>
-          ))}
-        </div>
-      </fieldset>
 
-      <fieldset className="simulation-filter-group">
-        <legend>年级</legend>
-        <div className="simulation-filter-group__options">
-          {filters.grades.map((grade) => (
-            <label className="simulation-filter-option" key={grade}>
-              <input
-                checked={isSelected(selectedGrades, grade)}
-                disabled={disabled}
-                onChange={() => onToggleGrade(grade)}
-                type="checkbox"
-              />
-              <span>{grade}</span>
-            </label>
-          ))}
+                {subject.categories.length > 0 ? (
+                  <div className="space-y-2 pl-8">
+                    {subject.categories.map((category) => {
+                      const categoryChecked = isSelected(selectedCategoryIds, category.id);
+
+                      return (
+                        <label
+                          className="group flex cursor-pointer items-center gap-3"
+                          key={category.id}
+                        >
+                          <input
+                            checked={categoryChecked}
+                            className="sr-only"
+                            disabled={disabled}
+                            onChange={() => onToggleCategory(category.id)}
+                            type="checkbox"
+                          />
+                          <SmallFilterBox checked={categoryChecked} />
+                          <span
+                            className={`text-xs ${
+                              categoryChecked ? 'font-medium text-red-500' : 'text-slate-500'
+                            }`}
+                          >
+                            {category.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
-      </fieldset>
+      </div>
+
+      <div className="border-t border-slate-100 pt-8">
+        <h2 className="mb-6 flex items-center justify-between text-lg font-bold text-slate-800">
+          年级
+          <button
+            aria-label="年级筛选"
+            className="text-slate-400 transition-colors hover:text-slate-600"
+            disabled
+            type="button"
+          >
+            <Plus aria-hidden="true" className="h-4 w-4" />
+          </button>
+        </h2>
+        <div className="space-y-4">
+          {filters.grades.map((grade) => {
+            const gradeChecked = isSelected(selectedGrades, grade);
+
+            return (
+              <label className="group flex cursor-pointer items-center gap-3" key={grade}>
+                <input
+                  checked={gradeChecked}
+                  className="sr-only"
+                  disabled={disabled}
+                  onChange={() => onToggleGrade(grade)}
+                  type="checkbox"
+                />
+                <FilterBox checked={gradeChecked} />
+                <span
+                  className={`text-sm font-medium ${
+                    gradeChecked ? 'text-red-600' : 'text-slate-600'
+                  }`}
+                >
+                  {grade}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
     </aside>
   );
 }

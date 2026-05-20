@@ -3,7 +3,6 @@
 import type { AiStreamEvent } from '@package/shared';
 import { useCallback, useRef, useState } from 'react';
 
-import { FeaturedInspirationCases } from '../../../../components/inspiration/featured-inspiration-cases';
 import {
   type FeaturedInspirationCase,
   featuredInspirationCases,
@@ -57,7 +56,8 @@ function formatInspirationRequest(values: InspirationFormValues) {
   const context = values.context.trim();
 
   return [
-    `生成课程灵感：${values.grade} · ${values.subject} · ${values.topic.trim()}`,
+    `请为我精讲 **${values.topic.trim()}**。`,
+    `授课对象：${values.grade} · ${values.subject}`,
     context ? `课堂情境：${context}` : null,
   ]
     .filter(Boolean)
@@ -214,8 +214,8 @@ export default function InspirationPage() {
   );
 
   return (
-    <div className="inspiration-page">
-      <section aria-label="灵感输入" className="inspiration-page__controls">
+    <div className="mx-auto flex h-[calc(100vh-64px)] max-w-[1400px] flex-col bg-white p-4 md:p-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
         <InspirationForm
           disabled={loading}
           error={formError}
@@ -223,362 +223,18 @@ export default function InspirationPage() {
           onSubmit={generateInspiration}
           values={formValues}
         />
-        <FeaturedInspirationCases
-          cases={featuredInspirationCases}
+
+        <InspirationChatPanel
           disabled={loading}
-          onSelect={handleFeaturedCaseSelect}
+          error={chatError}
+          featuredCases={featuredInspirationCases}
+          messages={messages}
+          onFeaturedCaseSelect={handleFeaturedCaseSelect}
+          onFollowUp={handleFollowUp}
+          sessionId={sessionId}
+          suggestions={suggestions}
         />
-      </section>
-
-      <InspirationChatPanel
-        disabled={loading}
-        error={chatError}
-        messages={messages}
-        onFollowUp={handleFollowUp}
-        sessionId={sessionId}
-        suggestions={suggestions}
-      />
-
-      <style>{`
-        .inspiration-page {
-          display: grid;
-          min-width: 0;
-          flex: 1;
-          grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-          gap: 16px;
-        }
-
-        .inspiration-page__controls {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .inspiration-form,
-        .featured-inspiration,
-        .inspiration-chat {
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #ffffff;
-        }
-
-        .inspiration-form {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding: 14px;
-        }
-
-        .inspiration-form__grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .inspiration-field {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .inspiration-field__label,
-        .inspiration-follow-up__label {
-          color: #374151;
-          font-size: 13px;
-          font-weight: 700;
-          line-height: 18px;
-        }
-
-        .inspiration-field__control,
-        .inspiration-follow-up__input {
-          width: 100%;
-          min-height: 38px;
-          border: 1px solid #cbd5df;
-          border-radius: 6px;
-          color: #17202a;
-          font: inherit;
-          font-size: 14px;
-          line-height: 20px;
-          padding: 8px 10px;
-        }
-
-        .inspiration-field__textarea {
-          min-height: 92px;
-          resize: vertical;
-        }
-
-        .inspiration-field__control:focus,
-        .inspiration-follow-up__input:focus {
-          border-color: #12645c;
-          outline: 2px solid rgba(18, 100, 92, 0.18);
-          outline-offset: 0;
-        }
-
-        .inspiration-field__control:disabled,
-        .inspiration-follow-up__input:disabled {
-          background: #f3f4f6;
-          cursor: not-allowed;
-        }
-
-        .inspiration-form__alert,
-        .inspiration-chat__alert {
-          border: 1px solid #f0b8b8;
-          border-radius: 6px;
-          background: #fff1f1;
-          color: #9f1f1f;
-          font-size: 13px;
-          line-height: 18px;
-          padding: 8px 10px;
-        }
-
-        .inspiration-form__submit,
-        .inspiration-follow-up__button {
-          min-height: 38px;
-          cursor: pointer;
-          border: 0;
-          border-radius: 6px;
-          background: #12645c;
-          color: #ffffff;
-          font: inherit;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-          padding: 8px 14px;
-        }
-
-        .inspiration-form__submit:hover:not(:disabled),
-        .inspiration-follow-up__button:hover:not(:disabled) {
-          background: #0f4f47;
-        }
-
-        .inspiration-form__submit:disabled,
-        .inspiration-follow-up__button:disabled,
-        .featured-inspiration__item:disabled,
-        .inspiration-suggestions__button:disabled {
-          cursor: not-allowed;
-          opacity: 0.6;
-        }
-
-        .featured-inspiration {
-          padding: 14px;
-        }
-
-        .featured-inspiration__header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 10px;
-        }
-
-        .featured-inspiration__header h2 {
-          margin: 0;
-          color: #111827;
-          font-size: 15px;
-          line-height: 22px;
-        }
-
-        .featured-inspiration__list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .featured-inspiration__item {
-          display: flex;
-          width: 100%;
-          cursor: pointer;
-          flex-direction: column;
-          gap: 5px;
-          border: 1px solid #d8dee8;
-          border-radius: 6px;
-          background: #f8fafb;
-          color: inherit;
-          font: inherit;
-          padding: 10px;
-          text-align: left;
-        }
-
-        .featured-inspiration__item:hover:not(:disabled) {
-          border-color: #12645c;
-          background: #f1f8f6;
-        }
-
-        .featured-inspiration__title {
-          color: #17202a;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 20px;
-        }
-
-        .featured-inspiration__meta,
-        .featured-inspiration__description {
-          color: #5f6b7a;
-          font-size: 12px;
-          line-height: 17px;
-        }
-
-        .inspiration-chat {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          gap: 12px;
-          padding: 14px;
-        }
-
-        .inspiration-chat__messages {
-          display: flex;
-          min-height: 420px;
-          flex: 1;
-          flex-direction: column;
-          gap: 12px;
-          overflow: auto;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #ffffff;
-          padding: 14px;
-        }
-
-        .inspiration-chat__empty {
-          display: flex;
-          min-height: 280px;
-          flex: 1;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: #5f6b7a;
-          text-align: center;
-        }
-
-        .inspiration-chat__empty h2 {
-          margin: 0 0 8px;
-          color: #17202a;
-          font-size: 20px;
-          line-height: 28px;
-        }
-
-        .inspiration-chat__empty p {
-          max-width: 420px;
-          margin: 0;
-          font-size: 14px;
-          line-height: 22px;
-        }
-
-        .inspiration-chat__loading {
-          align-self: flex-start;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #f6f7f9;
-          color: #4b5563;
-          font-size: 14px;
-          line-height: 20px;
-          padding: 10px 12px;
-        }
-
-        .inspiration-message {
-          display: flex;
-          max-width: min(760px, 88%);
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .inspiration-message--user {
-          align-self: flex-end;
-          align-items: flex-end;
-        }
-
-        .inspiration-message--assistant {
-          align-self: flex-start;
-          align-items: flex-start;
-        }
-
-        .inspiration-message__meta {
-          color: #6b7280;
-          font-size: 12px;
-          font-weight: 600;
-          line-height: 16px;
-        }
-
-        .inspiration-message__content {
-          white-space: pre-wrap;
-          word-break: break-word;
-          border: 1px solid #d8dee8;
-          border-radius: 8px;
-          background: #f8fafb;
-          color: #17202a;
-          font-size: 14px;
-          line-height: 22px;
-          padding: 11px 13px;
-        }
-
-        .inspiration-message--user .inspiration-message__content {
-          border-color: #12645c;
-          background: #12645c;
-          color: #ffffff;
-        }
-
-        .inspiration-suggestions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .inspiration-suggestions__button {
-          min-height: 34px;
-          cursor: pointer;
-          border: 1px solid #cbd5df;
-          border-radius: 999px;
-          background: #ffffff;
-          color: #334155;
-          font: inherit;
-          font-size: 13px;
-          line-height: 18px;
-          padding: 7px 12px;
-        }
-
-        .inspiration-suggestions__button:hover:not(:disabled) {
-          border-color: #12645c;
-          color: #0f4f47;
-        }
-
-        .inspiration-follow-up {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .inspiration-follow-up__row {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 10px;
-        }
-
-        .inspiration-follow-up__button {
-          min-width: 76px;
-        }
-
-        @media (max-width: 980px) {
-          .inspiration-page {
-            grid-template-columns: 1fr;
-          }
-
-          .inspiration-chat__messages {
-            min-height: 340px;
-          }
-        }
-
-        @media (max-width: 520px) {
-          .inspiration-form__grid,
-          .inspiration-follow-up__row {
-            grid-template-columns: 1fr;
-          }
-
-          .inspiration-message {
-            max-width: 100%;
-          }
-        }
-      `}</style>
+      </div>
     </div>
   );
 }

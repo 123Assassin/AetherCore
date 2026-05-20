@@ -4,25 +4,18 @@ import { LessonSubNav } from '../../../components/lesson/lesson-sub-nav';
 
 export default function LessonLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="lesson-layout">
+    <div className="mb-4 flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/60 md:mb-6">
       <LessonSubNav />
-      {children}
+      <div className="flex-1 overflow-hidden">{children}</div>
 
       <style>{`
-        .lesson-layout {
-          display: flex;
-          min-height: calc(100vh - 112px);
-          min-width: 0;
-          flex-direction: column;
-          gap: 16px;
-        }
-
         .lesson-sub-nav {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
           border-bottom: 1px solid #d8dee8;
-          padding-bottom: 12px;
+          padding: 12px 16px;
+          flex: 0 0 auto;
         }
 
         .lesson-sub-nav__link {
@@ -51,11 +44,6 @@ export default function LessonLayout({ children }: { children: ReactNode }) {
           color: #0f4f47;
         }
 
-        @media (max-width: 760px) {
-          .lesson-layout {
-            min-height: calc(100vh - 154px);
-          }
-        }
       `}</style>
     </div>
   );

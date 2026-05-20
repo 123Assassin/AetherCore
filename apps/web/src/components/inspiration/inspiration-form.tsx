@@ -1,5 +1,6 @@
 'use client';
 
+import { Lightbulb, RefreshCw } from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
 
 import { gradeOptions, type InspirationFormValues, subjectOptions } from './inspiration.data';
@@ -48,80 +49,102 @@ export function InspirationForm({
   }
 
   return (
-    <form aria-label="灵感生成表单" className="inspiration-form" onSubmit={handleSubmit}>
-      <div className="inspiration-form__grid">
-        <label className="inspiration-field">
-          <span className="inspiration-field__label">学段</span>
-          <select
-            aria-label="学段"
-            className="inspiration-field__control"
-            disabled={disabled}
-            onChange={handleSelectChange('grade')}
-            value={values.grade}
-          >
-            {gradeOptions.map((grade) => (
-              <option key={grade} value={grade}>
-                {grade}
-              </option>
-            ))}
-          </select>
-        </label>
+    <form
+      aria-label="灵感生成表单"
+      className="flex w-full shrink-0 flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 lg:w-[340px]"
+      onSubmit={handleSubmit}
+    >
+      <div className="space-y-5">
+        <div className="flex gap-3">
+          <label className="min-w-0 flex-1">
+            <span className="mb-1.5 block text-xs font-bold text-slate-700">🎯 授课对象</span>
+            <select
+              aria-label="学段"
+              className="w-full rounded-xl border-0 bg-slate-50/50 px-3 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-violet-500"
+              disabled={disabled}
+              onChange={handleSelectChange('grade')}
+              value={values.grade}
+            >
+              {gradeOptions.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label className="inspiration-field">
-          <span className="inspiration-field__label">学科</span>
-          <select
-            aria-label="学科"
-            className="inspiration-field__control"
-            disabled={disabled}
-            onChange={handleSelectChange('subject')}
-            value={values.subject}
-          >
-            {subjectOptions.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <label className="inspiration-field">
-        <span className="inspiration-field__label">主题</span>
-        <input
-          aria-describedby={error ? 'inspiration-topic-error' : undefined}
-          aria-invalid={error ? true : undefined}
-          aria-label="主题"
-          className="inspiration-field__control"
-          disabled={disabled}
-          onChange={handleTextChange('topic')}
-          placeholder="例如：二次函数的图像与性质"
-          type="text"
-          value={values.topic}
-        />
-      </label>
-
-      {error ? (
-        <div className="inspiration-form__alert" id="inspiration-topic-error" role="alert">
-          {error}
+          <label className="min-w-0 flex-1">
+            <span className="mb-1.5 block text-xs font-bold text-slate-700">📚 学科</span>
+            <select
+              aria-label="学科"
+              className="w-full rounded-xl border-0 bg-slate-50/50 px-3 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-violet-500"
+              disabled={disabled}
+              onChange={handleSelectChange('subject')}
+              value={values.subject}
+            >
+              {subjectOptions.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      ) : null}
 
-      <label className="inspiration-field">
-        <span className="inspiration-field__label">课堂情境</span>
-        <textarea
-          aria-label="课堂情境"
-          className="inspiration-field__control inspiration-field__textarea"
-          disabled={disabled}
-          onChange={handleTextChange('context')}
-          placeholder="可补充学生基础、课时目标、已有素材或限制条件。"
-          rows={4}
-          value={values.context}
-        />
-      </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">
+            ✏️ 今天想讲点啥？(知识点) <span className="text-rose-500">*</span>
+          </span>
+          <textarea
+            aria-describedby={error ? 'inspiration-topic-error' : undefined}
+            aria-invalid={error ? true : undefined}
+            aria-label="主题"
+            className="h-24 w-full resize-none rounded-xl border-0 bg-slate-50/50 px-4 py-3 text-sm ring-1 ring-slate-200 transition-all outline-none placeholder:text-slate-400 hover:bg-slate-50 focus:ring-2 focus:ring-violet-500"
+            disabled={disabled}
+            onChange={handleTextChange('topic')}
+            placeholder="例如：牛顿第一定律、分数的乘法、李白的《将进酒》..."
+            value={values.topic}
+          />
+        </label>
 
-      <button className="inspiration-form__submit" disabled={disabled} type="submit">
-        {disabled ? '生成中...' : '生成课程灵感'}
-      </button>
+        {error ? (
+          <div
+            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700"
+            id="inspiration-topic-error"
+            role="alert"
+          >
+            {error}
+          </div>
+        ) : null}
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">
+            💬 学情与教学习惯{' '}
+            <span className="font-normal text-slate-400">(选填，越详细AI越懂你)</span>
+          </span>
+          <textarea
+            aria-label="课堂情境"
+            className="h-28 w-full resize-none rounded-xl border-0 bg-slate-50/50 px-4 py-3 text-sm ring-1 ring-slate-200 transition-all outline-none placeholder:text-slate-400 hover:bg-slate-50 focus:ring-2 focus:ring-violet-500"
+            disabled={disabled}
+            onChange={handleTextChange('context')}
+            placeholder="例如：上节课刚讲完加减法，学生听得直打瞌睡；我平时喜欢用提问的方式开场..."
+            value={values.context}
+          />
+        </label>
+
+        <button
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 py-3.5 text-sm font-bold text-white shadow-md shadow-red-500/20 transition-all hover:from-red-700 hover:to-orange-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled || !values.topic.trim()}
+          type="submit"
+        >
+          {disabled ? (
+            <RefreshCw aria-hidden="true" className="h-5 w-5 animate-spin" />
+          ) : (
+            <Lightbulb aria-hidden="true" className="h-5 w-5" />
+          )}
+          {disabled ? '脑力激荡中...' : '一键神级精讲'}
+        </button>
+      </div>
     </form>
   );
 }

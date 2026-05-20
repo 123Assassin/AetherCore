@@ -1,4 +1,5 @@
 import type { SimulationItem } from '@package/shared';
+import { ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef } from 'react';
 
 type SimulationPlayerOverlayProps = {
@@ -123,27 +124,56 @@ export function SimulationPlayerOverlay({
     <div
       aria-labelledby={titleId}
       aria-modal="true"
-      className="simulation-player-overlay"
+      className="fixed inset-0 z-[100] flex min-w-0 flex-col bg-black/90"
       ref={(element) => {
         overlayRef.current = element as OverlayElement | null;
       }}
       role="dialog"
     >
-      <header className="simulation-player-overlay__header">
-        <div className="simulation-player-overlay__title">
-          <h2 id={titleId}>{item.name}</h2>
-          <p>
-            {item.subject} · {item.category.name}
-            {item.grades.length > 0 ? ` · ${item.grades.join(' / ')}` : ''}
-          </p>
+      <header className="flex min-w-0 items-center justify-between gap-4 bg-white/10 p-4 text-white backdrop-blur-md">
+        <div className="flex min-w-0 items-center gap-4">
+          <button
+            aria-label="返回仿真实验列表"
+            autoFocus
+            className="rounded-full p-2 transition-colors hover:bg-white/10"
+            onClick={onClose}
+            type="button"
+          >
+            <ChevronRight aria-hidden="true" className="h-6 w-6 rotate-180" />
+          </button>
+          <div className="min-w-0">
+            <h2 className="truncate font-bold" id={titleId}>
+              {item.name}
+            </h2>
+            <p className="mt-1 truncate text-xs text-white/60">
+              {item.subject} · {item.category.name}
+              {item.grades.length > 0 ? ` · ${item.grades.join(' / ')}` : ''}
+            </p>
+          </div>
         </div>
-        <button aria-label="关闭仿真演示" autoFocus onClick={onClose} type="button">
-          ×
-        </button>
+        <div className="flex shrink-0 items-center gap-4">
+          <a
+            className="rounded-xl bg-red-500 px-4 py-2 text-sm font-bold transition-colors hover:bg-red-600"
+            href={item.src}
+            rel="noreferrer"
+            target="_blank"
+          >
+            全屏演示
+          </a>
+          <button
+            aria-label="关闭仿真演示"
+            className="rounded-full p-2 transition-colors hover:bg-white/10"
+            onClick={onClose}
+            type="button"
+          >
+            关闭
+          </button>
+        </div>
       </header>
-      <div className="simulation-player-overlay__frame">
+      <div className="min-h-0 flex-1 bg-white">
         <iframe
           allowFullScreen
+          className="h-full w-full border-0"
           onFocus={focusFirstControl}
           src={item.src}
           tabIndex={-1}

@@ -419,7 +419,7 @@ Expected: chat page compiles, no lint errors, visual structure matches source ch
 - Modify: `apps/web/src/components/simulations/simulation-player-overlay.tsx`
 - Modify: `apps/web/src/components/simulations/simulation-results-header.tsx`
 
-- [ ] **Step 1: Restore lesson wrapper**
+- [x] **Step 1: Restore lesson wrapper**
 
 Use source `LessonModule.tsx` wrapper:
 
@@ -427,7 +427,7 @@ Use source `LessonModule.tsx` wrapper:
 flex flex-col h-full bg-white rounded-2xl shadow-sm ring-1 ring-slate-200/60 overflow-hidden mb-4 md:mb-6
 ```
 
-- [ ] **Step 2: Restore inspiration split view**
+- [x] **Step 2: Restore inspiration split view**
 
 Port source `InspirationLibrary.tsx` visual layout. Keep existing tRPC calls:
 
@@ -438,11 +438,11 @@ client.ai.inspiration.followUp.mutate
 
 Keep source card copy and examples: 三角函数、氧化还原反应、楞次定律.
 
-- [ ] **Step 3: Restore simulation lab layout**
+- [x] **Step 3: Restore simulation lab layout**
 
 Port source `SimulationLab.tsx` visual layout. Keep target server-backed simulation list if available, but present it through the source filter/sidebar/card/overlay UI.
 
-- [ ] **Step 4: Verify lesson pages**
+- [x] **Step 4: Verify lesson pages**
 
 Run:
 
