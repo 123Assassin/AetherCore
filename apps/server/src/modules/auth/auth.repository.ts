@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { Database } from '@package/db';
 import { db } from '@package/db';
-import { sessions, userCreditAccounts, userPreferences, users } from '@package/db/schema';
+import {
+  sessions,
+  systemAuditLogs,
+  userCreditAccounts,
+  userPreferences,
+  users,
+  type AuditActorType,
+} from '@package/db/schema';
 import { eq } from 'drizzle-orm';
 
 export type AuthUserRow = typeof users.$inferSelect;
@@ -9,6 +16,17 @@ export type AuthUserInsert = typeof users.$inferInsert;
 export type AuthSessionRow = typeof sessions.$inferSelect;
 export type UserPreferencesRow = typeof userPreferences.$inferSelect;
 export type UserCreditAccountRow = typeof userCreditAccounts.$inferSelect;
+
+export type SystemAuditLogSaveData = {
+  actorType: AuditActorType;
+  actorId: string | null;
+  action: string;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
 
 @Injectable()
 export class AuthRepository {
@@ -72,8 +90,25 @@ export class AuthRepository {
     return session ?? null;
   }
 
+  async listSessionTokensByUserId(userId: string): Promise<string[]> {
+    const rows = await this.database
+      .select({ token: sessions.token })
+      .from(sessions)
+      .where(eq(sessions.userId, userId));
+
+    return rows.map((row) => row.token);
+  }
+
   async deleteSessionByToken(token: string): Promise<void> {
     await this.database.delete(sessions).where(eq(sessions.token, token));
+  }
+
+  async deleteSessionsByUserId(userId: string): Promise<void> {
+    await this.database.delete(sessions).where(eq(sessions.userId, userId));
+  }
+
+  async createSystemAuditLog(input: SystemAuditLogSaveData): Promise<void> {
+    await this.database.insert(systemAuditLogs).values(input);
   }
 
   async findUserPreferences(userId: string): Promise<UserPreferencesRow | null> {

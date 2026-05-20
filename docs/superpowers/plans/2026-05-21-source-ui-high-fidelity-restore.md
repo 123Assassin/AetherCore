@@ -693,19 +693,19 @@ Expected: routes match source blue/dark admin visual system and page-specific ca
 - Modify: `apps/admin/src/components/settings/password-settings-form.tsx`
 - Modify: `apps/admin/src/components/settings/sign-out-panel.tsx`
 
-- [ ] **Step 1: Restore audit pages**
+- [x] **Step 1: Restore audit pages**
 
 Port source table layouts and export/delete modals from `SystemAudit.tsx` and `ContentAudit.tsx`.
 
-- [ ] **Step 2: Restore traffic monitor**
+- [x] **Step 2: Restore traffic monitor**
 
 Port source `TrafficMonitor.tsx` card layout and status colors.
 
-- [ ] **Step 3: Restore alarm/settings**
+- [x] **Step 3: Restore alarm/settings**
 
 Port source `AlarmCenter.tsx` and `Settings.tsx` visual structure while keeping target auth/password APIs.
 
-- [ ] **Step 4: Verify admin final pages**
+- [x] **Step 4: Verify admin final pages**
 
 Run:
 

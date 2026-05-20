@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { adminSessionKey, hashPassword, verifyPassword } from '@package/auth';
 import { initTRPC } from '@trpc/server';
 
 import { AuthService } from '../../modules/auth/auth.service.js';
@@ -10,7 +11,7 @@ import type {
   AuthUserRow,
 } from '../../modules/auth/auth.repository.js';
 import type { TRPCContext } from '../context.js';
-import { createAuthRouter } from './auth.router.js';
+import { createAdminAuthRouter, createAuthRouter } from './auth.router.js';
 
 const t = initTRPC.context<TRPCContext>().create();
 const createTRPCRouter = t.router;
@@ -126,6 +127,210 @@ test('AuthService mockLogin is disabled in production without explicit opt-in', 
   });
 });
 
+test('AuthService changeAdminPassword verifies current password and stores a new hash', async () => {
+  const repository = new FakeAuthRepository();
+  const sessionStore = new FakeSessionStore();
+  const service = createMockLoginService(repository, sessionStore);
+  const { context, responseHeaders } = createContext({
+    headers: { 'user-agent': 'password-change-test' },
+    ip: '10.0.0.8',
+  });
+  const admin = await repository.createUser({
+    email: 'admin@example.com',
+    isActive: true,
+    password: await hashTestPassword('old-password'),
+    role: 'admin',
+  });
+  const otherUser = await repository.createUser({
+    email: 'user@example.com',
+    isActive: true,
+    password: await hashTestPassword('user-password'),
+    role: 'user',
+  });
+  await repository.createSession(createSessionRow(admin.id, 'admin-token'));
+  await repository.createSession(createSessionRow(admin.id, 'admin-token-2'));
+  await repository.createSession(createSessionRow(otherUser.id, 'user-token'));
+
+  const result = await service.changeAdminPassword(
+    { currentPassword: 'old-password', newPassword: 'new-password' },
+    createAdminSession(admin),
+    context
+  );
+
+  assert.deepEqual(result, { success: true });
+  const updatedAdmin = repository.users.find((user) => user.id === admin.id);
+  assert.ok(updatedAdmin);
+  assert.equal(await verifyTestPassword('new-password', updatedAdmin.password), true);
+  assert.equal(await verifyTestPassword('old-password', updatedAdmin.password), false);
+  assert.deepEqual(repository.auditLogs, [
+    {
+      actorType: 'admin',
+      actorId: admin.id,
+      action: 'admin.password.change',
+      resourceType: 'admin_user',
+      resourceId: admin.id,
+      ip: '10.0.0.8',
+      userAgent: 'password-change-test',
+      metadata: { email: admin.email },
+    },
+  ]);
+  assert.deepEqual(
+    repository.sessions.map((session) => session.token),
+    ['user-token']
+  );
+  assert.deepEqual(sessionStore.delCalls, [
+    adminSessionKey('admin-token'),
+    adminSessionKey('admin-token-2'),
+  ]);
+
+  const setCookie = responseHeaders['Set-Cookie'];
+  if (typeof setCookie !== 'string') {
+    assert.fail('Set-Cookie header was not set');
+  }
+  assert.match(setCookie, /^aether_admin_session=;/);
+  assert.match(setCookie, /Max-Age=0/);
+});
+
+test('AuthService changeAdminPassword rejects an incorrect current password', async () => {
+  const repository = new FakeAuthRepository();
+  const sessionStore = new FakeSessionStore();
+  const service = createMockLoginService(repository, sessionStore);
+  const { context, responseHeaders } = createContext();
+  const admin = await repository.createUser({
+    email: 'admin@example.com',
+    isActive: true,
+    password: await hashTestPassword('old-password'),
+    role: 'admin',
+  });
+  const originalHash = admin.password;
+  await repository.createSession(createSessionRow(admin.id, 'admin-token'));
+
+  await assert.rejects(
+    () =>
+      service.changeAdminPassword(
+        { currentPassword: 'wrong-password', newPassword: 'new-password' },
+        createAdminSession(admin),
+        context
+      ),
+    (error) =>
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'UNAUTHORIZED' &&
+      error.message === 'Current password is incorrect'
+  );
+  assert.equal(repository.users.find((user) => user.id === admin.id)?.password, originalHash);
+  assert.equal(repository.auditLogs.length, 0);
+  assert.deepEqual(
+    repository.sessions.map((session) => session.token),
+    ['admin-token']
+  );
+  assert.equal(sessionStore.delCalls.length, 0);
+  assert.equal(responseHeaders['Set-Cookie'], undefined);
+});
+
+test('AuthService changeAdminPassword succeeds and deletes DB sessions when Redis cleanup fails', async () => {
+  const repository = new FakeAuthRepository();
+  const sessionStore = new FakeSessionStore({
+    rejectDelKeys: [adminSessionKey('admin-token')],
+  });
+  const service = createMockLoginService(repository, sessionStore);
+  const { context, responseHeaders } = createContext();
+  const admin = await repository.createUser({
+    email: 'admin@example.com',
+    isActive: true,
+    password: await hashTestPassword('old-password'),
+    role: 'admin',
+  });
+  await repository.createSession(createSessionRow(admin.id, 'admin-token'));
+
+  const result = await service.changeAdminPassword(
+    { currentPassword: 'old-password', newPassword: 'new-password' },
+    createAdminSession(admin),
+    context
+  );
+
+  assert.deepEqual(result, { success: true });
+  const updatedAdmin = repository.users.find((user) => user.id === admin.id);
+  assert.ok(updatedAdmin);
+  assert.equal(await verifyTestPassword('new-password', updatedAdmin.password), true);
+  assert.deepEqual(repository.sessions, []);
+  assert.deepEqual(sessionStore.delCalls, [adminSessionKey('admin-token')]);
+
+  const setCookie = responseHeaders['Set-Cookie'];
+  if (typeof setCookie !== 'string') {
+    assert.fail('Set-Cookie header was not set');
+  }
+  assert.match(setCookie, /^aether_admin_session=;/);
+  assert.match(setCookie, /Max-Age=0/);
+});
+
+test('AuthService changeAdminPassword rejects weak new passwords', async () => {
+  const repository = new FakeAuthRepository();
+  const sessionStore = new FakeSessionStore();
+  const service = createMockLoginService(repository, sessionStore);
+  const { context, responseHeaders } = createContext();
+  const admin = await repository.createUser({
+    email: 'admin@example.com',
+    isActive: true,
+    password: await hashTestPassword('old-password'),
+    role: 'admin',
+  });
+  const originalHash = admin.password;
+  await repository.createSession(createSessionRow(admin.id, 'admin-token'));
+
+  await assert.rejects(
+    () =>
+      service.changeAdminPassword(
+        { currentPassword: 'old-password', newPassword: 'short' },
+        createAdminSession(admin),
+        context
+      ),
+    (error) =>
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'BAD_REQUEST' &&
+      error.message === 'New password must be at least 8 characters'
+  );
+  assert.equal(repository.users.find((user) => user.id === admin.id)?.password, originalHash);
+  assert.equal(repository.auditLogs.length, 0);
+  assert.deepEqual(
+    repository.sessions.map((session) => session.token),
+    ['admin-token']
+  );
+  assert.equal(sessionStore.delCalls.length, 0);
+  assert.equal(responseHeaders['Set-Cookie'], undefined);
+});
+
+test('adminAuth changePassword requires an admin session', async () => {
+  const fakeAuthService = new FakeAuthService();
+  const { context } = createContext();
+  const caller = createAdminAuthCaller(fakeAuthService.asAuthService(), context);
+
+  await assert.rejects(
+    () => caller.changePassword({ currentPassword: 'old-password', newPassword: 'new-password' }),
+    (error) =>
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'UNAUTHORIZED' &&
+      error.message === 'Admin session required'
+  );
+});
+
+test('adminAuth changePassword checks admin session before validating malformed input', async () => {
+  const fakeAuthService = new FakeAuthService();
+  const { context } = createContext();
+  const caller = createAdminAuthCaller(fakeAuthService.asAuthService(), context);
+
+  await assert.rejects(
+    () => caller.changePassword({} as never),
+    (error) =>
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'UNAUTHORIZED' &&
+      error.message === 'Admin session required'
+  );
+});
+
 class FakeAuthService {
   receivedContext: TRPCContext | null = null;
 
@@ -147,11 +352,16 @@ class FakeAuthService {
       },
     };
   }
+
+  async resolveAdminSession() {
+    return null;
+  }
 }
 
 class FakeAuthRepository {
   readonly users: AuthUserRow[] = [];
   readonly sessions: Array<Omit<AuthSessionRow, 'id' | 'createdAt'>> = [];
+  readonly auditLogs: SystemAuditLogSaveData[] = [];
 
   asRepository(): AuthRepository {
     return this as unknown as AuthRepository;
@@ -159,6 +369,10 @@ class FakeAuthRepository {
 
   async findUserByEmail(email: string): Promise<AuthUserRow | null> {
     return this.users.find((user) => user.email === email) ?? null;
+  }
+
+  async findUserById(userId: string): Promise<AuthUserRow | null> {
+    return this.users.find((user) => user.id === userId) ?? null;
   }
 
   async createUser(input: AuthUserInsert): Promise<AuthUserRow> {
@@ -183,10 +397,68 @@ class FakeAuthRepository {
   async createSession(input: Omit<AuthSessionRow, 'id' | 'createdAt'>): Promise<void> {
     this.sessions.push(input);
   }
+
+  async listSessionTokensByUserId(userId: string): Promise<string[]> {
+    return this.sessions
+      .filter((session) => session.userId === userId)
+      .map((session) => session.token);
+  }
+
+  async deleteSessionsByUserId(userId: string): Promise<void> {
+    for (let index = this.sessions.length - 1; index >= 0; index -= 1) {
+      if (this.sessions[index]?.userId === userId) {
+        this.sessions.splice(index, 1);
+      }
+    }
+  }
+
+  async updateUser(
+    userId: string,
+    input: Partial<Pick<AuthUserRow, 'email' | 'name' | 'password' | 'role' | 'isActive'>>
+  ): Promise<AuthUserRow | null> {
+    const index = this.users.findIndex((user) => user.id === userId);
+
+    if (index === -1) {
+      return null;
+    }
+
+    const current = this.users[index];
+
+    if (!current) {
+      return null;
+    }
+
+    const updated: AuthUserRow = {
+      ...current,
+      ...input,
+      updatedAt: new Date('2026-05-21T00:00:00.000Z'),
+    };
+
+    this.users[index] = updated;
+
+    return updated;
+  }
+
+  async createSystemAuditLog(input: SystemAuditLogSaveData): Promise<void> {
+    this.auditLogs.push(input);
+  }
 }
 
 class FakeSessionStore {
+  readonly delCalls: string[] = [];
   readonly setCalls: Array<{ key: string; value: string; mode: 'EX'; ttl: number }> = [];
+
+  constructor(private readonly input: { rejectDelKeys?: string[] } = {}) {}
+
+  async del(key: string): Promise<number> {
+    this.delCalls.push(key);
+
+    if (this.input.rejectDelKeys?.includes(key)) {
+      throw new Error('Redis del failed');
+    }
+
+    return 1;
+  }
 
   async set(key: string, value: string, mode: 'EX', ttl: number): Promise<'OK'> {
     this.setCalls.push({ key, value, mode, ttl });
@@ -197,6 +469,15 @@ class FakeSessionStore {
 
 function createCaller(authService: AuthService, context: TRPCContext) {
   const router = createAuthRouter(authService, {
+    createTRPCRouter,
+    publicProcedure,
+  });
+
+  return router.createCaller(context);
+}
+
+function createAdminAuthCaller(authService: AuthService, context: TRPCContext) {
+  const router = createAdminAuthRouter(authService, {
     createTRPCRouter,
     publicProcedure,
   });
@@ -232,6 +513,48 @@ function createContext(input?: { headers?: Record<string, string>; ip?: string }
   } as unknown as TRPCContext;
 
   return { context, responseHeaders };
+}
+
+function createAdminSession(user: AuthUserRow) {
+  return {
+    token: 'admin-token',
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: 'admin',
+      isBlacklisted: user.isBlacklisted,
+    },
+  } as const;
+}
+
+function createSessionRow(userId: string, token: string): Omit<AuthSessionRow, 'id' | 'createdAt'> {
+  return {
+    userId,
+    token,
+    userAgent: 'node-test',
+    ip: '127.0.0.1',
+    expiresAt: new Date('2026-05-21T02:00:00.000Z'),
+  };
+}
+
+type SystemAuditLogSaveData = {
+  actorType: 'admin' | 'user' | 'system';
+  actorId: string | null;
+  action: string;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+async function hashTestPassword(password: string): Promise<string> {
+  return hashPassword(password, 4);
+}
+
+async function verifyTestPassword(password: string, hash: string): Promise<boolean> {
+  return verifyPassword(password, hash);
 }
 
 async function withEnv(

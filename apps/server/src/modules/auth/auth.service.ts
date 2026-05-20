@@ -47,6 +47,11 @@ type AdminLoginInput = {
   password: string;
 };
 
+type AdminChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 type AdminLoginResult =
   | {
       success: true;
@@ -72,6 +77,10 @@ type AdminSessionResult =
     };
 
 type LogoutResult = {
+  success: true;
+};
+
+type PasswordChangeResult = {
   success: true;
 };
 
@@ -118,7 +127,7 @@ export type AdminSession = {
 
 export class AuthServiceError extends Error {
   constructor(
-    readonly code: 'FORBIDDEN' | 'CONFLICT',
+    readonly code: 'BAD_REQUEST' | 'CONFLICT' | 'FORBIDDEN' | 'UNAUTHORIZED',
     message: string
   ) {
     super(message);
@@ -237,6 +246,42 @@ export class AuthService {
       await this.deleteSession(token, true);
     }
 
+    clearCookie(context, getAdminCookieName());
+
+    return { success: true };
+  }
+
+  async changeAdminPassword(
+    input: AdminChangePasswordInput,
+    session: AdminSession,
+    context: TRPCContext
+  ): Promise<PasswordChangeResult> {
+    if (input.newPassword.length < 8) {
+      throw new AuthServiceError('BAD_REQUEST', 'New password must be at least 8 characters');
+    }
+
+    const user = await this.authRepository.findUserById(session.user.id);
+
+    if (!user || user.role !== 'admin' || !user.isActive) {
+      throw new AuthServiceError('UNAUTHORIZED', 'Admin session required');
+    }
+
+    const passwordMatches = await verifyPassword(input.currentPassword, user.password);
+
+    if (!passwordMatches) {
+      throw new AuthServiceError('UNAUTHORIZED', 'Current password is incorrect');
+    }
+
+    const updatedUser = await this.authRepository.updateUser(user.id, {
+      password: await hashPassword(input.newPassword),
+    });
+
+    if (!updatedUser) {
+      throw new AuthServiceError('UNAUTHORIZED', 'Admin session required');
+    }
+
+    await this.writeAdminPasswordAudit(user, context);
+    await this.revokeAdminSessions(user.id);
     clearCookie(context, getAdminCookieName());
 
     return { success: true };
@@ -372,6 +417,30 @@ export class AuthService {
       this.sessionStore.del(admin ? adminSessionKey(token) : sessionKey(token)),
       this.authRepository.deleteSessionByToken(token),
     ]);
+  }
+
+  private async revokeAdminSessions(userId: string): Promise<void> {
+    const tokens = await this.authRepository.listSessionTokensByUserId(userId);
+
+    await this.authRepository.deleteSessionsByUserId(userId);
+    await Promise.allSettled(tokens.map((token) => this.sessionStore.del(adminSessionKey(token))));
+  }
+
+  private async writeAdminPasswordAudit(user: AuthUserRow, context: TRPCContext): Promise<void> {
+    try {
+      await this.authRepository.createSystemAuditLog({
+        actorType: 'admin',
+        actorId: user.id,
+        action: 'admin.password.change',
+        resourceType: 'admin_user',
+        resourceId: user.id,
+        ip: getIp(context),
+        userAgent: getUserAgent(context),
+        metadata: { email: user.email },
+      });
+    } catch {
+      // Audit writes are best-effort so a completed password update is not reported as failed.
+    }
   }
 
   private async storeWeChatStateBestEffort(state: string): Promise<void> {

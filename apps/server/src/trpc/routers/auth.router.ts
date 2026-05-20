@@ -1,6 +1,9 @@
 import { TRPCError } from '@trpc/server';
 
-import { resolveAdminSession } from '../../common/guards/admin-session.guard.js';
+import {
+  requireAdminSession,
+  resolveAdminSession,
+} from '../../common/guards/admin-session.guard.js';
 import { AuthServiceError, type AuthService } from '../../modules/auth/auth.service.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
 
@@ -14,6 +17,11 @@ type AdminLoginInput = {
   password: string;
 };
 
+type AdminChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 export function createAuthRouter(authService: AuthService, tools: RouterTools) {
   return tools.createTRPCRouter({
     wechatLoginUrl: tools.publicProcedure.query(() => authService.getWeChatLoginUrl()),
@@ -25,7 +33,25 @@ export function createAuthRouter(authService: AuthService, tools: RouterTools) {
 }
 
 export function createAdminAuthRouter(authService: AuthService, tools: RouterTools) {
+  const adminProcedure = tools.publicProcedure.use(async ({ ctx, next }) => {
+    const adminSession = await requireAdminSession(authService, ctx);
+
+    return next({
+      ctx: {
+        ...ctx,
+        adminSession,
+      },
+    });
+  });
+
   return tools.createTRPCRouter({
+    changePassword: adminProcedure
+      .input(parseAdminChangePasswordInput)
+      .mutation(async ({ ctx, input }) => {
+        return mapAuthServiceError(() =>
+          authService.changeAdminPassword(input, ctx.adminSession, ctx)
+        );
+      }),
     login: tools.publicProcedure
       .input(parseAdminLoginInput)
       .mutation(({ ctx, input }) => authService.adminLogin(input, ctx)),
@@ -40,6 +66,25 @@ export function createAdminAuthRouter(authService: AuthService, tools: RouterToo
       return authService.getAdminSession(ctx);
     }),
   });
+}
+
+function parseAdminChangePasswordInput(input: unknown): AdminChangePasswordInput {
+  if (!isRecord(input)) {
+    throwInvalidChangePasswordInput();
+  }
+
+  if (typeof input.currentPassword !== 'string' || typeof input.newPassword !== 'string') {
+    throwInvalidChangePasswordInput();
+  }
+
+  if (!input.currentPassword || !input.newPassword) {
+    throwInvalidChangePasswordInput();
+  }
+
+  return {
+    currentPassword: input.currentPassword,
+    newPassword: input.newPassword,
+  };
 }
 
 function parseAdminLoginInput(input: unknown): AdminLoginInput {
@@ -65,6 +110,13 @@ function parseAdminLoginInput(input: unknown): AdminLoginInput {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function throwInvalidChangePasswordInput(): never {
+  throw new TRPCError({
+    code: 'BAD_REQUEST',
+    message: 'Admin password change requires currentPassword and newPassword',
+  });
 }
 
 function throwInvalidInput(): never {

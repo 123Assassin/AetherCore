@@ -1,9 +1,10 @@
 'use client';
 
+import { X } from 'lucide-react';
 import {
-  type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
+  type MouseEvent,
   useEffect,
   useRef,
   useState,
@@ -52,14 +53,21 @@ export function ExportCsvDialog({
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<FocusableDialogElement | null>(null);
+  const openerRef = useRef<FocusableElement | null>(null);
   const titleId = 'export-csv-dialog-title';
+  const descriptionId = 'export-csv-dialog-description';
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    openerRef.current = getActiveFocusableElement();
     focusFirstDialogControl(dialogRef.current);
+
+    return () => {
+      openerRef.current?.focus();
+    };
   }, [open]);
 
   if (!open) {
@@ -93,6 +101,12 @@ export function ExportCsvDialog({
     onClose();
   }
 
+  function handleBackdropMouseDown(event: MouseEvent<HTMLDivElement>) {
+    if (event.target === event.currentTarget) {
+      handleClose();
+    }
+  }
+
   function handleStartDateChange(value: string) {
     setStartDate(value);
     setError(null);
@@ -104,80 +118,100 @@ export function ExportCsvDialog({
   }
 
   return (
-    <div role="presentation" style={styles.backdrop}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onMouseDown={handleBackdropMouseDown}
+      role="presentation"
+    >
       <section
+        aria-describedby={descriptionId}
         aria-labelledby={titleId}
         aria-modal="true"
+        className="relative w-full max-w-sm space-y-6 overflow-hidden rounded-[32px] bg-white p-8 shadow-2xl"
         onKeyDown={(event) => handleDialogKeyDown(event, handleClose)}
         ref={(element) => {
           dialogRef.current = element as FocusableDialogElement | null;
         }}
         role="dialog"
-        style={styles.dialog}
         tabIndex={-1}
       >
-        <div style={styles.header}>
-          <div style={styles.titleBlock}>
-            <h2 id={titleId} style={styles.title}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-slate-800" id={titleId}>
               {title}
             </h2>
-            <p style={styles.description}>{description}</p>
+            <p className="text-sm leading-5 text-slate-500" id={descriptionId}>
+              {description}
+            </p>
           </div>
           <button
+            aria-label="关闭导出弹窗"
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={submitting}
             onClick={handleClose}
-            style={styles.closeButton}
             type="button"
           >
-            关闭
+            <X aria-hidden="true" size={24} />
           </button>
         </div>
 
         {error ? (
-          <p aria-live="polite" role="alert" style={styles.error}>
+          <p
+            aria-live="polite"
+            className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}
 
         {submitError ? (
-          <p aria-live="polite" role="alert" style={styles.error}>
+          <p
+            aria-live="polite"
+            className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+            role="alert"
+          >
             {submitError}
           </p>
         ) : null}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.field}>
-            <span style={styles.label}>开始日期</span>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="block space-y-2">
+            <span className="text-sm font-bold text-slate-700">开始日期</span>
             <input
+              className="focus:border-primary w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none disabled:opacity-60"
               disabled={submitting}
               onChange={(event) => handleStartDateChange(readControlValue(event.currentTarget))}
-              style={styles.input}
               type="date"
               value={startDate}
             />
           </label>
 
-          <label style={styles.field}>
-            <span style={styles.label}>结束日期</span>
+          <label className="block space-y-2">
+            <span className="text-sm font-bold text-slate-700">结束日期</span>
             <input
+              className="focus:border-primary w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none disabled:opacity-60"
               disabled={submitting}
               onChange={(event) => handleEndDateChange(readControlValue(event.currentTarget))}
-              style={styles.input}
               type="date"
               value={endDate}
             />
           </label>
 
-          <div style={styles.actions}>
+          <div className="flex gap-4 pt-4">
             <button
+              className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-600 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={submitting}
               onClick={handleClose}
-              style={styles.secondaryButton}
               type="button"
             >
               取消
             </button>
-            <button disabled={submitting} style={styles.primaryButton} type="submit">
+            <button
+              className="bg-primary hover:bg-primary-dark flex-1 rounded-xl py-3 font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting}
+              type="submit"
+            >
               {submitting ? '导出中...' : '确认导出'}
             </button>
           </div>
@@ -231,6 +265,16 @@ function focusFirstDialogControl(container: FocusableDialogElement | null) {
   getFocusableElements(container)[0]?.focus();
 }
 
+function getActiveFocusableElement(): FocusableElement | null {
+  const activeElement = (globalThis as BrowserFocusGlobal).document?.activeElement;
+
+  if (!activeElement || typeof (activeElement as FocusableElement).focus !== 'function') {
+    return null;
+  }
+
+  return activeElement as FocusableElement;
+}
+
 function getFocusableElements(container: FocusableDialogElement): FocusableElement[] {
   return Array.from(
     container.querySelectorAll(
@@ -244,122 +288,3 @@ function readControlValue(target: EventTarget): string {
 
   return typeof value === 'string' ? value : '';
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '8px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    gap: 10,
-    justifyContent: 'end',
-    paddingTop: 14,
-  },
-  backdrop: {
-    alignItems: 'center',
-    background: 'rgba(15, 23, 42, 0.42)',
-    bottom: 0,
-    display: 'flex',
-    justifyContent: 'center',
-    left: 0,
-    padding: 20,
-    position: 'fixed',
-    right: 0,
-    top: 0,
-    zIndex: 40,
-  },
-  closeButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  description: {
-    color: '#64748b',
-    fontSize: 13,
-    lineHeight: '18px',
-    margin: 0,
-  },
-  dialog: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    boxShadow: '0 18px 50px rgba(15, 23, 42, 0.24)',
-    display: 'grid',
-    gap: 14,
-    maxHeight: 'calc(100vh - 40px)',
-    maxWidth: 460,
-    overflow: 'auto',
-    padding: 18,
-    width: 'min(100%, 460px)',
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  form: {
-    display: 'grid',
-    gap: 14,
-  },
-  header: {
-    alignItems: 'start',
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 38,
-    padding: '8px 10px',
-    width: '100%',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-  },
-  title: {
-    color: '#172033',
-    fontSize: 18,
-    lineHeight: '24px',
-    margin: 0,
-  },
-  titleBlock: {
-    display: 'grid',
-    gap: 4,
-  },
-} satisfies Record<string, CSSProperties>;

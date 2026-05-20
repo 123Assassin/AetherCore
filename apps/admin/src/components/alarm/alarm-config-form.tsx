@@ -1,7 +1,8 @@
 'use client';
 
 import type { AdminAlarmConfig, AdminAlarmConfigUpdateInput } from '@package/shared';
-import { type CSSProperties, type FormEvent, useState } from 'react';
+import { AlertTriangle, Mail, Save } from 'lucide-react';
+import { type FormEvent, useState } from 'react';
 
 type AlarmConfigFormProps = {
   config: AdminAlarmConfig;
@@ -51,54 +52,94 @@ export function AlarmConfigForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
-      <section style={styles.notice}>
-        <strong style={styles.noticeTitle}>费用告警</strong>
-        <p style={styles.noticeText}>当模型引擎费用达到阈值后，系统会向通知邮箱发送告警信息。</p>
-      </section>
+    <form
+      className="max-w-2xl overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm"
+      onSubmit={handleSubmit}
+    >
+      <div className="space-y-8 p-8">
+        <div className="flex items-center gap-4 rounded-2xl border border-orange-100 bg-orange-50 p-4 text-orange-800">
+          <AlertTriangle aria-hidden="true" className="shrink-0 text-orange-500" size={24} />
+          <p className="text-sm font-medium">
+            当任何模型引擎的日消耗金额超过设定阈值时，系统将主动发送告警邮件。
+          </p>
+        </div>
 
-      <label style={styles.field}>
-        <span style={styles.label}>费用告警阈值 ({config.currency})</span>
-        <input
-          disabled={submitting}
-          min="0"
-          onChange={(event) => updateForm({ threshold: readControlValue(event.currentTarget) })}
-          placeholder="例如：100"
-          style={styles.input}
-          step="0.01"
-          type="number"
-          value={form.threshold}
-        />
-      </label>
+        <div className="space-y-6">
+          <label className="block space-y-2">
+            <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              费用告警阈值 ({config.currency})
+            </span>
+            <div className="relative">
+              <span className="absolute top-1/2 left-4 -translate-y-1/2 font-bold text-slate-400">
+                ¥
+              </span>
+              <input
+                className="focus:ring-primary/10 focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pr-4 pl-8 font-mono transition-all outline-none focus:ring-4 disabled:opacity-60"
+                disabled={submitting}
+                min="0"
+                onChange={(event) =>
+                  updateForm({ threshold: readControlValue(event.currentTarget) })
+                }
+                placeholder="例如：100"
+                step="0.01"
+                type="number"
+                value={form.threshold}
+              />
+            </div>
+          </label>
 
-      <label style={styles.field}>
-        <span style={styles.label}>通知邮箱</span>
-        <input
-          disabled={submitting}
-          onChange={(event) => updateForm({ email: readControlValue(event.currentTarget) })}
-          placeholder="admin@example.com"
-          style={styles.input}
-          type="email"
-          value={form.email}
-        />
-      </label>
+          <label className="block space-y-2">
+            <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              通知邮箱
+            </span>
+            <div className="relative">
+              <Mail
+                aria-hidden="true"
+                className="absolute top-1/2 left-4 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
+              <input
+                className="focus:ring-primary/10 focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pr-4 pl-11 transition-all outline-none focus:ring-4 disabled:opacity-60"
+                disabled={submitting}
+                onChange={(event) => updateForm({ email: readControlValue(event.currentTarget) })}
+                placeholder="admin@example.com"
+                type="email"
+                value={form.email}
+              />
+            </div>
+          </label>
 
-      {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {error}
-        </p>
-      ) : null}
+          {error ? (
+            <p
+              aria-live="polite"
+              className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
 
-      {submitError ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
-          {submitError}
-        </p>
-      ) : null}
+          {submitError ? (
+            <p
+              aria-live="polite"
+              className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+              role="alert"
+            >
+              {submitError}
+            </p>
+          ) : null}
 
-      <div style={styles.actions}>
-        <button disabled={submitting} style={styles.primaryButton} type="submit">
-          {submitting ? '保存中...' : '保存告警配置'}
-        </button>
+          <div className="pt-4">
+            <button
+              className="bg-primary hover:bg-primary-dark shadow-primary/30 flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 font-bold text-white shadow-xl transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+              disabled={submitting}
+              type="submit"
+            >
+              <Save aria-hidden="true" size={20} />
+              {submitting ? '保存中...' : '保存告警配置'}
+            </button>
+          </div>
+        </div>
       </div>
     </form>
   );
@@ -145,86 +186,3 @@ function readControlValue(target: EventTarget): string {
 
   return typeof value === 'string' ? value : '';
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '9px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  actions: {
-    borderTop: '1px solid #e5eaf1',
-    display: 'flex',
-    justifyContent: 'end',
-    paddingTop: 14,
-  },
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  field: {
-    display: 'grid',
-    gap: 6,
-  },
-  form: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'grid',
-    gap: 14,
-    maxWidth: 680,
-    padding: 16,
-  },
-  input: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    color: '#172033',
-    fontSize: 14,
-    lineHeight: '20px',
-    minHeight: 40,
-    padding: '8px 10px',
-    width: '100%',
-  },
-  label: {
-    color: '#475569',
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: '18px',
-  },
-  notice: {
-    background: '#fff7ed',
-    border: '1px solid #fed7aa',
-    borderRadius: 6,
-    display: 'grid',
-    gap: 4,
-    padding: 12,
-  },
-  noticeText: {
-    color: '#9a3412',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-  },
-  noticeTitle: {
-    color: '#9a3412',
-    fontSize: 14,
-    lineHeight: '20px',
-  },
-  primaryButton: {
-    ...buttonBase,
-    background: '#0f766e',
-    border: '1px solid #0f766e',
-    color: '#ffffff',
-    minHeight: 40,
-  },
-} satisfies Record<string, CSSProperties>;

@@ -5,7 +5,8 @@ import type {
   AdminSystemAuditItem,
   AdminSystemAuditListInput,
 } from '@package/shared';
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { Download } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AuditLogTable } from '../../../../components/security/audit-log-table';
 import {
@@ -17,7 +18,6 @@ import { useTrpcClient } from '../../../../trpc/provider';
 export default function AdminSystemAuditPage() {
   const client = useTrpcClient();
   const [items, setItems] = useState<AdminSystemAuditItem[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -44,7 +44,6 @@ export default function AdminSystemAuditPage() {
 
       if (requestId === requestSequence.current) {
         setItems(result.items);
-        setTotal(result.total);
       }
     } catch {
       if (requestId === requestSequence.current) {
@@ -70,7 +69,6 @@ export default function AdminSystemAuditPage() {
 
         if (requestId === requestSequence.current) {
           setItems(result.items);
-          setTotal(result.total);
         }
       } catch {
         if (requestId === requestSequence.current) {
@@ -118,44 +116,54 @@ export default function AdminSystemAuditPage() {
   }
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
+    <main className="space-y-8">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p style={styles.eyebrow}>Admin / Security / System Audit</p>
-          <h2 style={styles.heading}>系统审计日志</h2>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">系统审计日志</h1>
+          <p className="mt-1 text-sm text-slate-500">监控系统内的操作记录与安全事件</p>
         </div>
-        <div style={styles.headerActions}>
-          <div aria-label="系统审计统计" style={styles.summary}>
-            <strong style={styles.summaryNumber}>{loading ? '...' : total}</strong>
-            <span style={styles.summaryText}>条结果</span>
-          </div>
-          <button
-            disabled={loading || exporting}
-            onClick={openExportDialog}
-            style={styles.secondaryButton}
-            type="button"
-          >
-            导出 CSV
-          </button>
-        </div>
+        <button
+          className="flex items-center gap-2 rounded-2xl bg-slate-100 px-6 py-3.5 font-bold text-slate-700 transition-all hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={loading || exporting}
+          onClick={openExportDialog}
+          type="button"
+        >
+          <Download aria-hidden="true" size={20} />
+          导出日志 (CSV)
+        </button>
       </header>
 
       {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
       {exportMessage ? (
-        <p aria-live="polite" style={styles.success}>
+        <p
+          aria-live="polite"
+          className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-bold text-green-600"
+        >
           {exportMessage}
         </p>
       ) : null}
 
-      <section aria-busy={loading} aria-label="系统审计日志列表" style={styles.section}>
-        {loading ? <p style={styles.stateText}>正在加载系统审计日志...</p> : null}
+      <section aria-busy={loading} aria-label="系统审计日志列表">
+        {loading ? (
+          <p className="rounded-[32px] border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+            正在加载系统审计日志...
+          </p>
+        ) : null}
 
-        {!loading && items.length === 0 ? <p style={styles.stateText}>暂无系统审计日志。</p> : null}
+        {!loading && items.length === 0 ? (
+          <p className="rounded-[32px] border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+            暂无系统审计日志。
+          </p>
+        ) : null}
 
         {!loading && items.length > 0 ? <AuditLogTable items={items} /> : null}
       </section>
@@ -168,7 +176,7 @@ export default function AdminSystemAuditPage() {
           open={exportOpen}
           submitError={exportError}
           submitting={exporting}
-          title="导出系统审计 CSV"
+          title="导出记录"
         />
       ) : null}
     </main>
@@ -222,104 +230,3 @@ function triggerCsvDownload(result: AdminAuditExportResult): boolean {
 
   return true;
 }
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '9px 12px',
-} satisfies CSSProperties;
-
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  headerActions: {
-    alignItems: 'center',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'end',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 24,
-    lineHeight: '32px',
-    margin: 0,
-  },
-  main: {
-    display: 'grid',
-    gap: 16,
-  },
-  secondaryButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #c8d1dc',
-    color: '#334155',
-    minHeight: 40,
-  },
-  section: {
-    display: 'grid',
-    gap: 12,
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  success: {
-    background: '#ecfdf5',
-    border: '1px solid #bbf7d0',
-    borderRadius: 6,
-    color: '#166534',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  summary: {
-    alignItems: 'baseline',
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    display: 'flex',
-    gap: 6,
-    padding: '10px 12px',
-  },
-  summaryNumber: {
-    color: '#0f766e',
-    fontSize: 22,
-    lineHeight: '28px',
-  },
-  summaryText: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: '18px',
-  },
-} satisfies Record<string, CSSProperties>;

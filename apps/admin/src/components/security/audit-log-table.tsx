@@ -1,5 +1,4 @@
 import type { AdminSystemAuditItem } from '@package/shared';
-import type { CSSProperties } from 'react';
 
 type AuditLogTableProps = {
   items: AdminSystemAuditItem[];
@@ -7,47 +6,64 @@ type AuditLogTableProps = {
 
 export function AuditLogTable({ items }: AuditLogTableProps) {
   return (
-    <div style={styles.tableWrap}>
-      <table style={styles.table}>
-        <thead>
+    <div className="overflow-x-auto rounded-[32px] border border-slate-200 bg-white shadow-sm">
+      <table className="w-full min-w-[940px] text-left">
+        <thead className="border-b border-slate-200 bg-slate-50">
           <tr>
-            <th style={styles.headerCell}>时间</th>
-            <th style={styles.headerCell}>操作者</th>
-            <th style={styles.headerCell}>动作</th>
-            <th style={styles.headerCell}>资源</th>
-            <th style={styles.headerCell}>IP</th>
-            <th style={styles.headerCell}>元数据</th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              时间
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              操作人
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              操作动作
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              详情
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              类型
+            </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-100">
           {items.map((item) => (
-            <tr key={item.id}>
-              <td style={styles.bodyCell}>
-                <span style={styles.monoText}>{formatDateTime(item.createdAt)}</span>
+            <tr className="transition-colors hover:bg-slate-50/50" key={item.id}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className="font-mono text-sm text-slate-500">
+                  {formatDateTime(item.createdAt)}
+                </span>
               </td>
-              <td style={styles.bodyCell}>
-                <div style={styles.stack}>
-                  <span style={getActorBadgeStyle(item.actorType)}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-slate-700">
                     {actorTypeLabels[item.actorType]}
-                  </span>
-                  <span style={styles.mutedText}>{item.actorId ?? '无 actorId'}</span>
+                  </div>
+                  <div className="max-w-52 truncate text-xs text-slate-400">
+                    {item.actorId ?? '无 actorId'}
+                  </div>
                 </div>
               </td>
-              <td style={styles.bodyCell}>
-                <strong style={styles.strongText}>{item.action}</strong>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <strong className="block max-w-64 truncate text-sm font-bold text-slate-900">
+                  {item.action}
+                </strong>
               </td>
-              <td style={styles.bodyCell}>
-                <div style={styles.stack}>
-                  <span style={styles.bodyText}>{item.resourceType ?? '未指定'}</span>
-                  <span style={styles.mutedText}>{item.resourceId ?? '无 resourceId'}</span>
+              <td className="px-6 py-4">
+                <div className="space-y-1">
+                  <div className="text-sm text-slate-500">
+                    {item.resourceType ?? '未指定资源'}
+                    {item.resourceId ? ` / ${item.resourceId}` : ''}
+                  </div>
+                  <div className="max-w-[360px] truncate font-mono text-xs text-slate-400">
+                    IP: {item.ip ?? '未记录'} | {formatMetadata(item.metadata)}
+                  </div>
                 </div>
               </td>
-              <td style={styles.bodyCell}>
-                <span style={styles.bodyText}>{item.ip ?? '未记录'}</span>
-              </td>
-              <td style={styles.bodyCell}>
-                <span title={formatMetadata(item.metadata)} style={styles.metadataText}>
-                  {formatMetadata(item.metadata)}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={getActorBadgeClassName(item.actorType)}>
+                  {actorTypeLabels[item.actorType]}
                 </span>
               </td>
             </tr>
@@ -58,16 +74,18 @@ export function AuditLogTable({ items }: AuditLogTableProps) {
   );
 }
 
-function getActorBadgeStyle(actorType: AdminSystemAuditItem['actorType']): CSSProperties {
+function getActorBadgeClassName(actorType: AdminSystemAuditItem['actorType']): string {
+  const base = 'rounded-md px-2.5 py-1 text-xs font-bold';
+
   if (actorType === 'admin') {
-    return styles.adminBadge;
+    return `${base} bg-red-50 text-red-600`;
   }
 
   if (actorType === 'user') {
-    return styles.userBadge;
+    return `${base} bg-green-50 text-green-600`;
   }
 
-  return styles.systemBadge;
+  return `${base} bg-slate-100 text-slate-600`;
 }
 
 function formatDateTime(value: string): string {
@@ -88,13 +106,13 @@ function formatDateTime(value: string): string {
 
 function formatMetadata(value: Record<string, unknown> | null): string {
   if (!value) {
-    return '无';
+    return '无元数据';
   }
 
   try {
     return JSON.stringify(value);
   } catch {
-    return '无法显示';
+    return '元数据无法显示';
   }
 }
 
@@ -103,107 +121,3 @@ const actorTypeLabels: Record<AdminSystemAuditItem['actorType'], string> = {
   system: '系统',
   user: '用户',
 };
-
-const badgeBase = {
-  borderRadius: 999,
-  display: 'inline-flex',
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: '16px',
-  padding: '3px 8px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const styles = {
-  adminBadge: {
-    ...badgeBase,
-    background: '#dbeafe',
-    color: '#1d4ed8',
-  },
-  bodyCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    verticalAlign: 'top',
-  },
-  bodyText: {
-    color: '#172033',
-    fontSize: 13,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  headerCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
-  },
-  metadataText: {
-    color: '#475569',
-    display: 'block',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: 12,
-    lineHeight: '18px',
-    maxWidth: 300,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  monoText: {
-    color: '#475569',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: 12,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  mutedText: {
-    color: '#64748b',
-    display: 'block',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: 220,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  stack: {
-    display: 'grid',
-    gap: 4,
-    justifyItems: 'start',
-  },
-  strongText: {
-    color: '#172033',
-    display: 'block',
-    fontSize: 13,
-    lineHeight: '18px',
-    maxWidth: 240,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  systemBadge: {
-    ...badgeBase,
-    background: '#f1f5f9',
-    color: '#475569',
-  },
-  table: {
-    borderCollapse: 'collapse',
-    minWidth: 940,
-    tableLayout: 'fixed',
-    width: '100%',
-  },
-  tableWrap: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    overflowX: 'auto',
-  },
-  userBadge: {
-    ...badgeBase,
-    background: '#dcfce7',
-    color: '#166534',
-  },
-} satisfies Record<string, CSSProperties>;

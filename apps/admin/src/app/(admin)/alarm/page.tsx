@@ -1,7 +1,7 @@
 'use client';
 
 import type { AdminAlarmConfig, AdminAlarmConfigUpdateInput } from '@package/shared';
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AlarmConfigForm } from '../../../components/alarm/alarm-config-form';
 import { useTrpcClient } from '../../../trpc/provider';
@@ -76,22 +76,30 @@ export default function AdminAlarmPage() {
   }
 
   return (
-    <main style={styles.main}>
-      <header style={styles.header}>
+    <main className="space-y-8">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p style={styles.eyebrow}>Admin / Alarm</p>
-          <h2 style={styles.heading}>消息告警中心</h2>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">消息告警中心</h1>
+          <p className="mt-1 text-sm text-slate-500">配置模型费用消耗告警阈值及通知方式</p>
         </div>
       </header>
 
       {error ? (
-        <p aria-live="polite" role="alert" style={styles.error}>
+        <p
+          aria-live="polite"
+          className="max-w-2xl rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
-      <section aria-busy={loading} aria-label="消息告警配置" style={styles.section}>
-        {loading ? <p style={styles.stateText}>正在加载消息告警配置...</p> : null}
+      <section aria-busy={loading} aria-label="消息告警配置">
+        {loading ? (
+          <p className="max-w-2xl rounded-[32px] border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+            正在加载消息告警配置...
+          </p>
+        ) : null}
 
         {!loading && config ? (
           <AlarmConfigForm
@@ -104,10 +112,17 @@ export default function AdminAlarmPage() {
           />
         ) : null}
 
-        {!loading && !config ? <p style={styles.stateText}>暂无消息告警配置。</p> : null}
+        {!loading && !config ? (
+          <p className="max-w-2xl rounded-[32px] border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+            暂无消息告警配置。
+          </p>
+        ) : null}
 
         {savedMessage ? (
-          <p aria-live="polite" style={styles.success}>
+          <p
+            aria-live="polite"
+            className="mt-4 max-w-2xl rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-bold text-green-600"
+          >
             {savedMessage}
           </p>
         ) : null}
@@ -115,64 +130,3 @@ export default function AdminAlarmPage() {
     </main>
   );
 }
-
-const styles = {
-  error: {
-    background: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: 6,
-    color: '#991b1b',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    padding: '9px 11px',
-  },
-  eyebrow: {
-    color: '#64748b',
-    fontSize: 12,
-    letterSpacing: 0,
-    lineHeight: '16px',
-    margin: '0 0 4px',
-  },
-  header: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  heading: {
-    color: '#172033',
-    fontSize: 24,
-    lineHeight: '32px',
-    margin: 0,
-  },
-  main: {
-    display: 'grid',
-    gap: 16,
-  },
-  section: {
-    display: 'grid',
-    gap: 12,
-  },
-  stateText: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: '20px',
-    margin: 0,
-    padding: 18,
-  },
-  success: {
-    background: '#ecfdf5',
-    border: '1px solid #bbf7d0',
-    borderRadius: 6,
-    color: '#166534',
-    fontSize: 13,
-    lineHeight: '20px',
-    margin: 0,
-    maxWidth: 680,
-    padding: '9px 11px',
-  },
-} satisfies Record<string, CSSProperties>;

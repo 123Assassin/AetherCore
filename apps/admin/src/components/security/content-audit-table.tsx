@@ -1,73 +1,109 @@
 import type { AdminContentAuditItem } from '@package/shared';
-import type { CSSProperties } from 'react';
+import { FileSearch, Trash2 } from 'lucide-react';
 
 type ContentAuditTableProps = {
   deletingIds: ReadonlySet<string>;
   items: AdminContentAuditItem[];
   onDelete: (item: AdminContentAuditItem) => void;
+  onViewDetail: (item: AdminContentAuditItem) => void;
 };
 
-export function ContentAuditTable({ deletingIds, items, onDelete }: ContentAuditTableProps) {
+export function ContentAuditTable({
+  deletingIds,
+  items,
+  onDelete,
+  onViewDetail,
+}: ContentAuditTableProps) {
   return (
-    <div style={styles.tableWrap}>
-      <table style={styles.table}>
-        <thead>
+    <div className="overflow-x-auto rounded-[32px] border border-slate-200 bg-white shadow-sm">
+      <table className="w-full min-w-[980px] text-left">
+        <thead className="border-b border-slate-200 bg-slate-50">
           <tr>
-            <th style={styles.headerCell}>会话</th>
-            <th style={styles.headerCell}>用户</th>
-            <th style={styles.headerCell}>分类</th>
-            <th style={styles.headerCell}>消息数</th>
-            <th style={styles.headerCell}>最后交互</th>
-            <th style={styles.headerCell}>状态</th>
-            <th style={styles.actionHeaderCell}>操作</th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              会话 ID
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              用户
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              消息数
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              最后交互时间
+            </th>
+            <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+              状态
+            </th>
+            <th className="px-6 py-4 text-right text-xs font-bold tracking-wider text-slate-500 uppercase">
+              操作
+            </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-100">
           {items.map((item) => {
             const deleting = deletingIds.has(item.id);
             const disabled = item.isDeleted || deleting;
 
             return (
-              <tr key={item.id}>
-                <td style={styles.bodyCell}>
-                  <div style={styles.stack}>
-                    <strong style={styles.strongText} title={item.title}>
-                      {item.title}
-                    </strong>
-                    <span style={styles.mutedText}>{item.conversationId}</span>
+              <tr className="transition-colors hover:bg-slate-50/50" key={item.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex min-w-0 items-center gap-2 font-mono text-sm text-slate-900">
+                    <FileSearch aria-hidden="true" className="text-primary/50 shrink-0" size={16} />
+                    <div className="min-w-0">
+                      <div className="max-w-64 truncate">{item.conversationId}</div>
+                      <div className="max-w-64 truncate font-sans text-xs text-slate-400">
+                        {item.title}
+                      </div>
+                    </div>
                   </div>
                 </td>
-                <td style={styles.bodyCell}>
-                  <div style={styles.stack}>
-                    <span style={styles.bodyText}>{item.userEmail}</span>
-                    <span style={styles.mutedText}>{item.userId ?? '无 userId'}</span>
-                  </div>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-bold text-slate-700">{item.userEmail}</div>
+                  <div className="text-xs text-slate-400">ID: {item.userId ?? '无 userId'}</div>
                 </td>
-                <td style={styles.bodyCell}>
-                  <span style={styles.categoryBadge}>{categoryLabels[item.category]}</span>
+                <td className="px-6 py-4 text-sm whitespace-nowrap text-slate-600">
+                  {item.messageCount} 条
                 </td>
-                <td style={styles.bodyCell}>
-                  <span style={styles.bodyText}>{item.messageCount} 条</span>
-                </td>
-                <td style={styles.bodyCell}>
-                  <span style={item.lastMessageAt ? styles.monoText : styles.mutedText}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="font-mono text-sm text-slate-500">
                     {item.lastMessageAt ? formatDateTime(item.lastMessageAt) : '暂无记录'}
                   </span>
                 </td>
-                <td style={styles.bodyCell}>
-                  <span style={item.isDeleted ? styles.deletedBadge : styles.activeBadge}>
-                    {item.isDeleted ? '已删除标记' : '活跃'}
-                  </span>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {item.isDeleted ? (
+                    <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+                      已删除 (标记)
+                    </span>
+                  ) : (
+                    <span className="rounded-md bg-green-50 px-2.5 py-1 text-xs font-bold text-green-600">
+                      活跃
+                    </span>
+                  )}
                 </td>
-                <td style={styles.actionCell}>
-                  <button
-                    disabled={disabled}
-                    onClick={() => onDelete(item)}
-                    style={item.isDeleted ? styles.disabledButton : styles.dangerButton}
-                    type="button"
-                  >
-                    {item.isDeleted ? '已删除' : deleting ? '删除中...' : '软删除'}
-                  </button>
+                <td className="px-6 py-4 text-right text-sm whitespace-nowrap">
+                  <div className="inline-flex items-center justify-end gap-2">
+                    <button
+                      className="text-primary hover:bg-primary/5 rounded-xl p-2 font-medium transition-colors"
+                      onClick={() => onViewDetail(item)}
+                      type="button"
+                    >
+                      查看详情
+                    </button>
+                    {!item.isDeleted ? (
+                      <button
+                        aria-label={`软删除会话 ${item.title}`}
+                        className="rounded-xl p-2 text-slate-400 transition-colors hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={disabled}
+                        onClick={() => onDelete(item)}
+                        type="button"
+                      >
+                        <Trash2 aria-hidden="true" size={16} />
+                        <span className="sr-only">{deleting ? '删除中' : '软删除'}</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-400">已删除</span>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
@@ -93,145 +129,3 @@ function formatDateTime(value: string): string {
     year: 'numeric',
   });
 }
-
-const categoryLabels: Record<AdminContentAuditItem['category'], string> = {
-  chat: '对话',
-  comment: '评论',
-  inspiration: '灵感',
-  teaching: '教学',
-};
-
-const badgeBase = {
-  borderRadius: 999,
-  display: 'inline-flex',
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: '16px',
-  padding: '3px 8px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const buttonBase = {
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 13,
-  lineHeight: '18px',
-  padding: '7px 11px',
-  whiteSpace: 'nowrap',
-} satisfies CSSProperties;
-
-const styles = {
-  actionCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    textAlign: 'right',
-    verticalAlign: 'top',
-  },
-  actionHeaderCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'right',
-    whiteSpace: 'nowrap',
-  },
-  activeBadge: {
-    ...badgeBase,
-    background: '#dcfce7',
-    color: '#166534',
-  },
-  bodyCell: {
-    borderTop: '1px solid #e5eaf1',
-    padding: '12px 14px',
-    verticalAlign: 'top',
-  },
-  bodyText: {
-    color: '#172033',
-    display: 'block',
-    fontSize: 13,
-    lineHeight: '18px',
-    maxWidth: 220,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  categoryBadge: {
-    ...badgeBase,
-    background: '#e0f2fe',
-    color: '#0369a1',
-  },
-  dangerButton: {
-    ...buttonBase,
-    background: '#ffffff',
-    border: '1px solid #fecaca',
-    color: '#b91c1c',
-  },
-  deletedBadge: {
-    ...badgeBase,
-    background: '#f1f5f9',
-    color: '#64748b',
-  },
-  disabledButton: {
-    ...buttonBase,
-    background: '#f8fafc',
-    border: '1px solid #d8dee8',
-    color: '#94a3b8',
-    cursor: 'not-allowed',
-  },
-  headerCell: {
-    background: '#f8fafc',
-    borderBottom: '1px solid #d8dee8',
-    color: '#475569',
-    fontSize: 12,
-    lineHeight: '16px',
-    padding: '10px 14px',
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
-  },
-  monoText: {
-    color: '#475569',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-    fontSize: 12,
-    lineHeight: '18px',
-    whiteSpace: 'nowrap',
-  },
-  mutedText: {
-    color: '#64748b',
-    display: 'block',
-    fontSize: 12,
-    lineHeight: '16px',
-    maxWidth: 220,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  stack: {
-    display: 'grid',
-    gap: 4,
-    justifyItems: 'start',
-  },
-  strongText: {
-    color: '#172033',
-    display: 'block',
-    fontSize: 13,
-    lineHeight: '18px',
-    maxWidth: 240,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  table: {
-    borderCollapse: 'collapse',
-    minWidth: 980,
-    tableLayout: 'fixed',
-    width: '100%',
-  },
-  tableWrap: {
-    background: '#ffffff',
-    border: '1px solid #d8dee8',
-    borderRadius: 8,
-    overflowX: 'auto',
-  },
-} satisfies Record<string, CSSProperties>;
