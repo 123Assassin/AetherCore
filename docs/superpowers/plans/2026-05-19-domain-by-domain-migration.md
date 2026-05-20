@@ -1598,20 +1598,22 @@ git commit -m "feat: add admin users settings ui"
 - Create: `apps/admin/src/components/operations/activity-notice-form-dialog.tsx`
 - Create: `apps/admin/src/components/operations/invite-tree.tsx`
 - Create: `apps/admin/src/components/operations/reward-config-form.tsx`
+- Modify: `apps/admin/src/components/layout/admin-sidebar.tsx`
+- Modify: `apps/admin/src/components/layout/admin-header.tsx`
 
-- [ ] **Step 1: Add activities page**
+- [x] **Step 1: Add activities page**
   - List, create, edit, delete, publish/draft activities.
 
-- [ ] **Step 2: Add fission page**
+- [x] **Step 2: Add fission page**
   - Invite chain tab.
   - Reward config tab.
 
-- [ ] **Testing steps**
+- [x] **Testing steps**
   - Activity title/body are required.
   - Fission reward numbers validate as non-negative.
   - Invite tree expands/collapses.
 
-- [ ] **Verification commands**
+- [x] **Verification commands**
 
 ```bash
 pnpm --filter admin type-check
@@ -1619,10 +1621,10 @@ pnpm --filter admin lint
 pnpm build:admin
 ```
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```bash
-git add apps/admin/src/app/'(admin)'/operations apps/admin/src/components/operations
+git add apps/admin/src/app/'(admin)'/operations apps/admin/src/components/operations apps/admin/src/components/layout/admin-sidebar.tsx apps/admin/src/components/layout/admin-header.tsx
 git commit -m "feat: add admin activities fission ui"
 ```
 

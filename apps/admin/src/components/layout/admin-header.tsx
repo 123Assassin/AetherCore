@@ -14,6 +14,8 @@ const routeTitles = [
   { href: '/resources/agents', title: '智能体管理', section: 'Resources' },
   { href: '/resources/prompts', title: 'AI Prompt 管理', section: 'Resources' },
   { href: '/resources/sensitive-words', title: '敏感词库管理', section: 'Resources' },
+  { href: '/operations/activities', title: '活动与通告管理', section: 'Operations' },
+  { href: '/operations/fission', title: '裂变管理', section: 'Operations' },
   { href: '/engine-dispatch', title: '模型引擎调度', section: 'Engine' },
   { href: '/simulations', title: '仿真案例库管理', section: 'Simulations' },
   { href: '/users', title: '用户管理', section: 'Users' },

@@ -42,6 +42,8 @@ const navGroups: AdminNavGroup[] = [
     id: 'operations',
     label: '案例与监控',
     items: [
+      { href: '/operations/activities', label: '活动与通告' },
+      { href: '/operations/fission', label: '裂变管理' },
       { href: '/engine-dispatch', label: '模型引擎调度' },
       { href: '/simulations', label: '仿真案例库' },
     ],
