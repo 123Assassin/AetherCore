@@ -778,11 +778,11 @@ no layout-blocking 404 except favicon
 - Modify: `docs/migration/visual-parity/final-visual-verification.md`
 - Modify: `docs/superpowers/plans/2026-05-21-source-ui-high-fidelity-restore.md`
 
-- [ ] **Step 1: Remove temporary artifacts**
+- [x] **Step 1: Remove temporary artifacts**
 
 Remove screenshots outside `docs/migration/visual-parity` and stop local dev servers started by the implementation session.
 
-- [ ] **Step 2: Confirm dependency direction**
+- [x] **Step 2: Confirm dependency direction**
 
 Run:
 
@@ -792,7 +792,7 @@ rg -n "@google/genai|from 'xlsx'|from \"xlsx\"" apps/web apps/admin
 
 Expected: no matches in `apps/web`; no accidental frontend Gemini direct calls in `apps/admin`.
 
-- [ ] **Step 3: Final git diff review**
+- [x] **Step 3: Final git diff review**
 
 Run:
 
@@ -804,7 +804,7 @@ git diff --check
 
 Expected: changed files only match this plan, generated temp files are absent, no whitespace errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Commit once visual verification passes:
 

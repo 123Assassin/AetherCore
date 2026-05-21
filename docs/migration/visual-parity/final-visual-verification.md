@@ -61,3 +61,11 @@ During setup, navigating with `127.0.0.1` triggered Next dev HMR cross-origin wa
 
 - `apps/web/src/components/layout/app-shell.tsx`: opens the existing history drawer when the initial URL contains `history=open`.
 - `apps/web/package.json` and `apps/admin/package.json`: dev scripts now keep default ports 3001/3002 while forwarding Task 11 `-- -p` port arguments.
+
+## Cleanup And Handoff
+
+- Temporary artifacts: none removed. Task 12 scans found no generated screenshot/report/trace artifacts outside `docs/migration/visual-parity` after excluding dependency folders and app build caches.
+- Dev servers: no listeners were present on ports 3001, 3002, 3101, or 3102 during Task 12 cleanup, so no processes were stopped.
+- Dependency direction: `rg -n "@google/genai|from 'xlsx'|from \"xlsx\"" apps/web apps/admin` returned no matches. This preserves the expected boundary for `apps/web` and found no accidental frontend Gemini direct calls in `apps/admin`.
+- Final diff review: `git status --short`, `git diff --stat`, and `git diff --check` were run for handoff; `git diff --check` reported no whitespace errors.
+- Known non-blocking warnings from Task 11 remain informational only: Playwright MCP was unavailable because its Chrome profile was locked, build output included Turbopack warnings for `packages/tailwindcss-config/src/*` resolving `./base.js`, and setup-only `127.0.0.1` navigation triggered Next dev HMR cross-origin warnings before final captures used `localhost`.
