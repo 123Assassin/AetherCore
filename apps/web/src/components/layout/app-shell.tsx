@@ -2,7 +2,7 @@
 
 import type { AuthUserSummary } from '@package/shared';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ChatHistoryProvider, useChatHistory } from '../../contexts/chat-history-context';
 import { UserPreferencesProvider } from '../../contexts/user-preferences-context';
@@ -25,6 +25,16 @@ function AppShellContent({ children }: AppShellProps) {
   const [loginOpen, setLoginOpen] = useState(false);
   const [donateOpen, setDonateOpen] = useState(false);
   const [user, setUser] = useState<AuthUserSummary | null>(null);
+
+  useEffect(() => {
+    const location = (globalThis as { location?: { search?: string } }).location;
+
+    if (new URLSearchParams(location?.search ?? '').get('history') === 'open') {
+      const timeoutId = setTimeout(() => setHistoryOpen(true), 0);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, []);
 
   async function handleLogout() {
     setUser(null);

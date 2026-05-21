@@ -722,7 +722,7 @@ Expected: security, alarm and settings pages match source page hierarchy, card s
 
 - Create: `docs/migration/visual-parity/final-visual-verification.md`
 
-- [ ] **Step 1: Run static checks**
+- [x] **Step 1: Run static checks**
 
 Run:
 
@@ -737,7 +737,7 @@ pnpm build:admin
 
 Expected: all commands pass.
 
-- [ ] **Step 2: Capture target screenshots**
+- [x] **Step 2: Capture target screenshots**
 
 Run target apps on non-source ports to avoid conflict:
 
@@ -748,7 +748,7 @@ pnpm --filter admin dev -- -p 3102
 
 Capture the same route/state list from Task 1.
 
-- [ ] **Step 3: Compare source and target**
+- [x] **Step 3: Compare source and target**
 
 Write `docs/migration/visual-parity/final-visual-verification.md` with:
 
@@ -760,7 +760,7 @@ Write `docs/migration/visual-parity/final-visual-verification.md` with:
 
 Every row must be `pass` or include a concrete follow-up patch reference.
 
-- [ ] **Step 4: Browser console check**
+- [x] **Step 4: Browser console check**
 
 Use Playwright MCP when available. For every target route, verify:
 
