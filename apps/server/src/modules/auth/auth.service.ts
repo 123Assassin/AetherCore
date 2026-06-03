@@ -846,9 +846,16 @@ function buildCookie(name: string, value: string, maxAgeSeconds: number): string
     `Max-Age=${maxAgeSeconds}`,
   ];
 
-  if (process.env.NODE_ENV === 'production') {
+  if (shouldUseSecureCookies()) {
     parts.push('Secure');
   }
 
   return parts.join('; ');
+}
+
+function shouldUseSecureCookies(): boolean {
+  return (
+    process.env.NODE_ENV === 'production' &&
+    process.env.SESSION_COOKIE_SECURE?.trim().toLowerCase() !== 'false'
+  );
 }

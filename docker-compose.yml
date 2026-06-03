@@ -71,6 +71,7 @@ services:
       APP_HTTP_URL: http://server:7001
       SERVER_PORT: 7001
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       AETHERCORE_ENGINE_API_KEY_SECRET: ${AETHERCORE_ENGINE_API_KEY_SECRET:-aethercore_dev_engine_api_key_secret_change_me}
       WECHAT_APP_ID: ${WECHAT_APP_ID:-}
       WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
