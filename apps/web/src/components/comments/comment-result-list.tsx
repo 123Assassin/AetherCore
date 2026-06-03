@@ -4,8 +4,6 @@ import { Check, Copy, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 
-import { AdLoadingBot } from '../sponsor/ad-system';
-
 type CommentResultListProps = {
   comments: string[];
   loading: boolean;
@@ -93,9 +91,6 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
               <div className="h-4 w-[90%] rounded-md bg-slate-50" />
               <div className="h-4 w-[40%] rounded-md bg-slate-50" />
             </div>
-          </div>
-          <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl bg-white p-12 shadow-sm ring-1 ring-slate-200">
-            <AdLoadingBot />
           </div>
         </div>
       ) : null}

@@ -54,6 +54,7 @@ export type CommentSingleGenerateInput = {
   nickname?: string;
   gender: CommentGender;
   grade: string;
+  subject?: string;
   tags: string[];
   keywords?: string;
   tone?: string;
@@ -67,10 +68,17 @@ export type CommentSingleGenerateResult = {
   };
 };
 
+export type CommentSingleGenerateStreamEvent =
+  | { type: 'delta'; content: string }
+  | { type: 'result'; result: CommentSingleGenerateResult }
+  | { type: 'done' }
+  | { type: 'error'; code: string; message: string };
+
 export type CommentUploadRowInput = {
   nickname?: string | null;
   gender: CommentGender;
   grade: string;
+  subject?: string | null;
   tags: string[];
   keywords?: string | null;
 };
@@ -78,6 +86,7 @@ export type CommentUploadRowInput = {
 export type CommentBatchCreateFromUploadInput = {
   fileName: string;
   fileSize: number;
+  contentBase64?: string;
   mimeType?: string;
   tone?: string;
   rows?: CommentUploadRowInput[];

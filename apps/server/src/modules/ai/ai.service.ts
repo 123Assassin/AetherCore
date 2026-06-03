@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { ConversationCategory } from '@package/db/schema';
+import { normalizeAdminAgentGradeClassification, WEB_AGENT_MAPPING } from '@package/shared';
 
+import {
+  AiAgentRuntimeError,
+  generateTextWithAgentRuntime,
+  streamTextWithAgentRuntime,
+  type AiAgentModelCall,
+  type AiAgentRuntimeConfig,
+} from './ai-agent-runtime.js';
 import { AiRepository, type AiConversationRow, type AiMessageRow } from './ai.repository.js';
 
 export type AiWorkflowName = 'comment' | 'inspiration' | 'teaching';
@@ -99,6 +107,8 @@ export type AiChatSendResult = {
   events: AiStreamEvent[];
 };
 
+export type AiStreamEventHandler = (event: AiStreamEvent) => void | Promise<void>;
+
 export type AiHistoryItem = {
   sessionId: string;
   category: ConversationCategory;
@@ -126,6 +136,11 @@ export type AiHistoryDeleteResult = {
   success: true;
 };
 
+type AgentClassification = {
+  grade: string | null;
+  subject: string | null;
+};
+
 export class AiServiceError extends Error {
   constructor(
     public readonly code: 'NOT_FOUND' | 'BAD_REQUEST' | 'INTERNAL_SERVER_ERROR',
@@ -148,6 +163,7 @@ const WORKFLOW_ROUTES: Record<AiWorkflowName, string> = {
   inspiration: '/lesson/inspiration',
   teaching: '/office/teaching',
 };
+const AGENT_CLASSIFICATION_METADATA_KEY = 'agentClassification';
 
 @Injectable()
 export class AiService {
@@ -182,12 +198,21 @@ export class AiService {
       ? await this.getExistingConversation(input.userId, input.sessionId, input.category)
       : null;
     const category = existingConversation?.category ?? input.category ?? DEFAULT_CATEGORY;
-
-    ensureMockProviderEnabled();
-
-    const assistantContent = createAssistantContent(category, content, input.payload);
     const suggestions = createSuggestions(category);
     const workflow = getWorkflow(category);
+    const agentKey = WEB_AGENT_MAPPING[category].adminAgentKey;
+    const agentClassification = resolveAgentClassification(
+      category,
+      input.payload,
+      existingConversation?.metadata
+    );
+    const runtimeConfig = await this.aiRepository.findAgentRuntimeConfigByKey(
+      agentKey,
+      agentClassification
+    );
+    const generated = runtimeConfig
+      ? await this.generateWithAgentRuntime(runtimeConfig, content)
+      : createMockGeneration(category, content, input.payload, startedAt);
     const exchange = await this.aiRepository.saveChatExchange({
       ...(existingConversation
         ? { conversation: existingConversation }
@@ -196,6 +221,7 @@ export class AiService {
               userId: input.userId,
               category,
               title: createTitle(content),
+              metadata: createConversationMetadata(category, agentClassification),
             },
           }),
       userMessage: {
@@ -203,32 +229,109 @@ export class AiService {
         payload: input.payload ?? null,
       },
       assistantMessage: {
-        content: assistantContent,
+        content: generated.content,
         suggestions,
         workflowName: workflow?.workflowName ?? null,
         redirectTo: workflow?.redirectTo ?? null,
       },
-      modelCall: {
-        modelName: 'Mock AI',
-        promptTokens: estimateTokens(content),
-        completionTokens: estimateTokens(assistantContent),
-        totalTokens: estimateTokens(content) + estimateTokens(assistantContent),
-        latencyMs: Math.max(Date.now() - startedAt, 0),
-        costAmount: 0,
-        currency: 'CNY',
-      },
+      modelCall: generated.modelCall,
     });
 
     return {
       sessionId: exchange.conversation.id,
       events: [
         { type: 'session', sessionId: exchange.conversation.id },
-        { type: 'delta', content: assistantContent },
+        { type: 'delta', content: generated.content },
         { type: 'suggestions', suggestions },
         ...(workflow ? [{ type: 'workflow' as const, ...workflow }] : []),
         { type: 'credit', remaining: 999 },
         { type: 'done', messageId: exchange.assistantMessage.id },
       ],
+    };
+  }
+
+  async sendChatStream(
+    input: AiChatSendInput,
+    onEvent: AiStreamEventHandler
+  ): Promise<AiChatSendResult> {
+    const startedAt = Date.now();
+    const content = input.message.trim();
+
+    if (!content) {
+      throw new AiServiceError('BAD_REQUEST', 'Message is required');
+    }
+
+    const existingConversation = input.sessionId
+      ? await this.getExistingConversation(input.userId, input.sessionId, input.category)
+      : null;
+    const category = existingConversation?.category ?? input.category ?? DEFAULT_CATEGORY;
+    const suggestions = createSuggestions(category);
+    const workflow = getWorkflow(category);
+    const agentKey = WEB_AGENT_MAPPING[category].adminAgentKey;
+    const agentClassification = resolveAgentClassification(
+      category,
+      input.payload,
+      existingConversation?.metadata
+    );
+    const runtimeConfig = await this.aiRepository.findAgentRuntimeConfigByKey(
+      agentKey,
+      agentClassification
+    );
+    const events: AiStreamEvent[] = [];
+    const emit = async (event: AiStreamEvent) => {
+      events.push(event);
+      await onEvent(event);
+    };
+    const generated = runtimeConfig
+      ? await this.streamWithAgentRuntime(runtimeConfig, content, async (delta) => {
+          await emit({ type: 'delta', content: delta });
+        })
+      : await this.streamMockGeneration(
+          category,
+          content,
+          input.payload,
+          startedAt,
+          async (delta) => {
+            await emit({ type: 'delta', content: delta });
+          }
+        );
+    const exchange = await this.aiRepository.saveChatExchange({
+      ...(existingConversation
+        ? { conversation: existingConversation }
+        : {
+            createConversation: {
+              userId: input.userId,
+              category,
+              title: createTitle(content),
+              metadata: createConversationMetadata(category, agentClassification),
+            },
+          }),
+      userMessage: {
+        content,
+        payload: input.payload ?? null,
+      },
+      assistantMessage: {
+        content: generated.content,
+        suggestions,
+        workflowName: workflow?.workflowName ?? null,
+        redirectTo: workflow?.redirectTo ?? null,
+      },
+      modelCall: generated.modelCall,
+    });
+
+    await emit({ type: 'session', sessionId: exchange.conversation.id });
+    await emit({ type: 'suggestions', suggestions });
+
+    if (workflow) {
+      await emit({ type: 'workflow', ...workflow });
+    }
+
+    await emit({ type: 'credit', remaining: 999 });
+    await emit({ type: 'done', messageId: exchange.assistantMessage.id });
+
+    return {
+      sessionId: exchange.conversation.id,
+      events,
     };
   }
 
@@ -374,6 +477,89 @@ export class AiService {
 
     return conversation;
   }
+
+  private async generateWithAgentRuntime(
+    runtimeConfig: AiAgentRuntimeConfig,
+    content: string
+  ): Promise<{ content: string; modelCall: AiAgentModelCall }> {
+    try {
+      return await generateTextWithAgentRuntime(runtimeConfig, { message: content });
+    } catch (error) {
+      if (error instanceof AiAgentRuntimeError) {
+        if (error.code === 'SENSITIVE_WORD_MATCH') {
+          throw new AiServiceError('BAD_REQUEST', error.message);
+        }
+
+        throw new AiServiceError('INTERNAL_SERVER_ERROR', error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  private async streamWithAgentRuntime(
+    runtimeConfig: AiAgentRuntimeConfig,
+    content: string,
+    onDelta: (content: string) => void | Promise<void>
+  ): Promise<{ content: string; modelCall: AiAgentModelCall }> {
+    try {
+      return await streamTextWithAgentRuntime(runtimeConfig, { message: content }, onDelta);
+    } catch (error) {
+      if (error instanceof AiAgentRuntimeError) {
+        if (error.code === 'SENSITIVE_WORD_MATCH') {
+          throw new AiServiceError('BAD_REQUEST', error.message);
+        }
+
+        throw new AiServiceError('INTERNAL_SERVER_ERROR', error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  private async streamMockGeneration(
+    category: ConversationCategory,
+    content: string,
+    payload: Record<string, unknown> | unknown[] | null | undefined,
+    startedAt: number,
+    onDelta: (content: string) => void | Promise<void>
+  ): Promise<{ content: string; modelCall: AiAgentModelCall }> {
+    const generated = createMockGeneration(category, content, payload, startedAt);
+
+    for (const delta of chunkStreamContent(generated.content)) {
+      await onDelta(delta);
+    }
+
+    return generated;
+  }
+}
+
+function createMockGeneration(
+  category: ConversationCategory,
+  content: string,
+  payload: Record<string, unknown> | unknown[] | null | undefined,
+  startedAt: number
+): { content: string; modelCall: AiAgentModelCall } {
+  ensureMockProviderEnabled();
+
+  const assistantContent = createAssistantContent(category, content, payload);
+  const promptTokens = estimateTokens(content);
+  const completionTokens = estimateTokens(assistantContent);
+
+  return {
+    content: assistantContent,
+    modelCall: {
+      agentId: null,
+      engineId: null,
+      modelName: 'Mock AI',
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+      latencyMs: Math.max(Date.now() - startedAt, 0),
+      costAmount: 0,
+      currency: 'CNY',
+    },
+  };
 }
 
 function createTitle(input: string): string {
@@ -530,6 +716,116 @@ function compareTeachingMessages(first: AiMessageRow, second: AiMessageRow): num
   return 0;
 }
 
+function resolveAgentClassification(
+  category: ConversationCategory,
+  payload: Record<string, unknown> | unknown[] | null | undefined,
+  metadata?: Record<string, unknown> | null
+): AgentClassification {
+  const payloadClassification = resolvePayloadAgentClassification(category, payload);
+
+  if (hasAgentClassification(payloadClassification)) {
+    return payloadClassification;
+  }
+
+  return readAgentClassificationMetadata(category, metadata) ?? payloadClassification;
+}
+
+function resolvePayloadAgentClassification(
+  category: ConversationCategory,
+  payload: Record<string, unknown> | unknown[] | null | undefined
+): AgentClassification {
+  if (!isRecord(payload)) {
+    return { grade: null, subject: null };
+  }
+
+  const agentKey = WEB_AGENT_MAPPING[category].adminAgentKey;
+
+  if (category === 'inspiration') {
+    return {
+      grade: normalizeAdminAgentGradeClassification(
+        agentKey,
+        readClassificationValue(payload.grade)
+      ),
+      subject: readClassificationValue(payload.subject),
+    };
+  }
+
+  if (category === 'comment') {
+    return {
+      grade: normalizeAdminAgentGradeClassification(
+        agentKey,
+        readClassificationValue(payload.grade)
+      ),
+      subject: null,
+    };
+  }
+
+  if (category === 'teaching') {
+    return {
+      grade: normalizeAdminAgentGradeClassification(
+        agentKey,
+        readClassificationValue(payload.grade) ?? readClassificationValue(payload.stage)
+      ),
+      subject: readClassificationValue(payload.subject),
+    };
+  }
+
+  return { grade: null, subject: null };
+}
+
+function createConversationMetadata(
+  category: ConversationCategory,
+  classification: AgentClassification
+): Record<string, unknown> | null {
+  if (!hasAgentClassification(classification)) {
+    return null;
+  }
+
+  return {
+    [AGENT_CLASSIFICATION_METADATA_KEY]: {
+      key: WEB_AGENT_MAPPING[category].adminAgentKey,
+      grade: classification.grade,
+      subject: classification.subject,
+    },
+  };
+}
+
+function readAgentClassificationMetadata(
+  category: ConversationCategory,
+  metadata: Record<string, unknown> | null | undefined
+): AgentClassification | null {
+  if (!isRecord(metadata)) {
+    return null;
+  }
+
+  const value = metadata[AGENT_CLASSIFICATION_METADATA_KEY];
+
+  if (!isRecord(value) || value.key !== WEB_AGENT_MAPPING[category].adminAgentKey) {
+    return null;
+  }
+
+  const classification = {
+    grade: readClassificationValue(value.grade),
+    subject: readClassificationValue(value.subject),
+  };
+
+  return hasAgentClassification(classification) ? classification : null;
+}
+
+function hasAgentClassification(classification: AgentClassification): boolean {
+  return classification.grade !== null || classification.subject !== null;
+}
+
+function readClassificationValue(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || null;
+}
+
 function ensureMockProviderEnabled(): void {
   if (
     process.env.NODE_ENV === 'production' &&
@@ -646,8 +942,23 @@ function isTeachingMode(value: unknown): value is AiTeachingMode {
   return typeof value === 'string' && TEACHING_MODES.includes(value as AiTeachingMode);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function estimateTokens(value: string): number {
   return Math.max(1, Math.ceil(value.trim().length / 4));
+}
+
+function chunkStreamContent(content: string): string[] {
+  const chunkSize = 24;
+  const chunks: string[] = [];
+
+  for (let index = 0; index < content.length; index += chunkSize) {
+    chunks.push(content.slice(index, index + chunkSize));
+  }
+
+  return chunks.length > 0 ? chunks : [content];
 }
 
 function normalizeLimit(limit: number | undefined): number {

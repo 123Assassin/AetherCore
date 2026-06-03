@@ -1,12 +1,17 @@
 'use client';
 
-import { Bot, User } from 'lucide-react';
+import { ArrowRight, Bot, User } from 'lucide-react';
+import Link from 'next/link';
 import Markdown from 'react-markdown';
 
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  action?: {
+    href: string;
+    label: string;
+  };
 };
 
 type AiMessageBubbleProps = {
@@ -63,6 +68,15 @@ export function AiMessageBubble({ message }: AiMessageBubbleProps) {
               {message.content}
             </Markdown>
           </div>
+          {!isUser && message.action ? (
+            <Link
+              className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg bg-rose-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 focus:ring-2 focus:ring-rose-300 focus:outline-none"
+              href={message.action.href}
+            >
+              <span>{message.action.label}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          ) : null}
         </div>
       </div>
     </article>

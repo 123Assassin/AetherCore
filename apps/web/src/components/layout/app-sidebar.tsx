@@ -18,7 +18,7 @@ type AppSidebarProps = {
 
 const navItems = [
   { id: 'chat', label: 'AI 助手', href: '/chat', icon: MessageSquare },
-  { id: 'lesson', label: '备课精讲', href: '/lesson/inspiration', icon: BookOpen },
+  { id: 'lesson', label: '知识库精讲', href: '/lesson/inspiration', icon: BookOpen },
   { id: 'office', label: '办公提效', href: '/office/comment', icon: PenTool },
 ] as const;
 

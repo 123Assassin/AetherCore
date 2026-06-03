@@ -1,5 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { normalizeAdminAgentGradeClassification, WEB_AGENT_MAPPING } from '@package/shared';
 
+import {
+  AiAgentRuntimeError,
+  generateTextWithAgentRuntime,
+  streamTextWithAgentRuntime,
+  type AiAgentModelCall,
+} from '../ai/ai-agent-runtime.js';
+import { CommentUploadXlsxError, parseCommentUploadXlsx } from './comment-upload-xlsx.js';
 import {
   CommentsRepository,
   isGeneratableRowStatus,
@@ -57,6 +65,7 @@ export type CommentSingleGenerateInput = {
   nickname?: string;
   gender: CommentGender;
   grade: string;
+  subject?: string;
   tags: string[];
   keywords?: string;
   tone?: string;
@@ -81,6 +90,7 @@ export type CommentUploadRowInput = {
 export type CommentBatchCreateFromUploadInput = {
   fileName: string;
   fileSize: number;
+  contentBase64?: string;
   mimeType?: string;
   tone?: string;
   rows?: CommentUploadRowInput[];
@@ -150,6 +160,8 @@ export type CommentSingleGenerateServiceInput = CommentSingleGenerateInput & {
   userId: string;
 };
 
+export type CommentSingleGenerateDeltaHandler = (content: string) => void | Promise<void>;
+
 export type CommentBatchCreateFromUploadServiceInput = CommentBatchCreateFromUploadInput & {
   userId: string;
 };
@@ -172,7 +184,7 @@ export type CommentBatchExportServiceInput = {
 
 export class CommentsServiceError extends Error {
   constructor(
-    public readonly code: 'BAD_REQUEST' | 'NOT_FOUND' | 'CONFLICT',
+    public readonly code: 'BAD_REQUEST' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL_SERVER_ERROR',
     message: string
   ) {
     super(message);
@@ -181,7 +193,7 @@ export class CommentsServiceError extends Error {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MOCK_REMAINING_CREDITS = 999;
-const SUPPORTED_FILE_EXTENSIONS = ['.xlsx', '.xls'] as const;
+const SUPPORTED_FILE_EXTENSIONS = ['.xlsx'] as const;
 
 @Injectable()
 export class CommentsService {
@@ -191,18 +203,41 @@ export class CommentsService {
     input: CommentSingleGenerateServiceInput
   ): Promise<CommentSingleGenerateResult> {
     const normalized = normalizeSingleInput(input);
-    const comments = createMockComments(normalized);
+    const generated = await this.generateComments(normalized);
 
+    return this.saveSingleGeneration(input.userId, normalized, generated);
+  }
+
+  async generateSingleStream(
+    input: CommentSingleGenerateServiceInput,
+    onDelta: CommentSingleGenerateDeltaHandler
+  ): Promise<CommentSingleGenerateResult> {
+    const normalized = normalizeSingleInput(input);
+    const generated = await this.generateCommentsStream(normalized, onDelta);
+
+    return this.saveSingleGeneration(input.userId, normalized, generated);
+  }
+
+  private async saveSingleGeneration(
+    userId: string,
+    normalized: NormalizedSingleInput,
+    generated: {
+      comments: string[];
+      modelCall?: AiAgentModelCall;
+    }
+  ): Promise<CommentSingleGenerateResult> {
     const saved = await this.commentsRepository.saveSingleGeneration({
-      userId: input.userId,
+      userId,
       ...(normalized.sessionId === undefined ? {} : { sessionId: normalized.sessionId }),
       ...(normalized.nickname === null ? {} : { nickname: normalized.nickname }),
       gender: normalized.gender,
       grade: normalized.grade,
+      ...(normalized.subject === null ? {} : { subject: normalized.subject }),
       tags: normalized.tags,
       ...(normalized.keywords === null ? {} : { keywords: normalized.keywords }),
       tone: normalized.tone,
-      comments,
+      comments: generated.comments,
+      ...(generated.modelCall === undefined ? {} : { modelCall: generated.modelCall }),
     });
 
     if (!saved) {
@@ -211,7 +246,7 @@ export class CommentsService {
 
     return {
       sessionId: saved.sessionId,
-      comments,
+      comments: generated.comments,
       credit: {
         remaining: MOCK_REMAINING_CREDITS,
       },
@@ -226,7 +261,7 @@ export class CommentsService {
     const fileSize = normalizeFileSize(input.fileSize);
     const mimeType = trimOptionalMax(input.mimeType, 'Comment upload mimeType', 120);
     const tone = trimOptionalMax(input.tone, 'Comment tone', 40) ?? DEFAULT_COMMENT_TONE;
-    const rows = normalizeUploadRows(input.rows ?? input.previewRows ?? createMockUploadRows());
+    const rows = normalizeUploadRows(resolveUploadRows(input));
     const { job, rows: createdRows } = await this.commentsRepository.createBatch({
       userId: input.userId,
       fileName,
@@ -267,10 +302,11 @@ export class CommentsService {
       };
     }
 
-    const generated = createMockComments({
+    const generated = await this.generateComments({
       nickname: row.nickname,
       gender: row.gender,
       grade: row.grade,
+      subject: null,
       tags: row.tags,
       keywords: row.keywords,
       tone: batch.job.tone,
@@ -279,7 +315,8 @@ export class CommentsService {
       userId: input.userId,
       jobId,
       rowId,
-      generatedResults: generated,
+      generatedResults: generated.comments,
+      ...(generated.modelCall === undefined ? {} : { modelCall: generated.modelCall }),
     });
 
     if (!updated) {
@@ -311,10 +348,11 @@ export class CommentsService {
         continue;
       }
 
-      const generated = createMockComments({
+      const generated = await this.generateComments({
         nickname: row.nickname,
         gender: row.gender,
         grade: row.grade,
+        subject: null,
         tags: row.tags,
         keywords: row.keywords,
         tone: batch.job.tone,
@@ -323,7 +361,8 @@ export class CommentsService {
         userId: input.userId,
         jobId,
         rowId: row.id,
-        generatedResults: generated,
+        generatedResults: generated.comments,
+        ...(generated.modelCall === undefined ? {} : { modelCall: generated.modelCall }),
       });
 
       if (updated) {
@@ -362,6 +401,121 @@ export class CommentsService {
       contentBase64: createXlsxBase64(rows),
     };
   }
+
+  private async generateComments(input: NormalizedSingleInput): Promise<{
+    comments: string[];
+    modelCall?: AiAgentModelCall;
+  }> {
+    const agentKey = WEB_AGENT_MAPPING.comment.adminAgentKey;
+    const runtimeConfig = await this.commentsRepository.findAgentRuntimeConfigByKey(agentKey, {
+      grade: normalizeAdminAgentGradeClassification(agentKey, input.grade),
+      subject: null,
+    });
+
+    if (!runtimeConfig) {
+      return {
+        comments: createMockComments(input),
+      };
+    }
+
+    try {
+      const generated = await generateTextWithAgentRuntime(runtimeConfig, {
+        message: createCommentModelMessage(input),
+      });
+
+      return {
+        comments: parseGeneratedComments(generated.content),
+        modelCall: generated.modelCall,
+      };
+    } catch (error) {
+      if (error instanceof AiAgentRuntimeError) {
+        if (error.code === 'SENSITIVE_WORD_MATCH') {
+          throw new CommentsServiceError('BAD_REQUEST', error.message);
+        }
+
+        throw new CommentsServiceError('INTERNAL_SERVER_ERROR', error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  private async generateCommentsStream(
+    input: NormalizedSingleInput,
+    onDelta: CommentSingleGenerateDeltaHandler
+  ): Promise<{
+    comments: string[];
+    modelCall?: AiAgentModelCall;
+  }> {
+    const agentKey = WEB_AGENT_MAPPING.comment.adminAgentKey;
+    const runtimeConfig = await this.commentsRepository.findAgentRuntimeConfigByKey(agentKey, {
+      grade: normalizeAdminAgentGradeClassification(agentKey, input.grade),
+      subject: null,
+    });
+
+    if (!runtimeConfig) {
+      const comments = createMockComments(input);
+
+      await emitMockCommentDeltas(comments.join('\n'), onDelta);
+
+      return { comments };
+    }
+
+    try {
+      const generated = await streamTextWithAgentRuntime(
+        runtimeConfig,
+        {
+          message: createCommentModelMessage(input),
+        },
+        onDelta
+      );
+
+      return {
+        comments: parseGeneratedComments(generated.content),
+        modelCall: generated.modelCall,
+      };
+    } catch (error) {
+      if (error instanceof AiAgentRuntimeError) {
+        if (error.code === 'SENSITIVE_WORD_MATCH') {
+          throw new CommentsServiceError('BAD_REQUEST', error.message);
+        }
+
+        throw new CommentsServiceError('INTERNAL_SERVER_ERROR', error.message);
+      }
+
+      throw error;
+    }
+  }
+}
+
+function resolveUploadRows(input: CommentBatchCreateFromUploadInput): CommentUploadRowInput[] {
+  if (input.rows) {
+    return input.rows;
+  }
+
+  if (input.previewRows) {
+    return input.previewRows;
+  }
+
+  const contentBase64 = trimOptionalMax(
+    input.contentBase64,
+    'Comment upload contentBase64',
+    15_000_000
+  );
+
+  if (!contentBase64) {
+    return createMockUploadRows();
+  }
+
+  try {
+    return parseCommentUploadXlsx(contentBase64);
+  } catch (error) {
+    if (error instanceof CommentUploadXlsxError) {
+      throw new CommentsServiceError('BAD_REQUEST', error.message);
+    }
+
+    throw error;
+  }
 }
 
 type NormalizedSingleInput = {
@@ -369,6 +523,7 @@ type NormalizedSingleInput = {
   nickname: string | null;
   gender: CommentGender;
   grade: string;
+  subject: string | null;
   tags: string[];
   keywords: string | null;
   tone: string;
@@ -382,6 +537,7 @@ function normalizeSingleInput(input: CommentSingleGenerateInput): NormalizedSing
     nickname: trimOptionalMax(input.nickname, 'Comment nickname', 100) ?? null,
     gender: normalizeGender(input.gender),
     grade: normalizeGrade(input.grade),
+    subject: trimOptionalMax(input.subject, 'Comment subject', 50) ?? null,
     tags: normalizeTags(input.tags),
     keywords: trimOptionalMax(input.keywords, 'Comment keywords', 1000) ?? null,
     tone: trimOptionalMax(input.tone, 'Comment tone', 40) ?? DEFAULT_COMMENT_TONE,
@@ -454,7 +610,7 @@ function ensureSupportedUploadName(fileName: string): void {
   const normalized = fileName.toLowerCase();
 
   if (!SUPPORTED_FILE_EXTENSIONS.some((extension) => normalized.endsWith(extension))) {
-    throw new CommentsServiceError('BAD_REQUEST', 'Comment upload file must be .xlsx or .xls');
+    throw new CommentsServiceError('BAD_REQUEST', 'Comment upload file must be .xlsx');
   }
 }
 
@@ -484,6 +640,59 @@ function createMockUploadRows(): CommentUploadRowInput[] {
   ];
 }
 
+function createCommentModelMessage(input: NormalizedSingleInput): string {
+  const name = input.nickname ?? '这位同学';
+  const tags = input.tags.length > 0 ? input.tags.join('、') : '未填写标签';
+  const subject = input.subject ? `学科：${input.subject}。` : '';
+  const keywords = input.keywords ? `关注点：${input.keywords}。` : '';
+
+  return `请为${name}生成3条${input.grade}学生评语。${subject}性别：${input.gender}。语气：${input.tone}。表现标签：${tags}。${keywords}请每条单独成行。`;
+}
+
+function parseGeneratedComments(content: string): string[] {
+  const lines = content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const comments = lines.some((line) => isCommentHeading(stripCommentLineMarker(line)))
+    ? groupHeadingComments(lines)
+    : lines.map(stripCommentLineMarker).filter(Boolean);
+
+  return comments.length > 0 ? comments : [content];
+}
+
+function groupHeadingComments(lines: string[]): string[] {
+  const comments: string[] = [];
+  let current: string[] = [];
+
+  for (const line of lines) {
+    const cleanedLine = stripCommentLineMarker(line);
+
+    if (isCommentHeading(cleanedLine) && current.length > 0) {
+      comments.push(current.join('\n'));
+      current = [];
+    }
+
+    current.push(cleanedLine);
+  }
+
+  if (current.length > 0) {
+    comments.push(current.join('\n'));
+  }
+
+  return comments.filter(Boolean);
+}
+
+function isCommentHeading(line: string): boolean {
+  const trimmed = line.trim();
+
+  return /^#{1,6}\s+\S/.test(trimmed) || (/^\*\*.+\*\*$/.test(trimmed) && trimmed.length <= 80);
+}
+
+function stripCommentLineMarker(line: string): string {
+  return line.trim().replace(/^(?:(?:[-*])\s+|\d+[.)、]\s*)/, '');
+}
+
 function createMockComments(input: NormalizedSingleInput): string[] {
   const name = input.nickname ?? '这位同学';
   const tagSummary = input.tags.length > 0 ? input.tags.join('、') : '持续成长';
@@ -494,6 +703,17 @@ function createMockComments(input: NormalizedSingleInput): string[] {
     `${name}课堂状态稳步提升，能够在${input.tone}的氛围中展现自己的优势。`,
     `${name}本学期进步清晰可见，后续可以围绕目标坚持练习，争取更稳定的发展。`,
   ];
+}
+
+async function emitMockCommentDeltas(
+  content: string,
+  onDelta: CommentSingleGenerateDeltaHandler
+): Promise<void> {
+  const chunkSize = 4;
+
+  for (let index = 0; index < content.length; index += chunkSize) {
+    await onDelta(content.slice(index, index + chunkSize));
+  }
 }
 
 function toBatchJob(row: CommentBatchJobRow): CommentBatchJob {
@@ -532,16 +752,32 @@ function toBatchRow(row: CommentBatchRowRecord): CommentBatchRow {
 }
 
 function createXlsxBase64(rows: CommentBatchRowRecord[]): string {
-  const header = ['行号', '昵称', '性别', '年级', '表现标签', '核心优缺点', '评语结果'];
-  const values = rows.map((row) => [
-    row.rowIndex.toString(),
-    row.nickname ?? '',
-    row.gender,
-    row.grade,
-    row.tags.join('、'),
-    row.keywords ?? '',
-    row.generatedResults.join('\n\n'),
-  ]);
+  const header = [
+    '行号',
+    '昵称',
+    '性别',
+    '年级',
+    '表现标签',
+    '核心优缺点',
+    '评语1',
+    '评语2',
+    '评语3',
+  ];
+  const values = rows.map((row) => {
+    const comments = normalizeExportComments(row.generatedResults ?? []);
+
+    return [
+      row.rowIndex.toString(),
+      row.nickname ?? '',
+      row.gender,
+      row.grade,
+      row.tags.join('、'),
+      row.keywords ?? '',
+      comments[0] ?? '',
+      comments[1] ?? '',
+      comments[2] ?? '',
+    ];
+  });
 
   return createZipBase64([
     {
@@ -585,6 +821,26 @@ function createXlsxBase64(rows: CommentBatchRowRecord[]): string {
       content: createWorksheetXml([header, ...values]),
     },
   ]);
+}
+
+function normalizeExportComments(comments: string[]): string[] {
+  return comments.slice(0, 3).map(stripMarkdownForExport);
+}
+
+function stripMarkdownForExport(value: string): string {
+  return value
+    .replace(/```[\w-]*\n?([\s\S]*?)```/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*>\s?/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+[.)、]\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
 }
 
 function createWorksheetXml(rows: string[][]): string {

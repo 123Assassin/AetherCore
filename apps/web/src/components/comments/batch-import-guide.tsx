@@ -21,7 +21,7 @@ export function BatchImportGuide() {
               1
             </span>
             <p className="text-xs leading-relaxed text-slate-500">
-              上传 <span className="font-bold text-slate-700">Excel 表格</span>
+              上传 <span className="font-bold text-slate-700">.xlsx 表格</span>
               后，系统会创建待生成队列并展示预览行。
             </p>
           </li>

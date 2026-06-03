@@ -6,6 +6,11 @@ import {
   type AdminModelEngineItem,
   type AdminPromptItem,
   type AdminSensitiveWordListItem,
+  agentSubjectOptions,
+  getAdminAgentClassificationMode,
+  getAdminAgentGradeOptions,
+  WEB_AGENT_MAPPING,
+  webAgentKeys,
 } from '@package/shared';
 import { Settings2, X } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -15,21 +20,27 @@ type AgentFormDialogProps = {
   agent: AdminAgentItem | null;
   engines: AdminModelEngineItem[];
   onClose: () => void;
-  onSubmit: (input: AdminAgentCreateInput) => Promise<void>;
+  onSubmit: (input: AgentFormSubmitInput) => Promise<void>;
   open: boolean;
   prompts: AdminPromptItem[];
   sensitiveWordLists: AdminSensitiveWordListItem[];
   submitting?: boolean;
 };
 
+export type AgentFormSubmitInput = Omit<AdminAgentCreateInput, 'key'> & {
+  key?: AdminAgentCreateInput['key'];
+};
+
 type AgentFormState = {
   engineId: string;
+  grade: string;
   key: AdminAgentCreateInput['key'];
   maxTokens: string;
   name: string;
   promptId: string;
   sensitiveListId: string;
   status: NonNullable<AdminAgentCreateInput['status']>;
+  subject: string;
   temperature: string;
   topP: string;
 };
@@ -51,22 +62,19 @@ type BrowserFocusGlobal = typeof globalThis & {
 
 const defaultFormState: AgentFormState = {
   engineId: '',
+  grade: '',
   key: 'chat',
   maxTokens: '2048',
   name: '',
   promptId: '',
   sensitiveListId: '',
   status: 'enabled',
+  subject: '',
   temperature: '0.7',
   topP: '0.9',
 };
 
-const agentKeyOptions = [
-  'chat',
-  'inspiration',
-  'comment',
-  'teaching',
-] as const satisfies readonly AdminAgentCreateInput['key'][];
+const agentKeyOptions = webAgentKeys satisfies AdminAgentCreateInput['key'][];
 const statusOptions = ['enabled', 'disabled'] as const satisfies readonly NonNullable<
   AdminAgentCreateInput['status']
 >[];
@@ -113,6 +121,9 @@ export function AgentFormDialog({
     return null;
   }
 
+  const classificationMode = getAdminAgentClassificationMode(form.key);
+  const gradeOptions = getAdminAgentGradeOptions(form.key);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = form.name.trim();
@@ -124,6 +135,16 @@ export function AgentFormDialog({
 
     if (!form.engineId) {
       setError('请选择模型引擎。');
+      return;
+    }
+
+    if (classificationMode !== 'none' && !form.grade) {
+      setError('请选择年级分类。');
+      return;
+    }
+
+    if (classificationMode === 'gradeSubject' && !form.subject) {
+      setError('请选择学科分类。');
       return;
     }
 
@@ -148,18 +169,21 @@ export function AgentFormDialog({
       return;
     }
 
-    setError(null);
-    await onSubmit({
+    const submitInput = {
       engineId: form.engineId,
-      key: form.key,
+      grade: classificationMode === 'none' ? null : form.grade,
       maxTokens: maxTokens.value,
       name,
       promptId: form.promptId || null,
       sensitiveListId: form.sensitiveListId || null,
       status: form.status,
+      subject: classificationMode === 'gradeSubject' ? form.subject : null,
       temperature: temperature.value,
       topP: topP.value,
-    });
+    } satisfies Omit<AgentFormSubmitInput, 'key'>;
+
+    setError(null);
+    await onSubmit(agent ? submitInput : { ...submitInput, key: form.key });
   }
 
   return (
@@ -234,21 +258,82 @@ export function AgentFormDialog({
               <label className="space-y-2">
                 <span className="ml-1 block text-sm font-bold text-slate-700">智能体 Key</span>
                 <select
-                  className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none focus:ring-4"
+                  className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                  disabled={Boolean(agent) || submitting}
                   onChange={(event) => {
                     const value = readFormValue(event.currentTarget);
+                    const key = value as AgentFormState['key'];
+                    const nextClassificationMode = getAdminAgentClassificationMode(key);
+                    const nextGradeOptions = getAdminAgentGradeOptions(key);
 
-                    setForm((current) => ({ ...current, key: value as AgentFormState['key'] }));
+                    setForm((current) => ({
+                      ...current,
+                      grade:
+                        nextClassificationMode === 'none'
+                          ? ''
+                          : nextGradeOptions.includes(current.grade)
+                            ? current.grade
+                            : (nextGradeOptions[0] ?? ''),
+                      key,
+                      subject:
+                        nextClassificationMode === 'gradeSubject'
+                          ? current.subject || (agentSubjectOptions[0] ?? '')
+                          : '',
+                    }));
                   }}
                   value={form.key}
                 >
                   {agentKeyOptions.map((key) => (
                     <option key={key} value={key}>
-                      {agentKeyLabels[key]} / {key}
+                      {WEB_AGENT_MAPPING[key].name} / {key}
                     </option>
                   ))}
                 </select>
               </label>
+
+              {classificationMode !== 'none' ? (
+                <label className="space-y-2">
+                  <span className="ml-1 block text-sm font-bold text-slate-700">年级分类</span>
+                  <select
+                    className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none focus:ring-4"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
+
+                      setForm((current) => ({ ...current, grade: value }));
+                    }}
+                    value={form.grade}
+                  >
+                    <option value="">请选择年级</option>
+                    {gradeOptions.map((grade) => (
+                      <option key={grade} value={grade}>
+                        {grade}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              {classificationMode === 'gradeSubject' ? (
+                <label className="space-y-2">
+                  <span className="ml-1 block text-sm font-bold text-slate-700">学科分类</span>
+                  <select
+                    className="focus:border-primary focus:ring-primary/10 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 transition-all outline-none focus:ring-4"
+                    onChange={(event) => {
+                      const value = readFormValue(event.currentTarget);
+
+                      setForm((current) => ({ ...current, subject: value }));
+                    }}
+                    value={form.subject}
+                  >
+                    <option value="">请选择学科</option>
+                    {agentSubjectOptions.map((subject) => (
+                      <option key={subject} value={subject}>
+                        {subject}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
 
             <div className="space-y-6 rounded-[24px] border border-slate-100 bg-slate-50 p-6">
@@ -274,7 +359,7 @@ export function AgentFormDialog({
                     <option value="">请选择模型引擎</option>
                     {engines.map((engine) => (
                       <option key={engine.id} value={engine.id}>
-                        {engine.name} / {engine.provider}
+                        {engine.name} / {getEngineProviderLabel(engine.provider)}
                       </option>
                     ))}
                   </select>
@@ -439,15 +524,25 @@ export function AgentFormDialog({
 function toFormState(agent: AdminAgentItem): AgentFormState {
   return {
     engineId: agent.engineId,
+    grade: agent.grade ?? '',
     key: agent.key,
     maxTokens: String(agent.maxTokens),
     name: agent.name,
     promptId: agent.promptId ?? '',
     sensitiveListId: agent.sensitiveListId ?? '',
     status: agent.status,
+    subject: agent.subject ?? '',
     temperature: String(agent.temperature),
     topP: String(agent.topP),
   };
+}
+
+function getEngineProviderLabel(provider: AdminModelEngineItem['provider']): string {
+  if (provider === 'custom') {
+    return '模型 API 调用';
+  }
+
+  return provider;
 }
 
 type ParsedNumber =
@@ -559,10 +654,3 @@ function getFocusableElements(container: FocusableDialogElement): FocusableEleme
 function readFormValue(target: EventTarget): string {
   return (target as EventTarget & { value: string }).value;
 }
-
-const agentKeyLabels: Record<AdminAgentCreateInput['key'], string> = {
-  chat: '对话智能体',
-  comment: '点评智能体',
-  inspiration: '灵感智能体',
-  teaching: '教学智能体',
-};

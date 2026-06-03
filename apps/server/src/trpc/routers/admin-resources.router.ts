@@ -114,6 +114,8 @@ function parseAgentListInput(input: unknown): AdminAgentListInput {
     ...parseOptionalStringProperty(input, 'q'),
     ...parseOptionalStringProperty(input, 'status'),
     ...parseOptionalStringProperty(input, 'engineId'),
+    ...parseOptionalStringProperty(input, 'grade'),
+    ...parseOptionalStringProperty(input, 'subject'),
     ...parseOptionalNumberProperty(input, 'page'),
     ...parseOptionalNumberProperty(input, 'pageSize'),
   } as AdminAgentListInput;
@@ -129,6 +131,8 @@ function parseAgentCreateInput(input: unknown): AdminAgentCreateInput {
       input.key,
       'Admin agent create requires key'
     ) as AdminAgentCreateInput['key'],
+    ...parseOptionalNullableStringProperty(input, 'grade'),
+    ...parseOptionalNullableStringProperty(input, 'subject'),
     name: parseRequiredString(input.name, 'Admin agent create requires name'),
     engineId: parseRequiredString(input.engineId, 'Admin agent create requires engineId'),
     ...parseOptionalNullableStringProperty(input, 'promptId'),
@@ -148,6 +152,8 @@ function parseAgentUpdateInput(input: unknown): AdminAgentUpdateInput {
   return {
     id: parseRequiredString(input.id, 'Admin agent update requires id'),
     ...parseOptionalStringProperty(input, 'key'),
+    ...parseOptionalNullableStringProperty(input, 'grade'),
+    ...parseOptionalNullableStringProperty(input, 'subject'),
     ...parseOptionalStringProperty(input, 'name'),
     ...parseOptionalStringProperty(input, 'engineId'),
     ...parseOptionalNullableStringProperty(input, 'promptId'),
@@ -235,10 +241,13 @@ function parseEngineCreateInput(input: unknown): AdminModelEngineCreateInput {
 
   return {
     name: parseRequiredString(input.name, 'Admin engine create requires name'),
-    provider: parseRequiredString(
-      input.provider,
-      'Admin engine create requires provider'
-    ) as AdminModelEngineCreateInput['provider'],
+    provider:
+      input.provider === undefined
+        ? 'custom'
+        : (parseRequiredString(
+            input.provider,
+            'Admin engine create requires provider'
+          ) as AdminModelEngineCreateInput['provider']),
     apiBaseUrl: parseRequiredString(input.apiBaseUrl, 'Admin engine create requires apiBaseUrl'),
     apiKey: parseRequiredString(input.apiKey, 'Admin engine create requires apiKey'),
     ...parseOptionalNullableStringProperty(input, 'modelName'),

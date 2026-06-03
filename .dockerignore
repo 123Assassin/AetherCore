@@ -1,0 +1,9 @@
+.git
+.next
+.turbo
+.playwright-mcp
+node_modules
+**/node_modules
+**/.next
+**/dist
+*.log

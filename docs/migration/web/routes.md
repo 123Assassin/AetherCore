@@ -8,13 +8,13 @@
 | ---------- | ------------------------ | ---------------------------------------------------------- | ---------------------------------------- |
 | `/`        | `App.tsx`                | N/A                                                        | 应用壳、Provider、侧栏、顶部栏、主内容区 |
 | `/`        | `ChatAssistant.tsx`      | `activeTab === "chat"`                                     | AI 助手默认页                            |
-| `/`        | `LessonModule.tsx`       | `activeTab === "lesson"`                                   | 备课精讲容器                             |
+| `/`        | `LessonModule.tsx`       | `activeTab === "lesson"`                                   | 知识库精讲容器                           |
 | `/`        | `InspirationLibrary.tsx` | `activeTab === "lesson" && activeSubTab === "inspiration"` | 知识精讲                                 |
 | `/`        | `SimulationLab.tsx`      | `activeTab === "lesson" && activeSubTab === "simulation"`  | 互动实验                                 |
 | `/`        | `OfficeModule.tsx`       | `activeTab === "office"`                                   | 办公提效容器                             |
 | `/`        | `CommentAssistant.tsx`   | `activeTab === "office" && activeSubTab === "comment"`     | 评语助手                                 |
 | `/`        | `TeachingAssist.tsx`     | `activeTab === "office" && activeSubTab === "teaching"`    | 题目变身                                 |
-| 弹窗       | `LoginModal.tsx`         | `isLoginModalOpen`                                         | 模拟微信扫码登录                         |
+| 弹窗       | `LoginModal.tsx`         | `isLoginModalOpen`                                         | 用户名密码登录                           |
 | 弹窗       | `DonateModal.tsx`        | `isDonateModalOpen`                                        | 赞助合作                                 |
 | 侧栏       | `HistorySidebar.tsx`     | `isHistoryOpen`                                            | 历史会话                                 |
 | 弹窗       | `ExportAdModal`          | 页面局部广告状态                                           | 额度/导出广告                            |
@@ -27,7 +27,7 @@
 | -------------------- | ------------------------------------------------- | ---------- | ----------------------------------------------------------- |
 | `App.tsx` 应用壳     | `apps/web/app/(app)/layout.tsx`                   | `apps/web` | 放侧栏、顶部栏、providers、历史侧栏入口                     |
 | 默认 AI 助手         | `apps/web/app/(app)/chat/page.tsx`                | `apps/web` | 可将 `/` redirect 到 `/chat`                                |
-| `LessonModule`       | `apps/web/app/(app)/lesson/layout.tsx`            | `apps/web` | 放备课精讲二级导航                                          |
+| `LessonModule`       | `apps/web/app/(app)/lesson/layout.tsx`            | `apps/web` | 放知识库精讲二级导航                                        |
 | `InspirationLibrary` | `apps/web/app/(app)/lesson/inspiration/page.tsx`  | `apps/web` | 知识精讲                                                    |
 | `SimulationLab`      | `apps/web/app/(app)/lesson/simulation/page.tsx`   | `apps/web` | 互动实验                                                    |
 | `OfficeModule`       | `apps/web/app/(app)/office/layout.tsx`            | `apps/web` | 放办公提效二级导航                                          |

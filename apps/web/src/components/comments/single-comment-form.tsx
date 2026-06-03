@@ -1,6 +1,11 @@
 'use client';
 
-import type { CommentGender, CommentGrade, CommentTag } from '@package/shared';
+import {
+  agentSubjectOptions,
+  type CommentGender,
+  type CommentGrade,
+  type CommentTag,
+} from '@package/shared';
 import { Sparkles } from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
 
@@ -11,6 +16,7 @@ export type SingleCommentFormValues = {
   nickname: string;
   gender: CommentGender | '';
   grade: CommentGrade | '';
+  subject: string;
   tags: CommentTag[];
   keywords: string;
   tone: string;
@@ -52,6 +58,12 @@ export function SingleCommentForm({
     const target = event.currentTarget as unknown as { value: SingleCommentFormValues['grade'] };
 
     updateField('grade', target.value);
+  }
+
+  function handleSubjectChange(event: ChangeEvent<HTMLSelectElement>) {
+    const target = event.currentTarget as unknown as { value: string };
+
+    updateField('subject', target.value);
   }
 
   function handleTextChange(field: 'nickname' | 'keywords' | 'tone') {
@@ -109,6 +121,24 @@ export function SingleCommentForm({
             {commentGradeOptions.map((grade) => (
               <option key={grade} value={grade}>
                 {grade}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">学科</span>
+          <select
+            aria-label="学科"
+            className="w-full rounded-xl border-0 bg-slate-50/50 px-4 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-emerald-500"
+            disabled={disabled}
+            onChange={handleSubjectChange}
+            value={values.subject}
+          >
+            <option value="">请选择</option>
+            {agentSubjectOptions.map((subject) => (
+              <option key={subject} value={subject}>
+                {subject}
               </option>
             ))}
           </select>

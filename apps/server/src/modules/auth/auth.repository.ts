@@ -7,6 +7,7 @@ import {
   userCreditAccounts,
   userPreferences,
   users,
+  wechatAccounts,
   type AuditActorType,
 } from '@package/db/schema';
 import { eq } from 'drizzle-orm';
@@ -16,6 +17,8 @@ export type AuthUserInsert = typeof users.$inferInsert;
 export type AuthSessionRow = typeof sessions.$inferSelect;
 export type UserPreferencesRow = typeof userPreferences.$inferSelect;
 export type UserCreditAccountRow = typeof userCreditAccounts.$inferSelect;
+export type WeChatAccountRow = typeof wechatAccounts.$inferSelect;
+export type WeChatAccountInsert = typeof wechatAccounts.$inferInsert;
 
 export type SystemAuditLogSaveData = {
   actorType: AuditActorType;
@@ -38,6 +41,16 @@ export class AuthRepository {
     return user ?? null;
   }
 
+  async findUserByUsername(username: string): Promise<AuthUserRow | null> {
+    const [user] = await this.database
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+
+    return user ?? null;
+  }
+
   async findUserById(userId: string): Promise<AuthUserRow | null> {
     const [user] = await this.database.select().from(users).where(eq(users.id, userId)).limit(1);
 
@@ -52,6 +65,52 @@ export class AuthRepository {
     }
 
     return user;
+  }
+
+  async findWeChatAccountByOpenid(openid: string): Promise<WeChatAccountRow | null> {
+    const [account] = await this.database
+      .select()
+      .from(wechatAccounts)
+      .where(eq(wechatAccounts.openid, openid))
+      .limit(1);
+
+    return account ?? null;
+  }
+
+  async findWeChatAccountByUnionid(unionid: string): Promise<WeChatAccountRow | null> {
+    const [account] = await this.database
+      .select()
+      .from(wechatAccounts)
+      .where(eq(wechatAccounts.unionid, unionid))
+      .limit(1);
+
+    return account ?? null;
+  }
+
+  async createWeChatAccount(input: WeChatAccountInsert): Promise<WeChatAccountRow> {
+    const [account] = await this.database.insert(wechatAccounts).values(input).returning();
+
+    if (!account) {
+      throw new Error('Failed to create WeChat account');
+    }
+
+    return account;
+  }
+
+  async updateWeChatAccount(
+    accountId: string,
+    input: Partial<Pick<WeChatAccountRow, 'avatarUrl' | 'nickname' | 'rawProfile' | 'unionid'>>
+  ): Promise<WeChatAccountRow | null> {
+    const [account] = await this.database
+      .update(wechatAccounts)
+      .set({
+        ...input,
+        updatedAt: new Date(),
+      })
+      .where(eq(wechatAccounts.id, accountId))
+      .returning();
+
+    return account ?? null;
   }
 
   async updateUser(

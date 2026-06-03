@@ -2,17 +2,27 @@ import { Injectable } from '@nestjs/common';
 import type { Database } from '@package/db';
 import { db } from '@package/db';
 import {
+  aiAgents,
   aiConversations,
   aiMessages,
   aiModelCalls,
+  aiPrompts,
   contentAuditSessions,
+  modelEngines,
+  sensitiveWordLists,
   users,
 } from '@package/db/schema';
-import type { ConversationCategory, MessageRole } from '@package/db/schema';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import type { AiAgentKey, ConversationCategory, MessageRole } from '@package/db/schema';
+import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+
+import type { AiAgentRuntimeConfig } from './ai-agent-runtime.js';
 
 export type AiConversationRow = typeof aiConversations.$inferSelect;
 export type AiMessageRow = typeof aiMessages.$inferSelect;
+export type AiAgentRuntimeConfigLookup = {
+  grade?: string | null;
+  subject?: string | null;
+};
 
 type ChatExchangeInput = {
   conversation?: AiConversationRow;
@@ -33,6 +43,8 @@ type ChatExchangeInput = {
     redirectTo?: string | null;
   };
   modelCall: {
+    agentId?: string | null;
+    engineId?: string | null;
     modelName: string;
     promptTokens: number;
     completionTokens: number;
@@ -152,6 +164,92 @@ export class AiRepository {
     return message;
   }
 
+  async findAgentRuntimeConfigByKey(
+    key: ConversationCategory,
+    classification: AiAgentRuntimeConfigLookup = {}
+  ): Promise<AiAgentRuntimeConfig | null> {
+    const grade = trimClassificationValue(classification.grade);
+    const subject = trimClassificationValue(classification.subject);
+    const genericClassification = and(isNull(aiAgents.grade), isNull(aiAgents.subject));
+    const matchingClassification =
+      grade || subject
+        ? or(
+            and(
+              grade ? eq(aiAgents.grade, grade) : isNull(aiAgents.grade),
+              subject ? eq(aiAgents.subject, subject) : isNull(aiAgents.subject)
+            ),
+            genericClassification
+          )
+        : genericClassification;
+    const [row] = await this.database
+      .select({
+        agent: {
+          id: aiAgents.id,
+          key: aiAgents.key,
+          grade: aiAgents.grade,
+          subject: aiAgents.subject,
+          name: aiAgents.name,
+          temperature: aiAgents.temperature,
+          topP: aiAgents.topP,
+          maxTokens: aiAgents.maxTokens,
+          status: aiAgents.status,
+        },
+        engine: {
+          id: modelEngines.id,
+          name: modelEngines.name,
+          apiBaseUrl: modelEngines.apiBaseUrl,
+          apiKeyCiphertext: modelEngines.apiKeyCiphertext,
+          modelName: modelEngines.modelName,
+          status: modelEngines.status,
+        },
+        prompt: {
+          id: aiPrompts.id,
+          content: aiPrompts.content,
+        },
+        sensitiveWordList: {
+          id: sensitiveWordLists.id,
+          words: sensitiveWordLists.words,
+        },
+      })
+      .from(aiAgents)
+      .innerJoin(modelEngines, eq(modelEngines.id, aiAgents.engineId))
+      .leftJoin(aiPrompts, eq(aiPrompts.id, aiAgents.promptId))
+      .leftJoin(sensitiveWordLists, eq(sensitiveWordLists.id, aiAgents.sensitiveListId))
+      .where(
+        and(
+          eq(aiAgents.key, key as AiAgentKey),
+          matchingClassification,
+          isNull(aiAgents.deletedAt),
+          isNull(modelEngines.deletedAt)
+        )
+      )
+      .orderBy(
+        sql`case when ${aiAgents.grade} is not distinct from ${grade} and ${aiAgents.subject} is not distinct from ${subject} then 0 else 1 end`
+      )
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      agent: row.agent,
+      engine: row.engine,
+      prompt: row.prompt?.id
+        ? {
+            id: row.prompt.id,
+            content: row.prompt.content ?? '',
+          }
+        : null,
+      sensitiveWordList: row.sensitiveWordList?.id
+        ? {
+            id: row.sensitiveWordList.id,
+            words: row.sensitiveWordList.words ?? [],
+          }
+        : null,
+    };
+  }
+
   async saveChatExchange(input: ChatExchangeInput): Promise<ChatExchangeResult> {
     return this.database.transaction(async (transaction) => {
       const now = new Date();
@@ -211,6 +309,8 @@ export class AiRepository {
       }
 
       await transaction.insert(aiModelCalls).values({
+        agentId: input.modelCall.agentId ?? null,
+        engineId: input.modelCall.engineId ?? null,
         conversationId: conversation.id,
         messageId: assistantMessage.id,
         userId: conversation.userId,
@@ -318,4 +418,14 @@ export class AiRepository {
       return true;
     });
   }
+}
+
+function trimClassificationValue(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || null;
 }

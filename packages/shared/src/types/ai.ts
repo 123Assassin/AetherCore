@@ -1,4 +1,6 @@
-export type AiConversationCategory = 'chat' | 'inspiration' | 'comment' | 'teaching';
+import type { AiConversationCategory } from './agent-mapping.js';
+
+export type { AiConversationCategory } from './agent-mapping.js';
 
 export type AiMessageRole = 'user' | 'assistant' | 'system';
 

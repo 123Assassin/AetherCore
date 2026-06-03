@@ -1,7 +1,7 @@
 'use client';
 
 import type { CommentBatchJob, CommentBatchRow, CommentSingleGenerateInput } from '@package/shared';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BatchCommentTable } from '../../../../components/comments/batch-comment-table';
 import { BatchCommentToolbar } from '../../../../components/comments/batch-comment-toolbar';
@@ -14,7 +14,10 @@ import {
   SingleCommentForm,
   type SingleCommentFormValues,
 } from '../../../../components/comments/single-comment-form';
-import { ExportAdModal } from '../../../../components/sponsor/ad-system';
+import { ExportAdModal, GenerationAdOverlay } from '../../../../components/sponsor/ad-system';
+import { useChatHistory } from '../../../../contexts/chat-history-context';
+import { useAiGenerationAdGate } from '../../../../hooks/use-ai-generation-ad-gate';
+import { generateSingleCommentStream } from '../../../../lib/comment-stream';
 import { useTrpcClient } from '../../../../trpc/provider';
 
 type CommentMode = 'single' | 'batch';
@@ -40,10 +43,24 @@ type BrowserDownloadEnvironment = {
   };
 };
 
+type BrowserBase64Environment = {
+  btoa: (content: string) => string;
+};
+
+type CommentHistoryState = {
+  activeMode: CommentMode;
+  comments: string[];
+  creditRemaining: number | null;
+  formValues: SingleCommentFormValues;
+  kind: 'comment';
+  sessionId?: string;
+};
+
 const initialFormValues: SingleCommentFormValues = {
   nickname: '',
   gender: '男',
   grade: '五年级',
+  subject: '语文',
   tags: [],
   keywords: '',
   tone: defaultCommentTone,
@@ -53,6 +70,8 @@ const commentModes = [
   { label: '单人评语精编', mode: 'single' as const },
   { label: '批量表格导入', mode: 'batch' as const },
 ];
+const streamPreviewIntervalMs = 24;
+const streamPreviewChunkSize = 3;
 
 function getMutationErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -100,11 +119,141 @@ function downloadBase64File(contentBase64: string, mimeType: string, fileName: s
   browser.URL.revokeObjectURL(url);
 }
 
+async function readFileAsBase64(file: File): Promise<string> {
+  const browser = globalThis as unknown as BrowserBase64Environment;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const chunkSize = 8192;
+  let binary = '';
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return browser.btoa(binary);
+}
+
+function previewStreamedComments(content: string): string[] {
+  const trimmed = content.trim();
+
+  if (!trimmed) {
+    return [];
+  }
+
+  const lines = trimmed
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const comments = lines.some((line) => isCommentHeading(stripCommentLineMarker(line)))
+    ? groupHeadingComments(lines)
+    : lines.map(stripCommentLineMarker).filter(Boolean);
+
+  return comments.length > 0 ? comments : [trimmed];
+}
+
+function groupHeadingComments(lines: string[]): string[] {
+  const comments: string[] = [];
+  let current: string[] = [];
+
+  for (const line of lines) {
+    const cleanedLine = stripCommentLineMarker(line);
+
+    if (isCommentHeading(cleanedLine) && current.length > 0) {
+      comments.push(current.join('\n'));
+      current = [];
+    }
+
+    current.push(cleanedLine);
+  }
+
+  if (current.length > 0) {
+    comments.push(current.join('\n'));
+  }
+
+  return comments.filter(Boolean);
+}
+
+function isCommentHeading(line: string): boolean {
+  const trimmed = line.trim();
+
+  return /^#{1,6}\s+\S/.test(trimmed) || (/^\*\*.+\*\*$/.test(trimmed) && trimmed.length <= 80);
+}
+
+function stripCommentLineMarker(line: string): string {
+  return line.trim().replace(/^(?:(?:[-*])\s+|\d+[.)、]\s*)/, '');
+}
+
+function createStreamPreviewWriter(onPreview: (content: string) => void) {
+  let targetContent = '';
+  let visibleLength = 0;
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  let finishResolve: (() => void) | null = null;
+
+  function stopInterval() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function resolveFinishedIfIdle() {
+    if (visibleLength < targetContent.length) {
+      return;
+    }
+
+    stopInterval();
+
+    if (finishResolve) {
+      finishResolve();
+      finishResolve = null;
+    }
+  }
+
+  function revealNextChunk() {
+    if (visibleLength < targetContent.length) {
+      visibleLength = Math.min(visibleLength + streamPreviewChunkSize, targetContent.length);
+      onPreview(targetContent.slice(0, visibleLength));
+    }
+
+    resolveFinishedIfIdle();
+  }
+
+  function ensureInterval() {
+    if (!intervalId) {
+      intervalId = setInterval(revealNextChunk, streamPreviewIntervalMs);
+    }
+  }
+
+  return {
+    append(content: string) {
+      targetContent += content;
+
+      if (visibleLength < targetContent.length) {
+        ensureInterval();
+      }
+    },
+    finish() {
+      if (visibleLength >= targetContent.length) {
+        return Promise.resolve();
+      }
+
+      ensureInterval();
+
+      return new Promise<void>((resolve) => {
+        finishResolve = resolve;
+      });
+    },
+    stop() {
+      stopInterval();
+      finishResolve = null;
+    },
+  };
+}
+
 function buildSingleGenerateInput(
   values: SingleCommentFormValues,
   sessionId: string | undefined
 ): CommentSingleGenerateInput | null {
-  if (!values.gender || !values.grade) {
+  if (!values.gender || !values.grade || !values.subject) {
     return null;
   }
 
@@ -117,15 +266,72 @@ function buildSingleGenerateInput(
     ...(nickname ? { nickname } : {}),
     gender: values.gender,
     grade: values.grade,
+    subject: values.subject,
     tags: values.tags,
     ...(keywords ? { keywords } : {}),
     tone,
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readCommentHistoryState(value: unknown): CommentHistoryState | null {
+  if (!isRecord(value) || value.kind !== 'comment' || !isRecord(value.formValues)) {
+    return null;
+  }
+
+  return {
+    activeMode: value.activeMode === 'batch' ? 'batch' : 'single',
+    comments: Array.isArray(value.comments)
+      ? value.comments.filter((item): item is string => typeof item === 'string')
+      : [],
+    creditRemaining: typeof value.creditRemaining === 'number' ? value.creditRemaining : null,
+    formValues: {
+      ...initialFormValues,
+      ...value.formValues,
+    } as SingleCommentFormValues,
+    kind: 'comment',
+    ...(typeof value.sessionId === 'string' ? { sessionId: value.sessionId } : {}),
+  };
+}
+
+function createCommentHistoryMessages(state: CommentHistoryState) {
+  const label = state.formValues.nickname.trim() || '学生评语';
+  const request = `评语生成：${label}`;
+
+  return [
+    {
+      content: request,
+      id: `comment-user-${Date.now()}`,
+      role: 'user' as const,
+      timestamp: new Date().toISOString(),
+    },
+    ...(state.comments.length
+      ? [
+          {
+            content: state.comments.join('\n\n'),
+            id: `comment-assistant-${Date.now()}`,
+            role: 'assistant' as const,
+            timestamp: new Date().toISOString(),
+          },
+        ]
+      : []),
+  ];
+}
+
 export default function OfficeCommentPage() {
   const client = useTrpcClient();
+  const { currentSessionIds, sessions, setCurrentSessionId, upsertSession } = useChatHistory();
+  const { adMode, adOpen, closeAdGate, runWithAdGate } = useAiGenerationAdGate();
   const batchUploadRequestRef = useRef(0);
+  const appliedSessionIdRef = useRef<string | null | undefined>(undefined);
+  const currentHistorySessionId = currentSessionIds.comment;
+  const activeHistorySession = useMemo(
+    () => sessions.find((session) => session.id === currentHistorySessionId),
+    [currentHistorySessionId, sessions]
+  );
   const [activeMode, setActiveMode] = useState<CommentMode>('single');
   const [formValues, setFormValues] = useState<SingleCommentFormValues>(initialFormValues);
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -144,23 +350,130 @@ export default function OfficeCommentPage() {
   const [batchCreditRemaining, setBatchCreditRemaining] = useState<number | null>(null);
   const [exportAdOpen, setExportAdOpen] = useState(false);
 
+  const persistCommentSession = useCallback(
+    (state: CommentHistoryState) => {
+      const historySessionId = currentHistorySessionId ?? `comment-${Date.now()}`;
+
+      if (!currentHistorySessionId) {
+        setCurrentSessionId('comment', historySessionId);
+        appliedSessionIdRef.current = historySessionId;
+      }
+
+      upsertSession({
+        category: 'comment',
+        id: historySessionId,
+        messages: createCommentHistoryMessages(state),
+        ...(state.sessionId ? { serverSessionId: state.sessionId } : {}),
+        state: state as unknown as Record<string, unknown>,
+        title: state.formValues.nickname.trim() || '学生评语',
+        updatedAt: Date.now(),
+      });
+    },
+    [currentHistorySessionId, setCurrentSessionId, upsertSession]
+  );
+
+  useEffect(() => {
+    if (appliedSessionIdRef.current === currentHistorySessionId) {
+      return;
+    }
+
+    appliedSessionIdRef.current = currentHistorySessionId;
+
+    const state = readCommentHistoryState(activeHistorySession?.state);
+
+    const timeoutId = setTimeout(() => {
+      if (!currentHistorySessionId || !state) {
+        setActiveMode('single');
+        setFormValues(initialFormValues);
+        setSessionId(undefined);
+        setComments([]);
+        setCreditRemaining(null);
+        setFormError(null);
+        setResultError(null);
+        setBatchJob(null);
+        setBatchRows([]);
+        setBatchError(null);
+        setBatchCreditRemaining(null);
+        return;
+      }
+
+      setActiveMode(state.activeMode);
+      setFormValues(state.formValues);
+      setSessionId(state.sessionId);
+      setComments(state.comments);
+      setCreditRemaining(state.creditRemaining);
+      setFormError(null);
+      setResultError(null);
+      setBatchJob(null);
+      setBatchRows([]);
+      setBatchError(null);
+      setBatchCreditRemaining(null);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeHistorySession?.state, currentHistorySessionId]);
+
   const handleFormChange = useCallback(
     (nextValues: SingleCommentFormValues) => {
       setFormValues(nextValues);
 
-      if (formError && nextValues.gender && nextValues.grade) {
+      if (formError && nextValues.gender && nextValues.grade && nextValues.subject) {
         setFormError(null);
       }
+
+      if (currentHistorySessionId) {
+        persistCommentSession({
+          activeMode,
+          comments,
+          creditRemaining,
+          formValues: nextValues,
+          kind: 'comment',
+          ...(sessionId ? { sessionId } : {}),
+        });
+      }
     },
-    [formError]
+    [
+      activeMode,
+      comments,
+      creditRemaining,
+      currentHistorySessionId,
+      formError,
+      persistCommentSession,
+      sessionId,
+    ]
+  );
+
+  const handleModeChange = useCallback(
+    (nextMode: CommentMode) => {
+      setActiveMode(nextMode);
+
+      if (currentHistorySessionId) {
+        persistCommentSession({
+          activeMode: nextMode,
+          comments,
+          creditRemaining,
+          formValues,
+          kind: 'comment',
+          ...(sessionId ? { sessionId } : {}),
+        });
+      }
+    },
+    [
+      comments,
+      creditRemaining,
+      currentHistorySessionId,
+      formValues,
+      persistCommentSession,
+      sessionId,
+    ]
   );
 
   const generateComment = useCallback(
-    async (values: SingleCommentFormValues) => {
+    (values: SingleCommentFormValues) => {
       const input = buildSingleGenerateInput(values, sessionId);
 
       if (!input) {
-        setFormError('请选择性别和年级。');
+        setFormError('请选择性别、年级和学科。');
         return;
       }
 
@@ -168,23 +481,45 @@ export default function OfficeCommentPage() {
         return;
       }
 
-      setLoading(true);
-      setFormError(null);
-      setResultError(null);
+      runWithAdGate(async () => {
+        setLoading(true);
+        setFormError(null);
+        setResultError(null);
+        setComments([]);
 
-      try {
-        const result = await client.comments.single.generate.mutate(input);
+        const previewWriter = createStreamPreviewWriter((content) => {
+          setComments(previewStreamedComments(content));
+        });
 
-        setSessionId(result.sessionId);
-        setComments(result.comments);
-        setCreditRemaining(result.credit.remaining);
-      } catch (mutationError) {
-        setResultError(getMutationErrorMessage(mutationError));
-      } finally {
-        setLoading(false);
-      }
+        try {
+          const result = await generateSingleCommentStream(input, {
+            onDelta: (content) => {
+              previewWriter.append(content);
+            },
+          });
+
+          await previewWriter.finish();
+          setSessionId(result.sessionId);
+          setComments(result.comments);
+          setCreditRemaining(result.credit.remaining);
+          persistCommentSession({
+            activeMode: 'single',
+            comments: result.comments,
+            creditRemaining: result.credit.remaining,
+            formValues: values,
+            kind: 'comment',
+            sessionId: result.sessionId,
+          });
+        } catch (mutationError) {
+          previewWriter.stop();
+          setComments([]);
+          setResultError(getMutationErrorMessage(mutationError));
+        } finally {
+          setLoading(false);
+        }
+      });
     },
-    [client, loading, sessionId]
+    [loading, persistCommentSession, runWithAdGate, sessionId]
   );
 
   const handleBatchUpload = useCallback(
@@ -201,7 +536,9 @@ export default function OfficeCommentPage() {
       setBatchCreditRemaining(null);
 
       try {
+        const contentBase64 = await readFileAsBase64(file);
         const result = await client.comments.batch.createFromUpload.mutate({
+          contentBase64,
           fileName: file.name,
           fileSize: file.size,
           ...(file.type ? { mimeType: file.type } : {}),
@@ -225,63 +562,14 @@ export default function OfficeCommentPage() {
   );
 
   const generateBatchRow = useCallback(
-    async (row: CommentBatchRow) => {
+    (row: CommentBatchRow) => {
       if (!batchJob || batchGeneratingAll || generatingRowId) {
         return;
       }
 
-      setGeneratingRowId(row.id);
-      setBatchError(null);
-      setBatchRows((currentRows) =>
-        currentRows.map((currentRow) =>
-          currentRow.id === row.id
-            ? { ...currentRow, errorMessage: null, status: 'generating' as const }
-            : currentRow
-        )
-      );
-
-      try {
-        const result = await client.comments.batch.generateRow.mutate({
-          jobId: batchJob.id,
-          rowId: row.id,
-        });
-
-        setBatchJob(result.job);
-        setBatchRows((currentRows) => replaceBatchRow(currentRows, result.row));
-        setBatchCreditRemaining(result.credit.remaining);
-      } catch (generateError) {
-        const message = getBatchErrorMessage(generateError, '该行评语生成失败，请重试。');
-
-        setBatchError(message);
-        setBatchRows((currentRows) => setRowsFailed(currentRows, new Set([row.id]), message));
-      } finally {
-        setGeneratingRowId(null);
-      }
-    },
-    [batchGeneratingAll, batchJob, client, generatingRowId]
-  );
-
-  const generateAllBatchRows = useCallback(async () => {
-    if (!batchJob || batchGeneratingAll || generatingRowId) {
-      return;
-    }
-
-    const rowsToGenerate = batchRows.filter(
-      (row) => row.status === 'pending' || row.status === 'error'
-    );
-
-    if (rowsToGenerate.length === 0) {
-      return;
-    }
-
-    setBatchGeneratingAll(true);
-    setBatchError(null);
-
-    try {
-      let failedRows = 0;
-
-      for (const row of rowsToGenerate) {
+      runWithAdGate(async () => {
         setGeneratingRowId(row.id);
+        setBatchError(null);
         setBatchRows((currentRows) =>
           currentRows.map((currentRow) =>
             currentRow.id === row.id
@@ -300,22 +588,75 @@ export default function OfficeCommentPage() {
           setBatchRows((currentRows) => replaceBatchRow(currentRows, result.row));
           setBatchCreditRemaining(result.credit.remaining);
         } catch (generateError) {
-          failedRows += 1;
-
           const message = getBatchErrorMessage(generateError, '该行评语生成失败，请重试。');
 
+          setBatchError(message);
           setBatchRows((currentRows) => setRowsFailed(currentRows, new Set([row.id]), message));
+        } finally {
+          setGeneratingRowId(null);
         }
-      }
+      });
+    },
+    [batchGeneratingAll, batchJob, client, generatingRowId, runWithAdGate]
+  );
 
-      if (failedRows > 0) {
-        setBatchError('部分评语生成失败，请检查失败行后重试。');
-      }
-    } finally {
-      setGeneratingRowId(null);
-      setBatchGeneratingAll(false);
+  const generateAllBatchRows = useCallback(() => {
+    if (!batchJob || batchGeneratingAll || generatingRowId) {
+      return;
     }
-  }, [batchGeneratingAll, batchJob, batchRows, client, generatingRowId]);
+
+    const rowsToGenerate = batchRows.filter(
+      (row) => row.status === 'pending' || row.status === 'error'
+    );
+
+    if (rowsToGenerate.length === 0) {
+      return;
+    }
+
+    runWithAdGate(async () => {
+      setBatchGeneratingAll(true);
+      setBatchError(null);
+
+      try {
+        let failedRows = 0;
+
+        for (const row of rowsToGenerate) {
+          setGeneratingRowId(row.id);
+          setBatchRows((currentRows) =>
+            currentRows.map((currentRow) =>
+              currentRow.id === row.id
+                ? { ...currentRow, errorMessage: null, status: 'generating' as const }
+                : currentRow
+            )
+          );
+
+          try {
+            const result = await client.comments.batch.generateRow.mutate({
+              jobId: batchJob.id,
+              rowId: row.id,
+            });
+
+            setBatchJob(result.job);
+            setBatchRows((currentRows) => replaceBatchRow(currentRows, result.row));
+            setBatchCreditRemaining(result.credit.remaining);
+          } catch (generateError) {
+            failedRows += 1;
+
+            const message = getBatchErrorMessage(generateError, '该行评语生成失败，请重试。');
+
+            setBatchRows((currentRows) => setRowsFailed(currentRows, new Set([row.id]), message));
+          }
+        }
+
+        if (failedRows > 0) {
+          setBatchError('部分评语生成失败，请检查失败行后重试。');
+        }
+      } finally {
+        setGeneratingRowId(null);
+        setBatchGeneratingAll(false);
+      }
+    });
+  }, [batchGeneratingAll, batchJob, batchRows, client, generatingRowId, runWithAdGate]);
 
   const exportBatchRows = useCallback(async () => {
     const hasSuccessRow = batchRows.some((row) => row.status === 'success');
@@ -374,7 +715,7 @@ export default function OfficeCommentPage() {
         <CommentModeTabs
           activeMode={activeMode}
           availableModes={commentModes}
-          onModeChange={setActiveMode}
+          onModeChange={handleModeChange}
         />
 
         <div className="custom-scrollbar mt-6 min-h-0 flex-1 overflow-y-auto pr-1">
@@ -477,6 +818,7 @@ export default function OfficeCommentPage() {
       {exportAdOpen ? (
         <ExportAdModal isOpen onClose={closeExportAdGate} onConfirm={confirmExportAdGate} />
       ) : null}
+      <GenerationAdOverlay isOpen={adOpen} mode={adMode} onClose={closeAdGate} />
     </div>
   );
 }

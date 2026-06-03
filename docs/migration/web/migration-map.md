@@ -23,10 +23,10 @@
 | ----------------------------------- | ------------------------------------------------------------- | ---------- | --------------------------------- |
 | `src/components/Sidebar.tsx`        | `apps/web/components/layout/app-sidebar.tsx`                  | `apps/web` | 根据 pathname 判断 active         |
 | `src/components/HistorySidebar.tsx` | `apps/web/components/history/history-sidebar.tsx`             | `apps/web` | 读取 session store/API            |
-| `src/components/LoginModal.tsx`     | `apps/web/components/auth/wechat-login-modal.tsx`             | `apps/web` | 当前为模拟登录；后续接真实 auth   |
+| `src/components/LoginModal.tsx`     | `apps/web/components/auth/user-login-modal.tsx`               | `apps/web` | 当前默认用户名密码登录            |
 | `src/components/DonateModal.tsx`    | `apps/web/components/sponsor/donate-modal.tsx`                | `apps/web` | 赞助合作                          |
 | `src/components/AdSystem.tsx`       | `apps/web/components/ads/sponsored-gate-modal.tsx`            | `apps/web` | `ExportAdModal`                   |
-| `src/components/AdSystem.tsx`       | `apps/web/components/ads/sponsored-loading-message.tsx`       | `apps/web` | `AdLoadingBot`                    |
+| `src/components/AdSystem.tsx`       | `apps/web/components/ads/generation-ad-overlay.tsx`           | `apps/web` | `GenerationAdOverlay`             |
 | `ChatAssistant.tsx` 消息列表        | `apps/web/features/chat/chat-message-list.tsx`                | `apps/web` | 可复用到多个 AI 页                |
 | `ChatAssistant.tsx` 输入栏          | `apps/web/features/chat/chat-input-bar.tsx`                   | `apps/web` | 通用聊天输入                      |
 | `InspirationLibrary.tsx` 左侧表单   | `apps/web/features/inspiration/inspiration-form.tsx`          | `apps/web` | 年级、学科、知识点、学情          |

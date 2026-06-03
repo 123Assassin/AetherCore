@@ -2,20 +2,31 @@ import { Injectable } from '@nestjs/common';
 import type { Database } from '@package/db';
 import { db } from '@package/db';
 import {
+  aiAgents,
   aiConversations,
   aiMessages,
   aiModelCalls,
+  aiPrompts,
   commentBatchJobs,
   commentBatchRows,
   contentAuditSessions,
+  modelEngines,
+  sensitiveWordLists,
+  type AiAgentKey,
   type CommentBatchJobStatus,
   type CommentBatchRowStatus,
   users,
 } from '@package/db/schema';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
+
+import type { AiAgentModelCall, AiAgentRuntimeConfig } from '../ai/ai-agent-runtime.js';
 
 export type CommentBatchJobRow = typeof commentBatchJobs.$inferSelect;
 export type CommentBatchRowRecord = typeof commentBatchRows.$inferSelect;
+export type CommentAgentRuntimeConfigLookup = {
+  grade?: string | null;
+  subject?: string | null;
+};
 
 export type CommentBatchCreateRowInput = {
   rowIndex: number;
@@ -45,10 +56,12 @@ export class CommentsRepository {
     nickname?: string | null;
     gender: '男' | '女';
     grade: string;
+    subject?: string | null;
     tags: string[];
     keywords?: string | null;
     tone: string;
     comments: string[];
+    modelCall?: AiAgentModelCall;
   }): Promise<{ sessionId: string } | null> {
     return this.database.transaction(async (transaction) => {
       const now = new Date();
@@ -116,6 +129,7 @@ export class CommentsRepository {
             nickname: input.nickname ?? null,
             gender: input.gender,
             grade: input.grade,
+            subject: input.subject ?? null,
             tags: input.tags,
             keywords: input.keywords ?? null,
             tone: input.tone,
@@ -144,16 +158,20 @@ export class CommentsRepository {
       }
 
       await transaction.insert(aiModelCalls).values({
+        agentId: input.modelCall?.agentId ?? null,
+        engineId: input.modelCall?.engineId ?? null,
         conversationId: conversation.id,
         messageId: assistantMessage.id,
         userId: input.userId,
-        modelName: 'Mock AI',
-        promptTokens: estimateTokens(userContent),
-        completionTokens: estimateTokens(assistantContent),
-        totalTokens: estimateTokens(userContent) + estimateTokens(assistantContent),
-        latencyMs: Math.max(Date.now() - now.getTime(), 0),
-        costAmount: 0,
-        currency: 'CNY',
+        modelName: input.modelCall?.modelName ?? 'Mock AI',
+        promptTokens: input.modelCall?.promptTokens ?? estimateTokens(userContent),
+        completionTokens: input.modelCall?.completionTokens ?? estimateTokens(assistantContent),
+        totalTokens:
+          input.modelCall?.totalTokens ??
+          estimateTokens(userContent) + estimateTokens(assistantContent),
+        latencyMs: input.modelCall?.latencyMs ?? Math.max(Date.now() - now.getTime(), 0),
+        costAmount: input.modelCall?.costAmount ?? 0,
+        currency: input.modelCall?.currency ?? 'CNY',
         status: 'success',
       });
 
@@ -192,6 +210,92 @@ export class CommentsRepository {
 
       return { sessionId: conversation.id };
     });
+  }
+
+  async findAgentRuntimeConfigByKey(
+    key: AiAgentRuntimeConfig['agent']['key'],
+    classification: CommentAgentRuntimeConfigLookup = {}
+  ): Promise<AiAgentRuntimeConfig | null> {
+    const grade = trimClassificationValue(classification.grade);
+    const subject = trimClassificationValue(classification.subject);
+    const genericClassification = and(isNull(aiAgents.grade), isNull(aiAgents.subject));
+    const matchingClassification =
+      grade || subject
+        ? or(
+            and(
+              grade ? eq(aiAgents.grade, grade) : isNull(aiAgents.grade),
+              subject ? eq(aiAgents.subject, subject) : isNull(aiAgents.subject)
+            ),
+            genericClassification
+          )
+        : genericClassification;
+    const [row] = await this.database
+      .select({
+        agent: {
+          id: aiAgents.id,
+          key: aiAgents.key,
+          grade: aiAgents.grade,
+          subject: aiAgents.subject,
+          name: aiAgents.name,
+          temperature: aiAgents.temperature,
+          topP: aiAgents.topP,
+          maxTokens: aiAgents.maxTokens,
+          status: aiAgents.status,
+        },
+        engine: {
+          id: modelEngines.id,
+          name: modelEngines.name,
+          apiBaseUrl: modelEngines.apiBaseUrl,
+          apiKeyCiphertext: modelEngines.apiKeyCiphertext,
+          modelName: modelEngines.modelName,
+          status: modelEngines.status,
+        },
+        prompt: {
+          id: aiPrompts.id,
+          content: aiPrompts.content,
+        },
+        sensitiveWordList: {
+          id: sensitiveWordLists.id,
+          words: sensitiveWordLists.words,
+        },
+      })
+      .from(aiAgents)
+      .innerJoin(modelEngines, eq(modelEngines.id, aiAgents.engineId))
+      .leftJoin(aiPrompts, eq(aiPrompts.id, aiAgents.promptId))
+      .leftJoin(sensitiveWordLists, eq(sensitiveWordLists.id, aiAgents.sensitiveListId))
+      .where(
+        and(
+          eq(aiAgents.key, key as AiAgentKey),
+          matchingClassification,
+          isNull(aiAgents.deletedAt),
+          isNull(modelEngines.deletedAt)
+        )
+      )
+      .orderBy(
+        sql`case when ${aiAgents.grade} is not distinct from ${grade} and ${aiAgents.subject} is not distinct from ${subject} then 0 else 1 end`
+      )
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      agent: row.agent,
+      engine: row.engine,
+      prompt: row.prompt?.id
+        ? {
+            id: row.prompt.id,
+            content: row.prompt.content ?? '',
+          }
+        : null,
+      sensitiveWordList: row.sensitiveWordList?.id
+        ? {
+            id: row.sensitiveWordList.id,
+            words: row.sensitiveWordList.words ?? [],
+          }
+        : null,
+    };
   }
 
   async createBatch(input: CommentBatchCreateInput): Promise<{
@@ -269,6 +373,7 @@ export class CommentsRepository {
     jobId: string;
     rowId: string;
     generatedResults: string[];
+    modelCall?: AiAgentModelCall;
   }): Promise<{ job: CommentBatchJobRow; row: CommentBatchRowRecord } | null> {
     return this.database.transaction(async (transaction) => {
       const now = new Date();
@@ -308,14 +413,17 @@ export class CommentsRepository {
       const assistantContent = input.generatedResults.join('\n\n');
 
       await transaction.insert(aiModelCalls).values({
+        agentId: input.modelCall?.agentId ?? null,
+        engineId: input.modelCall?.engineId ?? null,
         userId: input.userId,
-        modelName: 'Mock AI',
-        promptTokens: estimateTokens(prompt),
-        completionTokens: estimateTokens(assistantContent),
-        totalTokens: estimateTokens(prompt) + estimateTokens(assistantContent),
-        latencyMs: Math.max(Date.now() - now.getTime(), 0),
-        costAmount: 0,
-        currency: 'CNY',
+        modelName: input.modelCall?.modelName ?? 'Mock AI',
+        promptTokens: input.modelCall?.promptTokens ?? estimateTokens(prompt),
+        completionTokens: input.modelCall?.completionTokens ?? estimateTokens(assistantContent),
+        totalTokens:
+          input.modelCall?.totalTokens ?? estimateTokens(prompt) + estimateTokens(assistantContent),
+        latencyMs: input.modelCall?.latencyMs ?? Math.max(Date.now() - now.getTime(), 0),
+        costAmount: input.modelCall?.costAmount ?? 0,
+        currency: input.modelCall?.currency ?? 'CNY',
         status: 'success',
       });
 
@@ -373,17 +481,29 @@ function createCommentConversationTitle(nickname: string | null | undefined): st
 function createCommentUserMessage(input: {
   nickname?: string | null;
   grade: string;
+  subject?: string | null;
   tags: string[];
   keywords?: string | null;
   tone: string;
 }): string {
   const name = input.nickname ?? '学生';
   const tags = input.tags.length > 0 ? input.tags.join('、') : '未填写标签';
+  const subject = input.subject ? `${input.subject} ` : '';
   const keywords = input.keywords ? `，关注点：${input.keywords}` : '';
 
-  return `请为${name}生成${input.grade}评语，语气：${input.tone}，表现标签：${tags}${keywords}`;
+  return `请为${name}生成${input.grade}${subject}评语，语气：${input.tone}，表现标签：${tags}${keywords}`;
 }
 
 function estimateTokens(value: string): number {
   return Math.max(1, Math.ceil(value.trim().length / 4));
+}
+
+function trimClassificationValue(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || null;
 }

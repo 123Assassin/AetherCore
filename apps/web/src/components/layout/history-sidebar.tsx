@@ -22,7 +22,7 @@ type HistorySidebarProps = {
 
 const tabNames: Record<ShellMainTab, string> = {
   chat: 'AI 助手',
-  lesson: '备课精讲',
+  lesson: '知识库精讲',
   office: '办公提效',
 };
 

@@ -64,6 +64,27 @@
       "when": 1779259354953,
       "tag": "0008_mature_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779320000000,
+      "tag": "0009_admin_username_login",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779362485110,
+      "tag": "0010_nebulous_emma_frost",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779897600000,
+      "tag": "0011_agent_classification",
+      "breakpoints": true
     }
   ]
 }

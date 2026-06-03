@@ -2,7 +2,7 @@
 
 ## 1. 通用约定
 
-Base URL：`http://localhost:3000`
+Base URL：`http://localhost:7001`
 
 用户端：
 
@@ -61,23 +61,41 @@ Base URL：`http://localhost:3000`
 
 ## 2. 用户端 Auth
 
-### 2.1 获取微信登录 URL
+### 2.1 用户端用户名密码登录
 
-`GET /api/auth/wechat/login-url`
+当前默认登录入口为 tRPC `auth.userLogin` mutation。
 
-查询参数：
+请求：
 
-| 参数         | 必填 | 说明                                     |
-| ------------ | ---- | ---------------------------------------- |
-| `redirectTo` | 否   | 登录成功后的站内跳转路径，默认 `/chat`。 |
+```json
+{
+  "user": "teacher",
+  "password": "teacher123"
+}
+```
+
+行为：
+
+- 后端按 `users.username` 查找普通用户，不接受邮箱登录。
+- 仅允许 `users.role='user'` 且 `is_active=true` 的账号登录。
+- 登录成功后设置用户端 HttpOnly Cookie：`aether_session`。
+
+### 2.2 获取微信内嵌二维码配置
+
+当前实现为 tRPC `auth.wechatLoginConfig` 查询。
+
+查询参数：无。
 
 响应：
 
 ```json
 {
   "data": {
-    "loginUrl": "https://open.weixin.qq.com/connect/qrconnect?...",
-    "state": "9f2d..."
+    "appId": "wx...",
+    "redirectUri": "http://localhost:3000/auth/wechat/callback",
+    "scope": "snsapi_login",
+    "state": "9f2d...",
+    "expiresInSeconds": 600
   }
 }
 ```
@@ -85,12 +103,18 @@ Base URL：`http://localhost:3000`
 说明：
 
 - 后端生成 `state` 并写入 Redis。
-- 微信授权 URL 使用 `scope=snsapi_login`。
-- `redirect_uri` 必须 URL Encode。
+- 前端加载微信 `wxLogin.js` 并实例化 `WxLogin`，将二维码内嵌到登录弹窗容器。
+- 微信网站应用授权 scope 固定为 `snsapi_login`。
+- `redirect_uri` 传给 `WxLogin` 前必须 URL Encode。
+- `WECHAT_APP_SECRET` 只允许服务端使用，不得下发到浏览器。
 
-### 2.2 微信登录回调
+### 2.3 微信登录回调
 
-`GET /api/auth/wechat/callback`
+微信扫码确认后先跳转到用户端页面：
+
+`GET /auth/wechat/callback?code=...&state=...`
+
+该页面再调用 tRPC `auth.wechatCallback` mutation。
 
 查询参数：
 
@@ -105,15 +129,15 @@ Base URL：`http://localhost:3000`
 - 用 code 换取微信 `access_token/openid/unionid`。
 - 查找或创建 `users` 与 `wechat_accounts`。
 - 设置用户 session cookie。
-- 302 跳转到 state 绑定的 `redirectTo`。
+- 回调页登录成功后跳转到 `/chat`。
 
 错误：
 
-- `400 INVALID_WECHAT_STATE`
-- `400 MISSING_WECHAT_CODE`
-- `502 WECHAT_API_ERROR`
+- `400 BAD_REQUEST`：缺少 `code/state` 或微信配置缺失。
+- `401 UNAUTHORIZED`：`state` 无效或微信授权失败。
+- `409 CONFLICT`：微信账号已绑定到非正常站内用户。
 
-### 2.3 登出
+### 2.4 登出
 
 `POST /api/auth/logout`
 
@@ -756,7 +780,7 @@ type AiStreamEvent =
 
 ```json
 {
-  "username": "admin",
+  "user": "admin",
   "password": "password"
 }
 ```
@@ -769,7 +793,8 @@ type AiStreamEvent =
     "user": {
       "id": "uuid",
       "username": "admin",
-      "displayName": "管理员"
+      "email": "admin@aethercore.local",
+      "name": "管理员"
     }
   }
 }
@@ -801,7 +826,9 @@ type AiStreamEvent =
     "authenticated": true,
     "user": {
       "id": "uuid",
-      "username": "admin"
+      "username": "admin",
+      "email": "admin@aethercore.local",
+      "name": "管理员"
     }
   }
 }
@@ -943,11 +970,11 @@ type AiStreamEvent =
 ```json
 {
   "id": "uuid",
-  "name": "OpenAI GPT",
-  "provider": "openai",
-  "apiBaseUrl": "https://api.openai.com/v1",
+  "name": "模型 API",
+  "provider": "custom",
+  "apiBaseUrl": "https://llm.example.com/v1",
   "apiKeyMasked": "sk-********",
-  "modelName": "gpt-4.1",
+  "modelName": "custom-model",
   "status": "enabled",
   "createdAt": "2026-05-18T00:00:00.000Z"
 }
@@ -959,13 +986,14 @@ type AiStreamEvent =
 
 ```json
 {
-  "name": "OpenAI GPT",
-  "provider": "openai",
-  "apiBaseUrl": "https://api.openai.com/v1",
+  "name": "模型 API",
+  "apiBaseUrl": "https://llm.example.com/v1",
   "apiKey": "sk-...",
-  "modelName": "gpt-4.1"
+  "modelName": "custom-model"
 }
 ```
+
+未传 `provider` 时，后端默认按 `custom`（模型 API 调用）保存。
 
 `PUT /api/admin/engines/{id}`：更新引擎。`apiKey` 不传则保留原密钥。
 

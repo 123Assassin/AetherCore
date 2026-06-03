@@ -4,13 +4,11 @@ import { UploadCloud } from 'lucide-react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { useId, useState } from 'react';
 
-const supportedExcelExtensions = ['.xlsx', '.xls'] as const;
+const supportedExcelExtensions = ['.xlsx'] as const;
 const maxExcelFileSizeBytes = 10 * 1024 * 1024;
 const excelAcceptValue = [
   '.xlsx',
-  '.xls',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
 ].join(',');
 
 type ExcelUploadDropzoneProps = {
@@ -41,7 +39,7 @@ function hasSupportedExcelExtension(fileName: string) {
 
 function getUnsupportedFileMessage(file: File) {
   if (!hasSupportedExcelExtension(file.name)) {
-    return '仅支持 .xlsx 或 .xls 文件。';
+    return '仅支持 .xlsx 文件。';
   }
 
   if (file.size <= 0) {
@@ -142,7 +140,7 @@ export function ExcelUploadDropzone({
           {uploading ? '正在创建队列' : '点击或拖拽上传表格'}
         </h3>
         <p className="max-w-[260px] text-sm leading-relaxed font-medium text-slate-400">
-          支持 .xlsx / .xls 格式文件
+          支持 .xlsx 格式文件
           <br />
           请确保表格内容符合模板格式
         </p>

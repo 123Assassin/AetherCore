@@ -3,6 +3,7 @@
 import { Download, ExternalLink, ShieldCheck, Sparkles, Timer, X } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
+import type { AiGenerationAdMode } from '../../hooks/use-ai-generation-ad-gate';
 import { trapModalFocus } from '../modal/focus-trap';
 
 type AdConfig = {
@@ -35,6 +36,13 @@ type ExportAdModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+};
+
+type GenerationAdOverlayProps = {
+  duration?: number;
+  isOpen: boolean;
+  mode: AiGenerationAdMode;
+  onClose: () => void;
 };
 
 function pickAd() {
@@ -188,6 +196,131 @@ export function ExportAdModal({ duration = 15, isOpen, onClose, onConfirm }: Exp
             <p className="mt-4 flex items-center justify-center gap-1 text-center text-[10px] text-slate-300">
               <ShieldCheck className="h-3 w-3" /> 红笔AI 确保您的数据导出加密且安全
             </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function GenerationAdOverlay({
+  duration = 5,
+  isOpen,
+  mode,
+  onClose,
+}: GenerationAdOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const [timeLeft, setTimeLeft] = useState(duration);
+  const [ad, setAd] = useState(pickAd);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const resetTimer = setTimeout(() => {
+      setTimeLeft(duration);
+      setAd(pickAd());
+      (dialogRef.current as { focus?: () => void } | null)?.focus?.();
+    }, 0);
+
+    return () => clearTimeout(resetTimer);
+  }, [duration, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || timeLeft <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((current) => current - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, timeLeft]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  function handleDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (timeLeft === 0) {
+      trapModalFocus(event, dialogRef, onClose);
+      return;
+    }
+
+    trapModalFocus(event, dialogRef, () => undefined);
+  }
+
+  return (
+    <div className="animate-in fade-in fixed inset-0 z-[220] flex items-center justify-center bg-white/30 p-4 backdrop-blur-xl duration-300 md:p-6">
+      <div
+        aria-modal="true"
+        className="animate-in zoom-in-95 relative flex w-full max-w-xl flex-col overflow-hidden rounded-[2rem] bg-white/95 shadow-2xl ring-1 ring-white/70 duration-300"
+        onKeyDown={handleDialogKeyDown}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <div className="flex items-center justify-between bg-slate-950 px-6 py-4 text-white">
+          <div>
+            <div className="text-xs font-black tracking-widest text-white/60 uppercase">
+              {mode === 'waiting' ? '广告结束后开始生成' : 'AI 正在生成'}
+            </div>
+            <div className="mt-1 text-sm font-bold">
+              {timeLeft > 0 ? `请停留 ${timeLeft}s` : '广告展示完成'}
+            </div>
+          </div>
+          {timeLeft === 0 ? (
+            <button
+              aria-label="关闭广告"
+              className="rounded-full p-2 transition-colors hover:bg-white/10"
+              onClick={onClose}
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="p-6">
+          <a
+            className="group relative block aspect-[16/9] overflow-hidden rounded-2xl bg-slate-100"
+            href={ad.targetUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <img
+              alt="广告投放"
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              referrerPolicy="no-referrer"
+              src={ad.imageUrl}
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5 text-white">
+              <div className="text-lg font-black">{ad.brandName}</div>
+              <p className="mt-1 text-sm text-white/80">{ad.slogan}</p>
+            </div>
+            <div className="absolute top-4 right-4 rounded bg-black/50 px-2 py-1 text-[10px] font-black tracking-widest text-white/80 uppercase backdrop-blur">
+              广告
+            </div>
+          </a>
+
+          <div className="mt-5 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+              <Timer className="h-4 w-4 text-slate-400" />
+              {mode === 'waiting'
+                ? '额度不足，本次生成将在关闭广告后开始'
+                : '生成已开始，广告关闭后可继续查看结果'}
+            </div>
+            <a
+              aria-label="查看广告详情"
+              className="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+              href={ad.targetUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
           </div>
         </div>
       </div>

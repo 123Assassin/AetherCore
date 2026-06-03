@@ -19,6 +19,8 @@ export type AdminEngineRepositoryRow = typeof modelEngines.$inferSelect;
 
 export type AdminAgentSaveData = {
   key: AiAgentKey;
+  grade: string | null;
+  subject: string | null;
   name: string;
   engineId: string;
   promptId: string | null;
@@ -88,6 +90,26 @@ export class AdminResourcesRepository {
       .select()
       .from(aiAgents)
       .where(eq(aiAgents.key, key as AiAgentKey))
+      .limit(1);
+
+    return agent ?? null;
+  }
+
+  async findAgentByClassificationIncludingDeleted(input: {
+    key: string;
+    grade: string | null;
+    subject: string | null;
+  }): Promise<AdminAgentRepositoryRow | null> {
+    const [agent] = await this.database
+      .select()
+      .from(aiAgents)
+      .where(
+        and(
+          eq(aiAgents.key, input.key as AiAgentKey),
+          input.grade === null ? isNull(aiAgents.grade) : eq(aiAgents.grade, input.grade),
+          input.subject === null ? isNull(aiAgents.subject) : eq(aiAgents.subject, input.subject)
+        )
+      )
       .limit(1);
 
     return agent ?? null;

@@ -11,7 +11,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SimulationCard } from '../../../../components/simulations/simulation-card';
 import { SimulationEmptyState } from '../../../../components/simulations/simulation-empty-state';
 import { SimulationFiltersPanel } from '../../../../components/simulations/simulation-filters';
-import { SimulationPlayerOverlay } from '../../../../components/simulations/simulation-player-overlay';
 import {
   type ActiveSimulationFilter,
   SimulationResultsHeader,
@@ -34,11 +33,6 @@ const emptyListResult: SimulationListResult = {
   page: 1,
   pageSize: simulationPageSize,
   total: 0,
-};
-
-type FocusRestoreElement = {
-  focus: () => void;
-  isConnected?: boolean;
 };
 
 function getErrorMessage(error: unknown) {
@@ -107,8 +101,6 @@ export default function SimulationPage() {
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeSimulation, setActiveSimulation] = useState<SimulationItem | null>(null);
-  const [simulationOpener, setSimulationOpener] = useState<FocusRestoreElement | null>(null);
   const [loadingFilters, setLoadingFilters] = useState(true);
   const [loadingList, setLoadingList] = useState(true);
   const [filtersError, setFiltersError] = useState<string | null>(null);
@@ -211,15 +203,6 @@ export default function SimulationPage() {
     setSelectedGrades((current) => toggleValue(current, grade));
   }, []);
 
-  const openSimulation = useCallback((item: SimulationItem, opener: FocusRestoreElement) => {
-    setSimulationOpener(opener);
-    setActiveSimulation(item);
-  }, []);
-
-  const closeSimulation = useCallback(() => {
-    setActiveSimulation(null);
-  }, []);
-
   const categoryLabels = useMemo(
     () => new Map(filters.categories.map((category) => [category.id, category.name])),
     [filters.categories]
@@ -308,7 +291,6 @@ export default function SimulationPage() {
                   description={getSimulationDescription(item)}
                   item={item}
                   key={item.id}
-                  onOpen={openSimulation}
                 />
               ))}
             </section>
@@ -333,14 +315,6 @@ export default function SimulationPage() {
           ) : null}
         </div>
       </main>
-
-      {activeSimulation ? (
-        <SimulationPlayerOverlay
-          item={activeSimulation}
-          onClose={closeSimulation}
-          restoreFocusElement={simulationOpener}
-        />
-      ) : null}
     </div>
   );
 }

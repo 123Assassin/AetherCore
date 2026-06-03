@@ -28,17 +28,18 @@ export const subjectOptions = [
   '科学',
 ] as const;
 
+export const availableInspirationSubjectsByGrade = {
+  初中: ['化学', '地理', '历史', '英语', '生物'],
+} as const;
+
+export const defaultInspirationFormValues: InspirationFormValues = {
+  context: '',
+  grade: '初中',
+  subject: '化学',
+  topic: '',
+};
+
 export const featuredInspirationCases: FeaturedInspirationCase[] = [
-  {
-    context: '',
-    description: '别再死背公式了！带上摩天轮，30秒看透 sin/cos。',
-    grade: '高中',
-    icon: '🎡',
-    id: 'trigonometric-functions',
-    subject: '数学',
-    title: '三角函数',
-    topic: '三角函数',
-  },
   {
     context: '',
     description: '电子就是“债务”，带学生用“还债”逻辑秒懂氧化还原。',
@@ -51,12 +52,22 @@ export const featuredInspirationCases: FeaturedInspirationCase[] = [
   },
   {
     context: '',
-    description: '磁铁是客人，线圈是主人。用“傲娇规律”破解增反减同。',
-    grade: '高中',
-    icon: '🧲',
-    id: 'lenz-law',
-    subject: '物理',
-    title: '楞次定律',
-    topic: '楞次定律',
+    description: '把抽象等高线变成立体山坡，学生一眼判断陡缓与山脊山谷。',
+    grade: '初中',
+    icon: '⛰️',
+    id: 'contour-map',
+    subject: '地理',
+    title: '等高线地形图',
+    topic: '等高线地形图判读',
+  },
+  {
+    context: '',
+    description: '把叶片想成小工厂，用能量流动拆开光合作用全过程。',
+    grade: '初中',
+    icon: '🌿',
+    id: 'photosynthesis',
+    subject: '生物',
+    title: '光合作用',
+    topic: '光合作用',
   },
 ];

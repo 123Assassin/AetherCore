@@ -1,9 +1,10 @@
 'use client';
 
 import type { AiStreamEvent } from '@package/shared';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  defaultInspirationFormValues,
   type FeaturedInspirationCase,
   featuredInspirationCases,
   type InspirationFormValues,
@@ -13,13 +14,17 @@ import {
   type InspirationMessage,
 } from '../../../../components/inspiration/inspiration-chat-panel';
 import { InspirationForm } from '../../../../components/inspiration/inspiration-form';
+import { GenerationAdOverlay } from '../../../../components/sponsor/ad-system';
+import { useChatHistory } from '../../../../contexts/chat-history-context';
+import { useAiGenerationAdGate } from '../../../../hooks/use-ai-generation-ad-gate';
 import { useTrpcClient } from '../../../../trpc/provider';
 
-const initialFormValues: InspirationFormValues = {
-  context: '',
-  grade: '高中',
-  subject: '数学',
-  topic: '',
+type InspirationHistoryState = {
+  formValues: InspirationFormValues;
+  kind: 'inspiration';
+  messages: InspirationMessage[];
+  sessionId?: string;
+  suggestions: string[];
 };
 
 function getMutationErrorMessage(error: unknown) {
@@ -64,10 +69,67 @@ function formatInspirationRequest(values: InspirationFormValues) {
     .join('\n');
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readInspirationHistoryState(value: unknown): InspirationHistoryState | null {
+  if (!isRecord(value) || value.kind !== 'inspiration' || !isRecord(value.formValues)) {
+    return null;
+  }
+
+  return {
+    formValues: {
+      ...defaultInspirationFormValues,
+      ...value.formValues,
+    } as InspirationFormValues,
+    kind: 'inspiration',
+    messages: Array.isArray(value.messages)
+      ? value.messages.filter(
+          (item): item is InspirationMessage =>
+            isRecord(item) &&
+            typeof item.id === 'string' &&
+            typeof item.content === 'string' &&
+            (item.role === 'user' || item.role === 'assistant')
+        )
+      : [],
+    ...(typeof value.sessionId === 'string' ? { sessionId: value.sessionId } : {}),
+    suggestions: Array.isArray(value.suggestions)
+      ? value.suggestions.filter((item): item is string => typeof item === 'string')
+      : [],
+  };
+}
+
+function createInspirationHistoryMessages(messages: InspirationMessage[]) {
+  return messages.map((message) => ({
+    content: message.content,
+    id: message.id,
+    role: message.role,
+    timestamp: new Date().toISOString(),
+  }));
+}
+
+function getMaxMessageIndex(messages: InspirationMessage[]) {
+  return messages.reduce((maxIndex, message) => {
+    const match = /-(\d+)$/.exec(message.id);
+    const nextIndex = match ? Number.parseInt(match[1]!, 10) : 0;
+
+    return Number.isFinite(nextIndex) ? Math.max(maxIndex, nextIndex) : maxIndex;
+  }, 0);
+}
+
 export default function InspirationPage() {
   const client = useTrpcClient();
+  const { currentSessionIds, sessions, setCurrentSessionId, upsertSession } = useChatHistory();
+  const { adMode, adOpen, closeAdGate, runWithAdGate } = useAiGenerationAdGate();
   const nextMessageId = useRef(0);
-  const [formValues, setFormValues] = useState<InspirationFormValues>(initialFormValues);
+  const appliedSessionIdRef = useRef<string | null | undefined>(undefined);
+  const currentHistorySessionId = currentSessionIds.inspiration;
+  const activeHistorySession = useMemo(
+    () => sessions.find((session) => session.id === currentHistorySessionId),
+    [currentHistorySessionId, sessions]
+  );
+  const [formValues, setFormValues] = useState<InspirationFormValues>(defaultInspirationFormValues);
   const [messages, setMessages] = useState<InspirationMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -88,6 +150,61 @@ export default function InspirationPage() {
     []
   );
 
+  const persistInspirationSession = useCallback(
+    (state: InspirationHistoryState) => {
+      const historySessionId = currentHistorySessionId ?? `inspiration-${Date.now()}`;
+
+      if (!currentHistorySessionId) {
+        setCurrentSessionId('inspiration', historySessionId);
+        appliedSessionIdRef.current = historySessionId;
+      }
+
+      upsertSession({
+        category: 'inspiration',
+        id: historySessionId,
+        messages: createInspirationHistoryMessages(state.messages),
+        ...(state.sessionId ? { serverSessionId: state.sessionId } : {}),
+        state: state as unknown as Record<string, unknown>,
+        title: state.formValues.topic.trim() || '知识精讲',
+        updatedAt: Date.now(),
+      });
+    },
+    [currentHistorySessionId, setCurrentSessionId, upsertSession]
+  );
+
+  useEffect(() => {
+    if (appliedSessionIdRef.current === currentHistorySessionId) {
+      return;
+    }
+
+    appliedSessionIdRef.current = currentHistorySessionId;
+
+    const state = readInspirationHistoryState(activeHistorySession?.state);
+
+    const timeoutId = setTimeout(() => {
+      if (!currentHistorySessionId || !state) {
+        nextMessageId.current = 0;
+        setFormValues(defaultInspirationFormValues);
+        setMessages([]);
+        setSessionId(undefined);
+        setSuggestions([]);
+        setFormError(null);
+        setChatError(null);
+        return;
+      }
+
+      nextMessageId.current = getMaxMessageIndex(state.messages);
+      setFormValues(state.formValues);
+      setMessages(state.messages);
+      setSessionId(state.sessionId);
+      setSuggestions(state.suggestions);
+      setFormError(null);
+      setChatError(null);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeHistorySession?.state, currentHistorySessionId]);
+
   const handleFormChange = useCallback(
     (nextValues: InspirationFormValues) => {
       setFormValues(nextValues);
@@ -95,12 +212,29 @@ export default function InspirationPage() {
       if (formError && nextValues.topic.trim()) {
         setFormError(null);
       }
+
+      if (currentHistorySessionId) {
+        persistInspirationSession({
+          formValues: nextValues,
+          kind: 'inspiration',
+          messages,
+          ...(sessionId ? { sessionId } : {}),
+          suggestions,
+        });
+      }
     },
-    [formError]
+    [
+      currentHistorySessionId,
+      formError,
+      messages,
+      persistInspirationSession,
+      sessionId,
+      suggestions,
+    ]
   );
 
   const generateInspiration = useCallback(
-    async (values: InspirationFormValues) => {
+    (values: InspirationFormValues) => {
       const trimmedTopic = values.topic.trim();
       const trimmedContext = values.context.trim();
 
@@ -113,46 +247,64 @@ export default function InspirationPage() {
         return;
       }
 
-      setLoading(true);
-      setFormError(null);
-      setChatError(null);
-      setSuggestions([]);
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        createMessage('user', formatInspirationRequest({ ...values, topic: trimmedTopic })),
-      ]);
+      runWithAdGate(async () => {
+        const userMessage = createMessage(
+          'user',
+          formatInspirationRequest({ ...values, topic: trimmedTopic })
+        );
+        const baseMessages = [...messages, userMessage];
 
-      try {
-        const result = await client.ai.inspiration.generate.mutate({
-          grade: values.grade,
-          ...(sessionId ? { sessionId } : {}),
-          ...(trimmedContext ? { context: trimmedContext } : {}),
-          subject: values.subject,
-          topic: trimmedTopic,
-        });
-        const assistantResponse = collectAssistantResponse(result.events);
+        setLoading(true);
+        setFormError(null);
+        setChatError(null);
+        setSuggestions([]);
+        setMessages(baseMessages);
 
-        setSessionId(result.sessionId);
-        setSuggestions(assistantResponse.suggestions);
+        try {
+          const result = await client.ai.inspiration.generate.mutate({
+            grade: values.grade,
+            ...(sessionId ? { sessionId } : {}),
+            ...(trimmedContext ? { context: trimmedContext } : {}),
+            subject: values.subject,
+            topic: trimmedTopic,
+          });
+          const assistantResponse = collectAssistantResponse(result.events);
 
-        if (assistantResponse.errorMessage) {
-          setChatError(assistantResponse.errorMessage);
-          return;
+          setSessionId(result.sessionId);
+          setSuggestions(assistantResponse.suggestions);
+
+          if (assistantResponse.errorMessage) {
+            setChatError(assistantResponse.errorMessage);
+            persistInspirationSession({
+              formValues: values,
+              kind: 'inspiration',
+              messages: baseMessages,
+              sessionId: result.sessionId,
+              suggestions: assistantResponse.suggestions,
+            });
+            return;
+          }
+
+          const nextMessages = assistantResponse.content.trim()
+            ? [...baseMessages, createMessage('assistant', assistantResponse.content)]
+            : baseMessages;
+
+          setMessages(nextMessages);
+          persistInspirationSession({
+            formValues: values,
+            kind: 'inspiration',
+            messages: nextMessages,
+            sessionId: result.sessionId,
+            suggestions: assistantResponse.suggestions,
+          });
+        } catch (mutationError) {
+          setChatError(getMutationErrorMessage(mutationError));
+        } finally {
+          setLoading(false);
         }
-
-        if (assistantResponse.content.trim()) {
-          setMessages((currentMessages) => [
-            ...currentMessages,
-            createMessage('assistant', assistantResponse.content),
-          ]);
-        }
-      } catch (mutationError) {
-        setChatError(getMutationErrorMessage(mutationError));
-      } finally {
-        setLoading(false);
-      }
+      });
     },
-    [client, createMessage, loading, sessionId]
+    [client, createMessage, loading, messages, persistInspirationSession, runWithAdGate, sessionId]
   );
 
   const handleFeaturedCaseSelect = useCallback(
@@ -171,50 +323,77 @@ export default function InspirationPage() {
   );
 
   const handleFollowUp = useCallback(
-    async (rawMessage: string) => {
+    (rawMessage: string) => {
       const trimmedMessage = rawMessage.trim();
 
       if (!sessionId || !trimmedMessage || loading) {
         return;
       }
 
-      setLoading(true);
-      setChatError(null);
-      setSuggestions([]);
-      setMessages((currentMessages) => [...currentMessages, createMessage('user', trimmedMessage)]);
+      runWithAdGate(async () => {
+        const userMessage = createMessage('user', trimmedMessage);
+        const baseMessages = [...messages, userMessage];
 
-      try {
-        const result = await client.ai.inspiration.followUp.mutate({
-          message: trimmedMessage,
-          sessionId,
-        });
-        const assistantResponse = collectAssistantResponse(result.events);
+        setLoading(true);
+        setChatError(null);
+        setSuggestions([]);
+        setMessages(baseMessages);
 
-        setSessionId(result.sessionId);
-        setSuggestions(assistantResponse.suggestions);
+        try {
+          const result = await client.ai.inspiration.followUp.mutate({
+            message: trimmedMessage,
+            sessionId,
+          });
+          const assistantResponse = collectAssistantResponse(result.events);
 
-        if (assistantResponse.errorMessage) {
-          setChatError(assistantResponse.errorMessage);
-          return;
+          setSessionId(result.sessionId);
+          setSuggestions(assistantResponse.suggestions);
+
+          if (assistantResponse.errorMessage) {
+            setChatError(assistantResponse.errorMessage);
+            persistInspirationSession({
+              formValues,
+              kind: 'inspiration',
+              messages: baseMessages,
+              sessionId: result.sessionId,
+              suggestions: assistantResponse.suggestions,
+            });
+            return;
+          }
+
+          const nextMessages = assistantResponse.content.trim()
+            ? [...baseMessages, createMessage('assistant', assistantResponse.content)]
+            : baseMessages;
+
+          setMessages(nextMessages);
+          persistInspirationSession({
+            formValues,
+            kind: 'inspiration',
+            messages: nextMessages,
+            sessionId: result.sessionId,
+            suggestions: assistantResponse.suggestions,
+          });
+        } catch (mutationError) {
+          setChatError(getMutationErrorMessage(mutationError));
+        } finally {
+          setLoading(false);
         }
-
-        if (assistantResponse.content.trim()) {
-          setMessages((currentMessages) => [
-            ...currentMessages,
-            createMessage('assistant', assistantResponse.content),
-          ]);
-        }
-      } catch (mutationError) {
-        setChatError(getMutationErrorMessage(mutationError));
-      } finally {
-        setLoading(false);
-      }
+      });
     },
-    [client, createMessage, loading, sessionId]
+    [
+      client,
+      createMessage,
+      formValues,
+      loading,
+      messages,
+      persistInspirationSession,
+      runWithAdGate,
+      sessionId,
+    ]
   );
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-64px)] max-w-[1400px] flex-col bg-white p-4 md:p-6">
+    <div className="mx-auto flex h-full min-h-0 max-w-[1400px] flex-col bg-white p-4 md:p-6">
       <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
         <InspirationForm
           disabled={loading}
@@ -235,6 +414,7 @@ export default function InspirationPage() {
           suggestions={suggestions}
         />
       </div>
+      <GenerationAdOverlay isOpen={adOpen} mode={adMode} onClose={closeAdGate} />
     </div>
   );
 }

@@ -51,7 +51,7 @@ export function InspirationForm({
   return (
     <form
       aria-label="灵感生成表单"
-      className="flex w-full shrink-0 flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 lg:w-[340px]"
+      className="flex min-h-0 w-full shrink-0 flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 lg:h-full lg:w-[340px]"
       onSubmit={handleSubmit}
     >
       <div className="space-y-5">

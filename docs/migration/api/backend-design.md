@@ -35,19 +35,29 @@
 
 ## 4. 认证与会话
 
-### 4.1 用户端微信扫码登录
+### 4.1 用户端登录
 
-用户端登录采用微信开放平台网站应用扫码登录。后端不把 `WECHAT_APP_SECRET` 下发给前端。
+当前用户端先采用临时用户名密码登录，微信扫码登录代码保留但不作为默认入口。
 
-流程：
+临时账号密码登录流程：
 
-1. 前端请求 `GET /api/auth/wechat/login-url` 获取微信授权 URL。
-2. 后端生成 `state`，写入 Redis，返回授权 URL。
-3. 用户扫码授权后，微信回调到 `GET /api/auth/wechat/callback?code=...&state=...`。
-4. 后端校验 `state`，用 `code` 向微信换取 `access_token`、`openid`、`unionid`。
-5. 后端按 `unionid` 优先、`openid` 兜底查找或创建用户。
-6. 后端创建站内 session，写入 Redis 和 `sessions` 表，设置 HttpOnly Cookie。
-7. 前端通过 `GET /api/me` 获取当前用户。
+1. 前端请求 tRPC `auth.userLogin`，提交 `user/password`。
+2. 后端只允许 `users.role='user'` 且 `is_active=true` 的普通用户登录。
+3. 后端创建站内 session，写入 Redis 和 `sessions` 表，设置 HttpOnly Cookie。
+4. 前端通过 tRPC `me.profile` 获取当前用户。
+
+微信扫码登录采用微信开放平台网站应用扫码登录，并使用微信文档中的内嵌二维码 JS 方案。后端不把 `WECHAT_APP_SECRET` 下发给前端。
+
+微信流程：
+
+1. 前端请求 tRPC `auth.wechatLoginConfig` 获取 `appId`、`redirectUri`、`scope` 和 `state`。
+2. 后端生成 `state`，写入 Redis，返回内嵌二维码所需配置，不返回 AppSecret。
+3. 前端加载 `https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js`，实例化 `WxLogin` 到弹窗容器。
+4. 用户扫码授权后，微信回调到 `WEB_HTTP_URL/auth/wechat/callback?code=...&state=...`。
+5. 回调页调用 tRPC `auth.wechatCallback`，后端校验 `state`，用 `code` 向微信换取 `access_token`、`openid`、`unionid`。
+6. 后端按 `unionid` 优先、`openid` 兜底查找或创建用户与 `wechat_accounts` 映射。
+7. 后端创建站内 session，写入 Redis 和 `sessions` 表，设置 HttpOnly Cookie。
+8. 前端通过 tRPC `me.profile` 获取当前用户。
 
 微信接口参数按网站应用登录文档处理：`scope=snsapi_login`，`redirect_uri` 需要 URL Encode，`state` 用于防 CSRF 并在回调中校验。
 
@@ -58,7 +68,7 @@
 流程：
 
 1. 管理员请求 `POST /api/admin/auth/login`。
-2. 后端校验账号密码，创建 admin session。
+2. 后端校验用户名和密码，创建 admin session。
 3. 管理端使用 HttpOnly Cookie 访问 `/api/admin/**`。
 4. 高敏操作写入系统审计日志。
 
@@ -78,16 +88,16 @@
 
 职责：
 
-- 微信扫码登录 URL 生成与回调处理。
+- 用户端用户名密码登录、微信扫码登录 URL 生成与回调处理。
 - 用户 session 创建、续期、登出。
-- 管理员账号密码登录；默认管理员由 `apps/db-init` 写入 `users`。
+- 管理员账号密码登录；默认管理员和临时 web 用户由 `apps/db-init` 写入 `users`。
 - 鉴权 Guard：用户端、管理端分离。
 
 边界：
 
 - `wechat_accounts` 保存微信身份映射。
-- `users` 保存当前已落库的登录账号；管理员用 `role='admin'` 区分。
-- `wechat_accounts`、独立 `admin_users` 属于后续规划表，当前迁移尚未创建。
+- `users.username` 保存管理员登录用户名，`users.email` 保存用户邮箱；管理员用 `role='admin'` 区分。
+- 独立 `admin_users` 属于后续规划表，当前实现中管理员账号复用 `users.role='admin'`。
 - Redis 保存在线 session。
 
 ### 5.2 User/Profile 模块
@@ -133,7 +143,7 @@
 - `model_engines`：模型引擎 API 地址、密钥、计费参数。
 - `ai_prompts`：系统提示词版本。
 - `sensitive_word_lists`：敏感词库。
-- `ai_agents`：智能体配置，绑定引擎、Prompt、敏感词库、temperature、topP、maxTokens。
+- `ai_agents`：智能体配置，绑定引擎、Prompt、敏感词库、temperature、topP、maxTokens，并按 key 支持年级/学科分类。
 
 用户端功能和智能体映射：
 
@@ -144,7 +154,22 @@
 | 评语助手   | `comment`     | 智能体管理     |
 | 题目变身   | `teaching`    | 智能体管理     |
 
-后端根据功能 key 选择启用中的智能体，不允许前端传模型名或 API Key。
+映射常量以 `packages/shared/src/types/agent-mapping.ts` 的 `WEB_AGENT_MAPPING` 为唯一业务来源。管理端创建或编辑智能体时，`key` 下拉从该映射导出；用户端只发送自身功能请求，不发送模型名、API Key 或任意 agent key。后端收到用户端 AI 请求后，先按功能分类从 `WEB_AGENT_MAPPING` 取管理端 `adminAgentKey`，再按该功能的分类字段查询 `ai_agents` 及其绑定的 `model_engines`、`ai_prompts`、`sensitive_word_lists`。
+
+智能体分类规则：
+
+| agent key     | 分类字段          | 运行时匹配来源         |
+| ------------- | ----------------- | ---------------------- |
+| `chat`        | 无                | 通用 AI 助手配置       |
+| `inspiration` | `grade + subject` | 知识精讲表单年级和学科 |
+| `comment`     | `grade`           | 学生评语表单年级归类   |
+| `teaching`    | `grade + subject` | 题目变身表单年级和学科 |
+
+`comment`、`inspiration`、`teaching` 的管理端年级分类统一为 `小学`、`初中`。运行时会将用户端细分年级（如 `三年级`、`七年级`）归并到对应分类后再查询智能体配置；学生评语的学科仅参与生成内容，不参与智能体配置匹配。
+
+运行时查找优先匹配完整分类；若未找到精确分类配置，可回退到同 key 的通用配置，便于旧数据平滑迁移。首轮 AI 会话会把归一化后的智能体分类写入 `ai_conversations.metadata.agentClassification`，后续追问从该 metadata 恢复分类，继续使用同一类管理端智能体配置。管理端新建配置仍按上述分类规则校验，避免继续写入不完整分类。
+
+模型引擎采用 OpenAI-compatible 的模型 API 调用方式：以 `model_engines.api_base_url` 作为基础地址，若未直接指向 `/chat/completions`，后端会追加 `/chat/completions`；请求体使用 `model_name`、`temperature`、`top_p`、`max_tokens` 和由 Prompt + 用户内容组成的 `messages`。引擎 API Key 仅在后端解密后放入 `Authorization: Bearer ...`，不会返回给前端。
 
 ### 5.5 AI 会话模块
 
@@ -154,6 +179,7 @@
 - 支持用户端历史侧栏。
 - 支持管理端 AI 内容审计。
 - 支持流式输出时增量记录和最终落库。
+- 保存首轮智能体分类 metadata，保证多轮追问继承年级/学科分类。
 
 会话分类：
 
@@ -175,11 +201,12 @@
 职责：
 
 - 校验输入。
-- 读取智能体配置。
-- 拼装系统 prompt 与用户上下文。
-- 执行敏感词预检查和输出后检查。
-- 调用模型引擎。
-- 记录 token、费用、响应时间。
+- 从 `WEB_AGENT_MAPPING` 解析用户端功能对应的管理端智能体 key，并从请求上下文提取该功能需要的年级/学科分类。
+- 读取 `ai_agents`、`model_engines`、`ai_prompts`、`sensitive_word_lists`。
+- 拼装系统 Prompt 与用户上下文。
+- 执行敏感词预检查。
+- 调用模型 API 引擎。
+- 记录 agent、engine、token、费用、响应时间。
 - 输出 SSE 事件。
 
 SSE 事件：
@@ -334,6 +361,9 @@ type AiStreamEvent =
 | `WECHAT_APP_ID`             | 微信开放平台网站应用 AppID。     |
 | `WECHAT_APP_SECRET`         | 微信开放平台网站应用 AppSecret。 |
 | `WECHAT_REDIRECT_URI`       | 微信登录回调地址。               |
+| `WEB_USER`                  | 本地内置用户端主账号用户名。     |
+| `WEB_USER_EMAIL`            | 本地内置用户端主账号邮箱。       |
+| `WEB_USER_PASSWORD`         | 本地 20 个内置用户端账号密码。   |
 | `SESSION_COOKIE_NAME`       | 用户端 session cookie 名。       |
 | `ADMIN_SESSION_COOKIE_NAME` | 管理端 session cookie 名。       |
 

@@ -57,6 +57,20 @@ test('adminResources prompt delete maps service conflicts to tRPC conflicts', as
   );
 });
 
+test('adminResources engines create defaults omitted provider to model API call provider', async () => {
+  const authService = new FakeAuthService(true).asAuthService();
+  const fakeService = new FakeAdminResourcesService(null);
+  const caller = createCaller(authService, fakeService.asService());
+
+  await caller.engines.create({
+    apiBaseUrl: 'https://llm.example.com/v1',
+    apiKey: 'sk-test-secret',
+    name: '模型 API',
+  });
+
+  assert.equal(fakeService.receivedEngineCreateInput?.provider, 'custom');
+});
+
 test('admin resource domain codes are copied to serialized tRPC error data', () => {
   const shape = {
     message: 'Engine name already exists',
@@ -115,6 +129,8 @@ class FakeAuthService {
 }
 
 class FakeAdminResourcesService {
+  receivedEngineCreateInput: { provider?: unknown } | null = null;
+
   constructor(private readonly error: Error | null) {}
 
   asService(): AdminResourcesService {
@@ -125,6 +141,16 @@ class FakeAdminResourcesService {
     if (this.error) {
       throw this.error;
     }
+
+    return null;
+  }
+
+  async createEngine(input: { provider?: unknown }) {
+    if (this.error) {
+      throw this.error;
+    }
+
+    this.receivedEngineCreateInput = input;
 
     return null;
   }

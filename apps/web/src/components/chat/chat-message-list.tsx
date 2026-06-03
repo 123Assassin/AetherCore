@@ -38,7 +38,7 @@ export function ChatMessageList({
     if (scrollContainer) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
-  }, [lastMessage?.id, loading]);
+  }, [lastMessage?.content, lastMessage?.id, loading]);
 
   return (
     <section

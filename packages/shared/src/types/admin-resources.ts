@@ -1,5 +1,7 @@
-export const adminAgentKeys = ['chat', 'inspiration', 'comment', 'teaching'] as const;
-export type AdminAgentKey = (typeof adminAgentKeys)[number];
+import type { AdminAgentKey } from './agent-mapping.js';
+
+export type { AdminAgentKey } from './agent-mapping.js';
+export { adminAgentKeys } from './agent-mapping.js';
 
 export const adminResourceStatuses = ['enabled', 'disabled'] as const;
 export type AdminResourceStatus = (typeof adminResourceStatuses)[number];
@@ -23,6 +25,8 @@ export type AdminResourceListResult<TItem> = {
 export type AdminAgentItem = {
   id: string;
   key: AdminAgentKey;
+  grade: string | null;
+  subject: string | null;
   name: string;
   engineId: string;
   promptId: string | null;
@@ -38,10 +42,14 @@ export type AdminAgentItem = {
 export type AdminAgentListInput = AdminResourceListInput & {
   status?: AdminResourceStatus;
   engineId?: string;
+  grade?: string;
+  subject?: string;
 };
 
 export type AdminAgentCreateInput = {
   key: AdminAgentKey;
+  grade?: string | null;
+  subject?: string | null;
   name: string;
   engineId: string;
   promptId?: string | null;
@@ -111,7 +119,7 @@ export type AdminModelEngineItem = {
 
 export type AdminModelEngineCreateInput = {
   name: string;
-  provider: AdminModelEngineProvider;
+  provider?: AdminModelEngineProvider;
   apiBaseUrl: string;
   apiKey: string;
   modelName?: string | null;

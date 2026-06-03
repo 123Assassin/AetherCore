@@ -5,6 +5,10 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useS
 export type ChatSessionCategory = 'chat' | 'comment' | 'inspiration' | 'simulation' | 'teaching';
 
 export type Message = {
+  action?: {
+    href: string;
+    label: string;
+  };
   content: string;
   id: string;
   role: 'user' | 'assistant';
@@ -17,6 +21,7 @@ export type ChatSession = {
   id: string;
   messages: Message[];
   serverSessionId?: string;
+  state?: Record<string, unknown> | null;
   title: string;
   updatedAt: number;
 };

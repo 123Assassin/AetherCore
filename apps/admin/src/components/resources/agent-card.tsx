@@ -1,6 +1,10 @@
 'use client';
 
-import type { AdminAgentItem } from '@package/shared';
+import {
+  type AdminAgentItem,
+  getAdminAgentClassificationMode,
+  WEB_AGENT_MAPPING,
+} from '@package/shared';
 import { Cpu, Settings2, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -67,7 +71,7 @@ export function AgentCard({
               }`}
             />
             <span className="truncate font-mono text-xs tracking-tight">
-              {agentKeyLabels[item.key]} / {engineName}
+              {WEB_AGENT_MAPPING[item.key].name} / {engineName}
             </span>
           </div>
         </div>
@@ -84,6 +88,7 @@ export function AgentCard({
         </div>
 
         <div className="space-y-2 rounded-[24px] border border-slate-100 bg-slate-50/80 p-4">
+          <ResourceLine label="分类" value={formatAgentClassification(item)} />
           <ResourceLine label="Prompt" value={promptTitle} />
           <ResourceLine label="敏感词库" value={sensitiveListName} />
           <ResourceLine label="Max Tokens" value={String(item.maxTokens)} />
@@ -117,6 +122,20 @@ function ResourceLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatAgentClassification(item: AdminAgentItem): string {
+  const mode = getAdminAgentClassificationMode(item.key);
+
+  if (mode === 'gradeSubject') {
+    return [item.grade, item.subject].filter(Boolean).join(' / ') || '未设置';
+  }
+
+  if (mode === 'grade') {
+    return item.grade || '未设置';
+  }
+
+  return '通用';
+}
+
 function formatDate(value: string): string {
   const timestamp = Date.parse(value);
 
@@ -130,10 +149,3 @@ function formatDate(value: string): string {
     year: 'numeric',
   }).format(timestamp);
 }
-
-const agentKeyLabels: Record<AdminAgentItem['key'], string> = {
-  chat: '对话智能体',
-  comment: '点评智能体',
-  inspiration: '灵感智能体',
-  teaching: '教学智能体',
-};

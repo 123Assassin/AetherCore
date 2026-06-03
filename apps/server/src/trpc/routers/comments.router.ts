@@ -100,6 +100,7 @@ function parseSingleGenerateInput(input: unknown): CommentSingleGenerateInput {
 
   const sessionId = parseOptionalString(input.sessionId, 'sessionId');
   const nickname = parseOptionalString(input.nickname, 'nickname');
+  const subject = parseOptionalString(input.subject, 'subject');
   const keywords = parseOptionalString(input.keywords, 'keywords');
   const tone = parseOptionalString(input.tone, 'tone');
 
@@ -108,6 +109,7 @@ function parseSingleGenerateInput(input: unknown): CommentSingleGenerateInput {
     ...(nickname === undefined ? {} : { nickname }),
     gender: parseRequiredString(input.gender, 'Comment gender is required') as '男' | '女',
     grade: parseRequiredString(input.grade, 'Comment grade is required'),
+    ...(subject === undefined ? {} : { subject }),
     tags: parseRequiredStringArray(input.tags, 'Comment tags must be an array'),
     ...(keywords === undefined ? {} : { keywords }),
     ...(tone === undefined ? {} : { tone }),
@@ -121,12 +123,14 @@ function parseCreateFromUploadInput(input: unknown): CommentBatchCreateFromUploa
 
   const mimeType = parseOptionalString(input.mimeType, 'mimeType');
   const tone = parseOptionalString(input.tone, 'tone');
+  const contentBase64 = parseOptionalString(input.contentBase64, 'contentBase64');
   const rows = parseOptionalUploadRows(input.rows, 'rows');
   const previewRows = parseOptionalUploadRows(input.previewRows, 'previewRows');
 
   return {
     fileName: parseRequiredString(input.fileName, 'Comment upload fileName is required'),
     fileSize: parseRequiredNumber(input.fileSize, 'Comment upload fileSize is required'),
+    ...(contentBase64 === undefined ? {} : { contentBase64 }),
     ...(mimeType === undefined ? {} : { mimeType }),
     ...(tone === undefined ? {} : { tone }),
     ...(rows === undefined ? {} : { rows }),

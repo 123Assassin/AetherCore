@@ -12,7 +12,7 @@ import {
 } from '@package/auth';
 
 import type { TRPCContext } from '../../trpc/context.js';
-import { AuthRepository, type AuthUserRow } from './auth.repository.js';
+import { AuthRepository, type AuthUserRow, type WeChatAccountRow } from './auth.repository.js';
 
 const ADMIN_SESSION_TTL_SECONDS = 2 * 60 * 60;
 const USER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -32,6 +32,7 @@ type AuthenticatedUser = {
   id: string;
   email: string;
   name: string | null;
+  username: string | null;
   role: 'user' | 'admin';
   isBlacklisted: boolean;
 };
@@ -40,12 +41,15 @@ type AuthUserSummary = {
   id: string;
   email: string;
   name: string | null;
+  username: string | null;
 };
 
 type AdminLoginInput = {
-  username: string;
+  user: string;
   password: string;
 };
+
+type UserLoginInput = AdminLoginInput;
 
 type AdminChangePasswordInput = {
   currentPassword: string;
@@ -66,6 +70,8 @@ type AdminLoginResult =
         message: string;
       };
     };
+
+type UserLoginResult = AdminLoginResult;
 
 type AdminSessionResult =
   | {
@@ -95,6 +101,37 @@ type WeChatLoginUrlResult = {
   url: string;
   state: string;
   expiresInSeconds: number;
+};
+
+type WeChatLoginConfigResult = {
+  appId: string;
+  redirectUri: string;
+  scope: 'snsapi_login';
+  state: string;
+  expiresInSeconds: number;
+};
+
+type WeChatCallbackInput = {
+  code: string;
+  state: string;
+};
+
+type WeChatTokenResponse = {
+  access_token: string;
+  openid: string;
+  unionid?: string;
+};
+
+type WeChatUserInfoResponse = {
+  headimgurl?: string;
+  nickname?: string;
+  openid?: string;
+  unionid?: string;
+};
+
+type WeChatApiErrorResponse = {
+  errcode?: number;
+  errmsg?: string;
 };
 
 type MeProfile = {
@@ -143,26 +180,40 @@ type SessionStore = {
 @Injectable()
 export class AuthService {
   private readonly sessionStore: SessionStore = redis;
+  private readonly weChatApiFetch: typeof fetch = fetch;
 
   constructor(private readonly authRepository: AuthRepository) {}
 
   async getWeChatLoginUrl(): Promise<WeChatLoginUrlResult> {
-    const state = createToken(16);
-    const appId = process.env.WECHAT_APP_ID || 'mock-wechat-app';
-    const redirectUri =
-      process.env.WECHAT_REDIRECT_URI || 'http://localhost:3001/auth/wechat/callback';
+    const config = await this.getWeChatLoginConfig();
     const params = new URLSearchParams({
-      appid: appId,
-      redirect_uri: redirectUri,
+      appid: config.appId,
+      redirect_uri: config.redirectUri,
       response_type: 'code',
-      scope: 'snsapi_login',
-      state,
+      scope: config.scope,
+      state: config.state,
     });
+
+    return {
+      url: `https://open.weixin.qq.com/connect/qrconnect?${params.toString()}#wechat_redirect`,
+      state: config.state,
+      expiresInSeconds: config.expiresInSeconds,
+    };
+  }
+
+  async getWeChatLoginConfig(): Promise<WeChatLoginConfigResult> {
+    const state = createToken(16);
+    const appId = requireEnv('WECHAT_APP_ID', 'WeChat AppID is not configured');
+    const redirectUri =
+      process.env.WECHAT_REDIRECT_URI ||
+      `${process.env.WEB_HTTP_URL || 'http://localhost:3000'}/auth/wechat/callback`;
 
     await this.storeWeChatStateBestEffort(state);
 
     return {
-      url: `https://open.weixin.qq.com/connect/qrconnect?${params.toString()}#wechat_redirect`,
+      appId,
+      redirectUri,
+      scope: 'snsapi_login',
       state,
       expiresInSeconds: WECHAT_STATE_TTL_SECONDS,
     };
@@ -174,34 +225,44 @@ export class AuthService {
     }
 
     const user = await this.findOrCreateMockUser();
-    const token = createToken();
-    const expiresAt = expiresFromNow(USER_SESSION_TTL_SECONDS);
 
-    await this.authRepository.createSession({
-      userId: user.id,
-      token,
-      userAgent: getUserAgent(context),
-      ip: getIp(context),
-      expiresAt,
-    });
-    await this.sessionStore.set(
-      sessionKey(token),
-      serializeSessionPayload({ userId: user.id, role: 'user' }),
-      'EX',
-      USER_SESSION_TTL_SECONDS
-    );
-    setCookie(context, getUserCookieName(), token, USER_SESSION_TTL_SECONDS);
+    return this.createUserLoginSession(user, context);
+  }
 
-    return {
-      success: true,
-      data: {
-        user: toAuthUserSummary(user),
-      },
-    };
+  async completeWeChatLogin(
+    input: WeChatCallbackInput,
+    context: TRPCContext
+  ): Promise<MockLoginResult> {
+    const code = requireTrimmed(input.code, 'WeChat login code is required');
+    const state = requireTrimmed(input.state, 'WeChat login state is required');
+
+    await this.consumeWeChatState(state);
+    const token = await this.exchangeWeChatCode(code);
+    const profile = await this.fetchWeChatUserInfo(token.access_token, token.openid);
+    const user = await this.findOrCreateWeChatUser(token, profile);
+
+    return this.createUserLoginSession(user, context);
+  }
+
+  async userLogin(input: UserLoginInput, context: TRPCContext): Promise<UserLoginResult> {
+    const username = input.user.trim();
+    const user = username ? await this.authRepository.findUserByUsername(username) : null;
+
+    if (!user || user.role !== 'user' || !user.isActive) {
+      return INVALID_ADMIN_LOGIN;
+    }
+
+    const passwordMatches = await verifyPassword(input.password, user.password);
+
+    if (!passwordMatches) {
+      return INVALID_ADMIN_LOGIN;
+    }
+
+    return this.createUserLoginSession(user, context);
   }
 
   async adminLogin(input: AdminLoginInput, context: TRPCContext): Promise<AdminLoginResult> {
-    const user = await this.authRepository.findUserByEmail(input.username);
+    const user = await this.authRepository.findUserByUsername(input.user);
 
     if (!user || user.role !== 'admin' || !user.isActive) {
       return INVALID_ADMIN_LOGIN;
@@ -456,6 +517,127 @@ export class AuthService {
     }
   }
 
+  private async consumeWeChatState(state: string): Promise<void> {
+    const key = `auth:wechat:state:${state}`;
+    let value: string | null;
+
+    try {
+      value = await this.sessionStore.get(key);
+    } catch {
+      throw new AuthServiceError('UNAUTHORIZED', 'Invalid WeChat login state');
+    }
+
+    if (!value) {
+      throw new AuthServiceError('UNAUTHORIZED', 'Invalid WeChat login state');
+    }
+
+    await this.sessionStore.del(key);
+  }
+
+  private async exchangeWeChatCode(code: string): Promise<WeChatTokenResponse> {
+    const params = new URLSearchParams({
+      appid: requireEnv('WECHAT_APP_ID', 'WeChat AppID is not configured'),
+      secret: requireEnv('WECHAT_APP_SECRET', 'WeChat AppSecret is not configured'),
+      code,
+      grant_type: 'authorization_code',
+    });
+    const response = await this.weChatApiFetch(
+      `https://api.weixin.qq.com/sns/oauth2/access_token?${params.toString()}`
+    );
+    const body = await readWeChatJson<WeChatTokenResponse>(response);
+
+    if (!body.access_token || !body.openid) {
+      throw new AuthServiceError('UNAUTHORIZED', 'WeChat authorization failed');
+    }
+
+    return body;
+  }
+
+  private async fetchWeChatUserInfo(
+    accessToken: string,
+    openid: string
+  ): Promise<WeChatUserInfoResponse> {
+    const params = new URLSearchParams({
+      access_token: accessToken,
+      openid,
+      lang: 'zh_CN',
+    });
+    const response = await this.weChatApiFetch(
+      `https://api.weixin.qq.com/sns/userinfo?${params.toString()}`
+    );
+
+    return readWeChatJson<WeChatUserInfoResponse>(response);
+  }
+
+  private async findOrCreateWeChatUser(
+    token: WeChatTokenResponse,
+    profile: WeChatUserInfoResponse
+  ): Promise<AuthUserRow> {
+    const unionid = trimNullableString(profile.unionid ?? token.unionid);
+    const openid = requireTrimmed(profile.openid ?? token.openid, 'WeChat openid is required');
+    const existingAccount = await this.findWeChatAccount(openid, unionid);
+
+    if (existingAccount) {
+      await this.updateWeChatAccountProfile(existingAccount, profile, unionid);
+      const existingUser = await this.authRepository.findUserById(existingAccount.userId);
+
+      if (!existingUser || existingUser.role !== 'user' || !existingUser.isActive) {
+        throw new AuthServiceError('CONFLICT', 'WeChat account is not bound to an active user');
+      }
+
+      return existingUser;
+    }
+
+    const nickname = trimNullableString(profile.nickname) ?? '微信用户';
+    const user = await this.authRepository.createUser({
+      email: `wechat+${sanitizeEmailLocalPart(openid)}@aethercore.local`,
+      name: nickname,
+      password: await hashPassword(createToken(16)),
+      role: 'user',
+      isActive: true,
+      isBlacklisted: false,
+    });
+
+    await this.authRepository.createWeChatAccount({
+      userId: user.id,
+      openid,
+      unionid,
+      nickname,
+      avatarUrl: trimNullableString(profile.headimgurl),
+      rawProfile: profile as Record<string, unknown>,
+    });
+
+    return user;
+  }
+
+  private async findWeChatAccount(
+    openid: string,
+    unionid: string | null
+  ): Promise<WeChatAccountRow | null> {
+    if (unionid) {
+      const byUnionid = await this.authRepository.findWeChatAccountByUnionid(unionid);
+
+      if (byUnionid) {
+        return byUnionid;
+      }
+    }
+
+    return this.authRepository.findWeChatAccountByOpenid(openid);
+  }
+
+  private async updateWeChatAccountProfile(
+    account: WeChatAccountRow,
+    profile: WeChatUserInfoResponse,
+    unionid: string | null
+  ): Promise<void> {
+    await this.authRepository.updateWeChatAccount(account.id, {
+      avatarUrl: trimNullableString(profile.headimgurl),
+      nickname: trimNullableString(profile.nickname),
+      rawProfile: profile as Record<string, unknown>,
+      unionid,
+    });
+  }
+
   private async findOrCreateMockUser(): Promise<AuthUserRow> {
     const email = getMockUserEmail();
     const existingUser = await this.authRepository.findUserByEmail(email);
@@ -477,14 +659,92 @@ export class AuthService {
       isBlacklisted: false,
     });
   }
+
+  private async createUserLoginSession(
+    user: Pick<AuthUserRow, 'email' | 'id' | 'name' | 'username'>,
+    context: TRPCContext
+  ): Promise<MockLoginResult> {
+    const token = createToken();
+    const expiresAt = expiresFromNow(USER_SESSION_TTL_SECONDS);
+
+    await this.authRepository.createSession({
+      userId: user.id,
+      token,
+      userAgent: getUserAgent(context),
+      ip: getIp(context),
+      expiresAt,
+    });
+    await this.sessionStore.set(
+      sessionKey(token),
+      serializeSessionPayload({ userId: user.id, role: 'user' }),
+      'EX',
+      USER_SESSION_TTL_SECONDS
+    );
+    setCookie(context, getUserCookieName(), token, USER_SESSION_TTL_SECONDS);
+
+    return {
+      success: true,
+      data: {
+        user: toAuthUserSummary(user),
+      },
+    };
+  }
 }
 
-function toAuthUserSummary(user: Pick<AuthUserRow, 'id' | 'email' | 'name'>): AuthUserSummary {
+function toAuthUserSummary(
+  user: Pick<AuthUserRow, 'id' | 'email' | 'name' | 'username'>
+): AuthUserSummary {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
+    username: user.username,
   };
+}
+
+async function readWeChatJson<TBody>(response: Response): Promise<TBody> {
+  if (!response.ok) {
+    throw new AuthServiceError('UNAUTHORIZED', 'WeChat authorization failed');
+  }
+
+  const body = (await response.json()) as TBody;
+  const errorBody = body as WeChatApiErrorResponse;
+
+  if (typeof errorBody.errcode === 'number' && errorBody.errcode !== 0) {
+    throw new AuthServiceError('UNAUTHORIZED', errorBody.errmsg || 'WeChat authorization failed');
+  }
+
+  return body;
+}
+
+function requireEnv(name: string, message: string): string {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new AuthServiceError('BAD_REQUEST', message);
+  }
+
+  return value;
+}
+
+function requireTrimmed(value: string, message: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new AuthServiceError('BAD_REQUEST', message);
+  }
+
+  return trimmed;
+}
+
+function trimNullableString(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : null;
+}
+
+function sanitizeEmailLocalPart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]/g, '-');
 }
 
 function toAuthenticatedUser<TRole extends 'user' | 'admin'>(
@@ -495,6 +755,7 @@ function toAuthenticatedUser<TRole extends 'user' | 'admin'>(
     id: user.id,
     email: user.email,
     name: user.name,
+    username: user.username,
     role,
     isBlacklisted: user.isBlacklisted,
   };

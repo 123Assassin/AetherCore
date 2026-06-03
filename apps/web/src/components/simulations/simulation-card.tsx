@@ -1,41 +1,31 @@
 import type { SimulationItem } from '@package/shared';
 import { Box, ExternalLink, Play } from 'lucide-react';
-import type { MouseEvent } from 'react';
 
+import {
+  resolveSimulationAppUrl,
+  resolveSimulationThumbnailUrl,
+} from '../../lib/simulation-assets';
 import { simulationThumbnailFallbackLabel, simulationUnavailableLabel } from './simulations.data';
-
-type FocusRestoreElement = {
-  focus: () => void;
-  isConnected?: boolean;
-};
-
-type SimulationOpenButtonElement = HTMLButtonElement & FocusRestoreElement;
 
 type SimulationCardProps = {
   description: string;
   item: SimulationItem;
-  onOpen: (item: SimulationItem, opener: FocusRestoreElement) => void;
 };
 
-export function SimulationCard({ description, item, onOpen }: SimulationCardProps) {
-  const canOpen = Boolean(item.src);
-
-  function handleOpen(event: MouseEvent<SimulationOpenButtonElement>) {
-    if (canOpen) {
-      onOpen(item, event.currentTarget);
-    }
-  }
+export function SimulationCard({ description, item }: SimulationCardProps) {
+  const thumbnailUrl = resolveSimulationThumbnailUrl(item.thumbnail);
+  const simulationUrl = resolveSimulationAppUrl(item.src);
 
   return (
     <article className="group flex min-w-0 flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 transition-all hover:shadow-xl hover:shadow-red-500/5 hover:ring-red-200">
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-        {item.thumbnail ? (
+        {thumbnailUrl ? (
           <img
             alt=""
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
             referrerPolicy="no-referrer"
-            src={item.thumbnail}
+            src={thumbnailUrl}
           />
         ) : (
           <div
@@ -47,20 +37,32 @@ export function SimulationCard({ description, item, onOpen }: SimulationCardProp
         )}
 
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            aria-label={canOpen ? `打开 ${item.name}` : simulationUnavailableLabel}
-            className="flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-red-600 shadow-lg transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
-            disabled={!canOpen}
-            onClick={handleOpen}
-            type="button"
-          >
-            <Play aria-hidden="true" className="h-4 w-4 fill-current" />
-            {canOpen ? '立即开始' : simulationUnavailableLabel}
-          </button>
+          {simulationUrl ? (
+            <a
+              aria-label={`打开 ${item.name}`}
+              className="flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-red-600 shadow-lg transition-colors hover:bg-red-50"
+              href={simulationUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <Play aria-hidden="true" className="h-4 w-4 fill-current" />
+              立即开始
+            </a>
+          ) : (
+            <button
+              aria-label={simulationUnavailableLabel}
+              className="flex cursor-not-allowed items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-red-600 opacity-70 shadow-lg"
+              disabled
+              type="button"
+            >
+              <Play aria-hidden="true" className="h-4 w-4 fill-current" />
+              {simulationUnavailableLabel}
+            </button>
+          )}
         </div>
 
         <div className="absolute top-4 left-4 flex gap-2">
-          <span className="rounded-lg bg-white/90 px-2 py-1 text-[10px] font-bold text-red-600 shadow-sm backdrop-blur">
+          <span className="rounded-2xl bg-white/90 px-4 py-2 text-[20px] font-bold text-red-600 shadow-sm backdrop-blur">
             {item.subject}
           </span>
         </div>

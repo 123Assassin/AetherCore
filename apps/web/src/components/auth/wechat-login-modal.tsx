@@ -1,79 +1,131 @@
 'use client';
 
-import type { AuthUserSummary } from '@package/shared';
-import { CheckCircle2, QrCode, X } from 'lucide-react';
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, QrCode, X } from 'lucide-react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 import { useTrpcClient } from '../../trpc/provider';
 import { trapModalFocus } from '../modal/focus-trap';
 
 type WeChatLoginModalProps = {
   onClose: () => void;
-  onLoginSuccess?: (user: AuthUserSummary) => void;
   open: boolean;
 };
 
-type ScanState = 'waiting' | 'scanned' | 'confirmed';
+type WeChatLoginStatus = 'loading' | 'ready' | 'error';
 
-export function WeChatLoginModal({ onClose, onLoginSuccess, open }: WeChatLoginModalProps) {
+type WxLoginOptions = {
+  appid: string;
+  href?: string;
+  id: string;
+  redirect_uri: string;
+  scope: 'snsapi_login';
+  self_redirect?: boolean;
+  state: string;
+  style?: 'black' | 'white';
+};
+
+type WxLoginConstructor = new (options: WxLoginOptions) => unknown;
+
+type ScriptElementLike = {
+  addEventListener: (
+    type: 'error' | 'load',
+    listener: () => void,
+    options?: { once?: boolean }
+  ) => void;
+  async: boolean;
+  id: string;
+  src: string;
+};
+
+type DocumentLike = {
+  createElement: (tagName: 'script') => ScriptElementLike;
+  getElementById: (id: string) => { innerHTML: string } | ScriptElementLike | null;
+  head: {
+    appendChild: (element: ScriptElementLike) => unknown;
+  };
+};
+
+type BrowserGlobal = typeof globalThis & {
+  document?: DocumentLike;
+  WxLogin?: WxLoginConstructor;
+};
+
+const wxLoginScriptId = 'wechat-login-sdk';
+const wxLoginScriptSrc = 'https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js';
+const qrCodeContainerId = 'wechat-login-qrcode';
+
+export function WeChatLoginModal({ onClose, open }: WeChatLoginModalProps) {
   const client = useTrpcClient();
   const activeRequestRef = useRef(0);
   const dialogRef = useRef<HTMLElement | null>(null);
-  const loginStartedRef = useRef(false);
-  const [scanState, setScanState] = useState<ScanState>('waiting');
+  const [status, setStatus] = useState<WeChatLoginStatus>('loading');
   const [error, setError] = useState<string | null>(null);
-
-  const completeMockLogin = useCallback(async () => {
-    if (loginStartedRef.current) {
-      return;
-    }
-
-    loginStartedRef.current = true;
-    const requestId = activeRequestRef.current;
-    setError(null);
-
-    try {
-      const result = await client.auth.mockLogin.mutate();
-
-      if (requestId !== activeRequestRef.current) {
-        return;
-      }
-
-      if (result.success) {
-        onLoginSuccess?.(result.data.user);
-      }
-
-      onClose();
-    } catch (loginError) {
-      if (requestId !== activeRequestRef.current) {
-        return;
-      }
-
-      loginStartedRef.current = false;
-      setError(getLoginErrorMessage(loginError));
-    }
-  }, [client, onClose, onLoginSuccess]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    activeRequestRef.current += 1;
-    loginStartedRef.current = false;
-    const scannedTimer = setTimeout(() => setScanState('scanned'), 1800);
-    const confirmedTimer = setTimeout(() => setScanState('confirmed'), 3600);
-    const loginTimer = setTimeout(() => {
-      void completeMockLogin();
-    }, 4600);
+    const requestId = activeRequestRef.current + 1;
+    activeRequestRef.current = requestId;
+
+    async function renderWeChatQrCode() {
+      await Promise.resolve();
+
+      if (requestId !== activeRequestRef.current) {
+        return;
+      }
+
+      setStatus('loading');
+      setError(null);
+
+      try {
+        const [config] = await Promise.all([
+          client.auth.wechatLoginConfig.query(),
+          loadWxLoginScript(),
+        ]);
+
+        if (requestId !== activeRequestRef.current) {
+          return;
+        }
+
+        const browser = getBrowserGlobal();
+        const container = browser.document?.getElementById(qrCodeContainerId) as
+          | { innerHTML: string }
+          | null
+          | undefined;
+        const WxLogin = browser.WxLogin;
+
+        if (!container || !WxLogin) {
+          throw new Error('WeChat login SDK is unavailable');
+        }
+
+        container.innerHTML = '';
+        new WxLogin({
+          appid: config.appId,
+          id: qrCodeContainerId,
+          redirect_uri: encodeURIComponent(config.redirectUri),
+          scope: config.scope,
+          state: config.state,
+          style: 'black',
+        });
+        setStatus('ready');
+      } catch (loginError) {
+        if (requestId !== activeRequestRef.current) {
+          return;
+        }
+
+        setStatus('error');
+        setError(getLoginErrorMessage(loginError));
+      }
+    }
+
+    void renderWeChatQrCode();
 
     return () => {
-      clearTimeout(scannedTimer);
-      clearTimeout(confirmedTimer);
-      clearTimeout(loginTimer);
       activeRequestRef.current += 1;
     };
-  }, [completeMockLogin, open]);
+  }, [client, open]);
 
   if (!open) {
     return null;
@@ -111,25 +163,20 @@ export function WeChatLoginModal({ onClose, onLoginSuccess, open }: WeChatLoginM
           </h2>
           <p className="mb-8 text-sm text-gray-500">使用微信扫一扫，安全快捷登录</p>
 
-          <div className="relative mb-6 flex h-48 w-48 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
-            {scanState === 'waiting' ? <QrCode className="h-32 w-32 text-gray-400" /> : null}
-            {scanState === 'scanned' ? (
-              <div className="animate-in fade-in flex flex-col items-center text-green-500">
-                <CheckCircle2 className="mb-2 h-16 w-16" />
-                <span className="font-medium">扫描成功</span>
-                <span className="mt-1 text-xs text-gray-400">请在手机端确认登录</span>
-              </div>
-            ) : null}
-            {scanState === 'confirmed' ? (
-              <div className="animate-in fade-in zoom-in flex flex-col items-center text-green-500">
-                <CheckCircle2 className="mb-2 h-16 w-16" />
-                <span className="font-medium">登录成功！</span>
+          <div className="relative mb-6 flex min-h-80 w-full items-center justify-center rounded-xl border border-gray-200 bg-white">
+            <div className="wechat-login-qrcode min-h-80 w-full" id={qrCodeContainerId} />
+
+            {status === 'loading' ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white">
+                <Loader2 className="mb-3 h-10 w-10 animate-spin text-green-500" />
+                <span className="text-sm font-medium text-gray-500">正在加载微信二维码</span>
               </div>
             ) : null}
 
-            {scanState === 'waiting' ? (
-              <div className="absolute inset-0 overflow-hidden rounded-xl">
-                <div className="h-0.5 w-full animate-[scan_2s_ease-in-out_infinite] bg-green-400/50 shadow-[0_0_8px_2px_rgba(74,222,128,0.5)]" />
+            {status === 'error' ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white px-6 text-gray-500">
+                <QrCode className="mb-3 h-12 w-12 text-gray-300" />
+                <span className="text-sm font-semibold text-red-500">二维码加载失败</span>
               </div>
             ) : null}
           </div>
@@ -141,34 +188,52 @@ export function WeChatLoginModal({ onClose, onLoginSuccess, open }: WeChatLoginM
           ) : null}
 
           <p className="mb-5 text-xs text-gray-400">
-            {error
-              ? '模拟登录失败，请稍后重试'
-              : scanState === 'waiting'
-                ? '请打开微信，点击右上角"+"扫一扫'
-                : '即将进入系统...'}
+            {status === 'error' ? '请稍后重试' : '请打开微信，点击右上角"+"扫一扫'}
           </p>
         </div>
       </section>
-      <style>{`
-        @keyframes scan {
-          0% {
-            transform: translateY(0);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(192px);
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   );
+}
+
+function loadWxLoginScript(): Promise<void> {
+  const browser = getBrowserGlobal();
+  const document = browser.document;
+
+  if (browser.WxLogin) {
+    return Promise.resolve();
+  }
+
+  if (!document) {
+    return Promise.reject(new Error('WeChat login SDK requires a browser environment'));
+  }
+
+  const existingScript = document.getElementById(wxLoginScriptId) as ScriptElementLike | null;
+
+  if (existingScript) {
+    return new Promise((resolve, reject) => {
+      existingScript.addEventListener('load', () => resolve(), { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('WeChat login SDK failed')), {
+        once: true,
+      });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.id = wxLoginScriptId;
+    script.src = wxLoginScriptSrc;
+    script.addEventListener('load', () => resolve(), { once: true });
+    script.addEventListener('error', () => reject(new Error('WeChat login SDK failed')), {
+      once: true,
+    });
+    document.head.appendChild(script);
+  });
+}
+
+function getBrowserGlobal(): BrowserGlobal {
+  return globalThis as BrowserGlobal;
 }
 
 function getLoginErrorMessage(error: unknown) {
@@ -176,5 +241,5 @@ function getLoginErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return '模拟登录失败，请稍后重试。';
+  return '微信二维码加载失败，请稍后重试。';
 }

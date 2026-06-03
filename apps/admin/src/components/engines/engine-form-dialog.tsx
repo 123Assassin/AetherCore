@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
-export type EngineFormSubmitInput = Omit<AdminModelEngineCreateInput, 'apiKey'> & {
+export type EngineFormSubmitInput = Omit<AdminModelEngineCreateInput, 'apiKey' | 'provider'> & {
   apiKey?: string;
 };
 
@@ -18,7 +18,6 @@ type EngineFormDialogProps = {
   submitting?: boolean;
 };
 
-type EngineProvider = AdminModelEngineCreateInput['provider'];
 type EngineStatus = NonNullable<AdminModelEngineCreateInput['status']>;
 
 type EngineFormState = {
@@ -26,7 +25,6 @@ type EngineFormState = {
   apiKey: string;
   modelName: string;
   name: string;
-  provider: EngineProvider;
   status: EngineStatus;
 };
 
@@ -54,10 +52,8 @@ const defaultFormState: EngineFormState = {
   apiKey: '',
   modelName: '',
   name: '',
-  provider: 'openai',
   status: 'enabled',
 };
-const providerOptions = ['openai', 'gemini', 'custom'] as const satisfies readonly EngineProvider[];
 const statusOptions = ['enabled', 'disabled'] as const satisfies readonly EngineStatus[];
 const engineDialogTitleId = 'engine-form-dialog-title';
 
@@ -130,7 +126,6 @@ export function EngineFormDialog({
       ...(apiKey ? { apiKey } : {}),
       modelName: modelName || null,
       name,
-      provider: form.provider,
       status: form.status,
     });
   }
@@ -188,44 +183,28 @@ export function EngineFormDialog({
             <span className="text-sm font-bold text-slate-700">引擎名称</span>
             <input
               className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: readControlValue(event.currentTarget) }))
-              }
+              onChange={(event) => {
+                const value = readControlValue(event.currentTarget);
+
+                setForm((current) => ({ ...current, name: value }));
+              }}
               placeholder="如：OpenAI GPT-4"
               value={form.name}
             />
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-bold text-slate-700">Provider</span>
-            <select
-              className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  provider: readControlValue(event.currentTarget) as EngineProvider,
-                }))
-              }
-              value={form.provider}
-            >
-              {providerOptions.map((provider) => (
-                <option key={provider} value={provider}>
-                  {providerLabels[provider]} / {provider}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-2">
             <span className="text-sm font-bold text-slate-700">API 地址</span>
             <input
               className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm transition-colors outline-none"
-              onChange={(event) =>
+              onChange={(event) => {
+                const value = readControlValue(event.currentTarget);
+
                 setForm((current) => ({
                   ...current,
-                  apiBaseUrl: readControlValue(event.currentTarget),
-                }))
-              }
+                  apiBaseUrl: value,
+                }));
+              }}
               placeholder="https://api.openai.com/v1"
               value={form.apiBaseUrl}
             />
@@ -247,12 +226,14 @@ export function EngineFormDialog({
             <input
               autoComplete="new-password"
               className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm transition-colors outline-none"
-              onChange={(event) =>
+              onChange={(event) => {
+                const value = readControlValue(event.currentTarget);
+
                 setForm((current) => ({
                   ...current,
-                  apiKey: readControlValue(event.currentTarget),
-                }))
-              }
+                  apiKey: value,
+                }));
+              }}
               placeholder={engine ? '留空则不替换' : 'sk-...'}
               type="password"
               value={form.apiKey}
@@ -264,12 +245,14 @@ export function EngineFormDialog({
               <span className="text-sm font-bold text-slate-700">Model Name</span>
               <input
                 className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
-                onChange={(event) =>
+                onChange={(event) => {
+                  const value = readControlValue(event.currentTarget);
+
                   setForm((current) => ({
                     ...current,
-                    modelName: readControlValue(event.currentTarget),
-                  }))
-                }
+                    modelName: value,
+                  }));
+                }}
                 placeholder="如：gpt-4.1"
                 value={form.modelName}
               />
@@ -279,12 +262,14 @@ export function EngineFormDialog({
               <span className="text-sm font-bold text-slate-700">状态</span>
               <select
                 className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
-                onChange={(event) =>
+                onChange={(event) => {
+                  const value = readControlValue(event.currentTarget) as EngineStatus;
+
                   setForm((current) => ({
                     ...current,
-                    status: readControlValue(event.currentTarget) as EngineStatus,
-                  }))
-                }
+                    status: value,
+                  }));
+                }}
                 value={form.status}
               >
                 {statusOptions.map((status) => (
@@ -325,7 +310,6 @@ function toFormState(engine: AdminModelEngineItem): EngineFormState {
     apiKey: '',
     modelName: engine.modelName ?? '',
     name: engine.name,
-    provider: engine.provider,
     status: engine.status,
   };
 }
@@ -407,9 +391,3 @@ function readControlValue(target: EventTarget): string {
 
   return typeof value === 'string' ? value : '';
 }
-
-const providerLabels: Record<EngineProvider, string> = {
-  custom: 'Custom',
-  gemini: 'Gemini',
-  openai: 'OpenAI',
-};

@@ -4,7 +4,6 @@ import { BookOpen, Bot, Check, Copy, MessageSquarePlus, Send, User } from 'lucid
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 
-import { AdLoadingBot } from '../sponsor/ad-system';
 import type { TeachingExampleCard } from './teaching.data';
 import { TeachingExampleCards } from './teaching-example-cards';
 
@@ -238,7 +237,11 @@ export function TeachingResultPanel({
               );
             })}
 
-            {disabled ? <AdLoadingBot /> : null}
+            {disabled ? (
+              <div className="ml-16 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-500 shadow-sm ring-1 ring-slate-200/60">
+                AI 正在生成...
+              </div>
+            ) : null}
             <div ref={messagesEndRef} />
           </div>
         )}

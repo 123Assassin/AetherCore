@@ -42,6 +42,154 @@ test('creating agent with nonexistent engine returns typed not found error', asy
   assert.equal(repository.agents.length, 1);
 });
 
+test('creating comment agents uses key plus grade as the uniqueness scope', async () => {
+  const repository = new FakeAdminResourcesRepository();
+  const service = new AdminResourcesService(repository.asRepository());
+
+  const elementaryAgent = await service.createAgent({
+    key: 'comment',
+    name: '小学评语智能体',
+    engineId: 'engine-1',
+    grade: '小学',
+  } as never);
+  const middleSchoolAgent = await service.createAgent({
+    key: 'comment',
+    name: '初中评语智能体',
+    engineId: 'engine-1',
+    grade: '初中',
+  } as never);
+
+  assert.equal((elementaryAgent as { grade?: string | null }).grade, '小学');
+  assert.equal((elementaryAgent as { subject?: string | null }).subject, null);
+  assert.equal((middleSchoolAgent as { grade?: string | null }).grade, '初中');
+  assert.equal((middleSchoolAgent as { subject?: string | null }).subject, null);
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'comment',
+        name: '重复小学评语智能体',
+        engineId: 'engine-1',
+        grade: '小学',
+      } as never),
+    serviceError('CONFLICT', 'Agent key and category already exists', 'AGENT_KEY_EXISTS')
+  );
+});
+
+test('creating teaching agents uses key plus grade and subject as the uniqueness scope', async () => {
+  const repository = new FakeAdminResourcesRepository();
+  const service = new AdminResourcesService(repository.asRepository());
+
+  const mathAgent = await service.createAgent({
+    key: 'teaching',
+    name: '初中数学题目变身智能体',
+    engineId: 'engine-1',
+    grade: '初中',
+    subject: '数学',
+  } as never);
+  const chineseAgent = await service.createAgent({
+    key: 'teaching',
+    name: '初中语文题目变身智能体',
+    engineId: 'engine-1',
+    grade: '初中',
+    subject: '语文',
+  } as never);
+
+  assert.equal(mathAgent.grade, '初中');
+  assert.equal(mathAgent.subject, '数学');
+  assert.equal(chineseAgent.grade, '初中');
+  assert.equal(chineseAgent.subject, '语文');
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'teaching',
+        name: '重复初中数学题目变身智能体',
+        engineId: 'engine-1',
+        grade: '初中',
+        subject: '数学',
+      } as never),
+    serviceError('CONFLICT', 'Agent key and category already exists', 'AGENT_KEY_EXISTS')
+  );
+});
+
+test('agent classification fields are determined by the agent key', async () => {
+  const repository = new FakeAdminResourcesRepository();
+  const service = new AdminResourcesService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'inspiration',
+        name: '知识精讲智能体',
+        engineId: 'engine-1',
+        grade: '初中',
+      } as never),
+    serviceError('BAD_REQUEST', 'Agent subject is required for inspiration')
+  );
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'comment',
+        name: '学生评语智能体',
+        engineId: 'engine-1',
+        grade: '初中',
+        subject: '数学',
+      } as never),
+    serviceError('BAD_REQUEST', 'Agent subject is not supported for comment')
+  );
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'teaching',
+        name: '题目变身智能体',
+        engineId: 'engine-1',
+        grade: '初中',
+      } as never),
+    serviceError('BAD_REQUEST', 'Agent subject is required for teaching')
+  );
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'teaching',
+        name: '题目变身智能体',
+        engineId: 'engine-1',
+        grade: '高中',
+      } as never),
+    serviceError('BAD_REQUEST', 'Agent grade is unsupported for teaching')
+  );
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'chat',
+        name: 'AI 助手智能体',
+        engineId: 'engine-1',
+        grade: '初中',
+      } as never),
+    serviceError('BAD_REQUEST', 'Agent grade is not supported for chat')
+  );
+});
+
+test('updating an agent rejects changing the agent key', async () => {
+  const repository = new FakeAdminResourcesRepository();
+  const service = new AdminResourcesService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.updateAgent({
+        id: 'agent-1',
+        key: 'chat',
+        name: 'Chat Agent',
+      }),
+    serviceError('BAD_REQUEST', 'Agent key cannot be changed')
+  );
+  assert.equal(repository.agents[0]?.key, 'comment');
+});
+
 test('engine list masks api keys', async () => {
   const repository = new FakeAdminResourcesRepository();
   const service = new AdminResourcesService(repository.asRepository());
@@ -116,6 +264,8 @@ test('creating agent conflicts when a soft-deleted row owns the key', async () =
   repository.agents.push({
     id: 'agent-deleted',
     key: 'chat',
+    grade: null,
+    subject: null,
     name: 'Deleted Chat Agent',
     engineId: 'engine-1',
     promptId: null,
@@ -137,7 +287,7 @@ test('creating agent conflicts when a soft-deleted row owns the key', async () =
         name: 'Chat Agent',
         engineId: 'engine-1',
       }),
-    serviceError('CONFLICT', 'Agent key already exists', 'AGENT_KEY_EXISTS')
+    serviceError('CONFLICT', 'Agent key and category already exists', 'AGENT_KEY_EXISTS')
   );
 });
 
@@ -281,6 +431,8 @@ class FakeAdminResourcesRepository {
     {
       id: 'agent-1',
       key: 'comment',
+      grade: null,
+      subject: null,
       name: 'Comment Agent',
       engineId: 'engine-1',
       promptId: 'prompt-1',
@@ -313,6 +465,19 @@ class FakeAdminResourcesRepository {
 
   async findAgentByKeyIncludingDeleted(key: string): Promise<AdminAgentRepositoryRow | null> {
     return this.agents.find((agent) => agent.key === key) ?? null;
+  }
+
+  async findAgentByClassificationIncludingDeleted(input: {
+    key: string;
+    grade: string | null;
+    subject: string | null;
+  }): Promise<AdminAgentRepositoryRow | null> {
+    return (
+      this.agents.find(
+        (agent) =>
+          agent.key === input.key && agent.grade === input.grade && agent.subject === input.subject
+      ) ?? null
+    );
   }
 
   async createAgent(input: AdminAgentSaveData): Promise<AdminAgentRepositoryRow> {

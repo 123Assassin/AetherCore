@@ -39,8 +39,10 @@ The current repo uses `apps/admin/src/app`, not bare `apps/admin/app`. Existing 
 - Edit: replaces the full item with form state.
 - Delete: removes item locally after confirmation.
 - Form fields: name, engineId, promptId, sensitiveListId, config.temperature, config.topP. `config.maxTokens` exists in type/default values but has no legacy UI input.
-- Target-only fields: backend/API docs require a stable unique `key` such as `comment`; the legacy UI has no key input, so migration must either add an admin field or derive it server-side before create/update.
-- Validation and relationships: name is required in legacy UI. Target backend must validate engine, Prompt, and Sensitive Words list references; missing relations should return `404`, duplicate key should return `409 AGENT_KEY_EXISTS`, and in-use deletes should return `409 RESOURCE_IN_USE`.
+- Target-only fields: backend/API docs require a stable `key` such as `comment`. The migrated admin UI exposes this as a required select, but the options must come from the shared `WEB_AGENT_MAPPING` constant instead of a local string array.
+- Supported mapping keys: `chat` = AI 助手智能体, `inspiration` = 知识精讲智能体, `comment` = 学生评语智能体, `teaching` = 题目变身智能体.
+- Classification rules: `inspiration` and `teaching` require grade + subject; `comment` requires grade only; `chat` is a general agent without grade or subject. `comment`、`inspiration`、`teaching` 的 grade options are `小学` and `初中`; `inspiration` and `teaching` expose subject classification. The allowed grade/subject option lists are maintained beside `WEB_AGENT_MAPPING` in `packages/shared/src/types/agent-mapping.ts`.
+- Validation and relationships: name is required in legacy UI. Target backend must validate engine, Prompt, and Sensitive Words list references; missing relations should return `404`, duplicate key + classification should return `409 AGENT_KEY_EXISTS`, and in-use deletes should return `409 RESOURCE_IN_USE`.
 - Target APIs: `GET /api/admin/agents` with `q`, `status`, `engineId`, `page`, `pageSize`; `POST /api/admin/agents`; `PUT /api/admin/agents/:id`; `DELETE /api/admin/agents/:id`.
 
 ### Prompt
@@ -71,10 +73,10 @@ The current repo uses `apps/admin/src/app`, not bare `apps/admin/app`. Existing 
 - Edit: replaces the full engine with form state.
 - Delete: removes engine locally after confirmation, though the warning says dependent agents may be affected.
 - Legacy form fields: name, apiUrl, API Key.
-- Target create fields: name, provider, apiBaseUrl, plaintext API Key, and modelName.
-- Target update fields: name, provider, apiBaseUrl, optional replacement API Key, and modelName.
+- Target create fields: name, apiBaseUrl, plaintext API Key, and modelName; provider is not exposed in the admin form and defaults to `custom` for model API calls.
+- Target update fields: name, apiBaseUrl, optional replacement API Key, modelName, and status; provider remains an internal persisted field.
 - Response and persisted fields also include status; the DB schema stores `api_base_url`, encrypted `api_key_ciphertext`, `model_name`, optional pricing, status, timestamps, and soft-delete state.
-- Validation and relationships: legacy UI requires name, apiUrl, and API Key before save. Target backend should validate provider, URL/API Key, reject duplicate engine names, and return `409` when deleting an Engine referenced by Agents.
+- Validation and relationships: legacy UI requires name, apiUrl, and API Key before save. Target backend should validate URL/API Key, default provider to `custom`, reject duplicate engine names, and return `409` when deleting an Engine referenced by Agents.
 - Target APIs: `GET /api/admin/engines` with no query parameters currently documented; `POST /api/admin/engines`; `PUT /api/admin/engines/:id`; `DELETE /api/admin/engines/:id`.
 
 ## API Key Security Rule
@@ -89,6 +91,6 @@ Engine API Key handling must be stricter than the legacy UI. The old table store
 
 ## Downstream Ownership
 
-- Schema: add durable tables/entities for Agents, Prompt versions, Sensitive Words lists, and Engine configs; model foreign keys from Agents to engines, prompts, and sensitive word lists; include the agent `key` uniqueness constraint; store engine API keys encrypted or otherwise secret-managed using `api_key_ciphertext`.
+- Schema: add durable tables/entities for Agents, Prompt versions, Sensitive Words lists, and Engine configs; model foreign keys from Agents to engines, prompts, and sensitive word lists; include the agent `key + grade + subject` uniqueness constraint; store engine API keys encrypted or otherwise secret-managed using `api_key_ciphertext`.
 - Backend: implement authenticated admin tRPC/API procedures with pagination/filter inputs where documented, relationship checks, conflict handling, and the API Key masking rule.
-- UI: add App Router pages under `apps/admin/src/app/(admin)`, resource components under `apps/admin/src/components/resources`, engine components under `apps/admin/src/components/engines`, and preserve the legacy CRUD/dialog behavior while replacing local mock state with backend data.
+- UI: add App Router pages under `apps/admin/src/app/(admin)`, resource components under `apps/admin/src/components/resources`, engine components under `apps/admin/src/components/engines`, and preserve the legacy CRUD/dialog behavior while replacing local mock state with backend data. Agent key labels/options are read from `packages/shared/src/types/agent-mapping.ts`.

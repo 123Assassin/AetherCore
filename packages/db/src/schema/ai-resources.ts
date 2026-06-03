@@ -88,7 +88,9 @@ export const aiAgents = pgTable(
   'ai_agents',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    key: varchar('key', { length: 50 }).$type<AiAgentKey>().notNull().unique(),
+    key: varchar('key', { length: 50 }).$type<AiAgentKey>().notNull(),
+    grade: varchar('grade', { length: 50 }),
+    subject: varchar('subject', { length: 50 }),
     name: varchar('name', { length: 120 }).notNull(),
     engineId: uuid('engine_id')
       .notNull()
@@ -123,5 +125,11 @@ export const aiAgents = pgTable(
     index('idx_ai_agents_engine').on(table.engineId),
     index('idx_ai_agents_prompt').on(table.promptId),
     index('idx_ai_agents_sensitive_list').on(table.sensitiveListId),
+    index('idx_ai_agents_key_grade_subject').on(table.key, table.grade, table.subject),
+    uniqueIndex('uniq_ai_agents_key_grade_subject').on(
+      table.key,
+      sql`coalesce(${table.grade}, '')`,
+      sql`coalesce(${table.subject}, '')`
+    ),
   ]
 );

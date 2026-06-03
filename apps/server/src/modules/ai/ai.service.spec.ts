@@ -4,7 +4,12 @@ import { test } from 'node:test';
 import type { ConversationCategory, MessageRole } from '@package/db/schema';
 
 import type { AiRepository } from './ai.repository.js';
-import { AiService, AiServiceError, type AiTeachingGenerateInput } from './ai.service.js';
+import {
+  AiService,
+  AiServiceError,
+  type AiStreamEvent,
+  type AiTeachingGenerateInput,
+} from './ai.service.js';
 
 type ConversationRow = {
   id: string;
@@ -31,6 +36,34 @@ type MessageRow = {
   updatedAt: Date;
 };
 
+type AgentRuntimeConfig = {
+  agent: {
+    id: string;
+    key: ConversationCategory;
+    name: string;
+    temperature: number;
+    topP: number;
+    maxTokens: number;
+    status: 'enabled' | 'disabled';
+  };
+  engine: {
+    id: string;
+    name: string;
+    apiBaseUrl: string;
+    apiKeyCiphertext: string;
+    modelName: string | null;
+    status: 'enabled' | 'disabled';
+  };
+  prompt: {
+    id: string;
+    content: string;
+  } | null;
+  sensitiveWordList: {
+    id: string;
+    words: string[];
+  } | null;
+};
+
 test('sendChat creates a conversation when sessionId is absent', async () => {
   const repository = new FakeAiRepository();
   const service = new AiService(repository.asRepository());
@@ -55,6 +88,214 @@ test('sendChat creates a conversation when sessionId is absent', async () => {
     (repository.modelCalls[0]?.promptTokens ?? 0) +
       (repository.modelCalls[0]?.completionTokens ?? 0)
   );
+});
+
+test('sendChat resolves the mapped admin agent before calling a model API', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const fetchCalls: Array<{ url: string; body: Record<string, unknown>; headers: Headers }> = [];
+
+  repository.setAgentRuntimeConfig('chat', {
+    agent: {
+      id: 'agent-chat',
+      key: 'chat',
+      name: 'AI 助手智能体',
+      temperature: 0.2,
+      topP: 0.8,
+      maxTokens: 512,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-dsv4',
+      name: 'DSv4',
+      apiBaseUrl: 'https://model.example.test/v1',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'deepseek-chat',
+      status: 'enabled',
+    },
+    prompt: {
+      id: 'prompt-chat',
+      content: '你是一个耐心的教学助手。',
+    },
+    sensitiveWordList: null,
+  });
+
+  await withMockFetch(
+    async (url, init) => {
+      const headers = new Headers(init?.headers);
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      fetchCalls.push({ url: String(url), body, headers });
+
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '真实模型回复' } }],
+          usage: { prompt_tokens: 11, completion_tokens: 7, total_tokens: 18 },
+        }),
+        { status: 200 }
+      );
+    },
+    async () => {
+      const result = await service.sendChat({
+        userId: 'user-1',
+        category: 'chat',
+        message: '  帮我讲解勾股定理  ',
+      });
+
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(fetchCalls[0]?.url, 'https://model.example.test/v1/chat/completions');
+      assert.equal(fetchCalls[0]?.headers.get('authorization'), 'Bearer test-api-key');
+      assert.equal(fetchCalls[0]?.body.model, 'deepseek-chat');
+      assert.equal(fetchCalls[0]?.body.temperature, 0.2);
+      assert.equal(fetchCalls[0]?.body.top_p, 0.8);
+      assert.equal(fetchCalls[0]?.body.max_tokens, 512);
+      assert.deepEqual(fetchCalls[0]?.body.messages, [
+        { role: 'system', content: '你是一个耐心的教学助手。' },
+        { role: 'user', content: '帮我讲解勾股定理' },
+      ]);
+      assert.equal(repository.modelCalls[0]?.agentId, 'agent-chat');
+      assert.equal(repository.modelCalls[0]?.engineId, 'engine-dsv4');
+      assert.equal(repository.modelCalls[0]?.modelName, 'deepseek-chat');
+      assert.equal(repository.modelCalls[0]?.totalTokens, 18);
+      assert.equal(result.events[1]?.type, 'delta');
+      assert.equal(
+        result.events[1]?.type === 'delta' ? result.events[1].content : '',
+        '真实模型回复'
+      );
+    }
+  );
+});
+
+test('sendChatStream emits model deltas while the model response is streaming', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const fetchCalls: Array<{ url: string; body: Record<string, unknown>; headers: Headers }> = [];
+  const streamedEvents: AiStreamEvent[] = [];
+
+  repository.setAgentRuntimeConfig('chat', {
+    agent: {
+      id: 'agent-chat',
+      key: 'chat',
+      name: 'AI 助手智能体',
+      temperature: 0.2,
+      topP: 0.8,
+      maxTokens: 512,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-dsv4',
+      name: 'DSv4',
+      apiBaseUrl: 'https://model.example.test/v1',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'deepseek-chat',
+      status: 'enabled',
+    },
+    prompt: {
+      id: 'prompt-chat',
+      content: '你是一个耐心的教学助手。',
+    },
+    sensitiveWordList: null,
+  });
+
+  await withMockFetch(
+    async (url, init) => {
+      const headers = new Headers(init?.headers);
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const encoder = new TextEncoder();
+
+      fetchCalls.push({ url: String(url), body, headers });
+
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode('data: {"choices":[{"delta":{"content":"第一段"}}]}\n\n')
+            );
+            controller.enqueue(
+              encoder.encode(
+                'data: {"choices":[{"delta":{"content":"第二段"}}],"usage":{"prompt_tokens":11,"completion_tokens":7,"total_tokens":18}}\n\n'
+              )
+            );
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          },
+        }),
+        {
+          headers: { 'content-type': 'text/event-stream' },
+          status: 200,
+        }
+      );
+    },
+    async () => {
+      const result = await service.sendChatStream(
+        {
+          userId: 'user-1',
+          category: 'chat',
+          message: '  帮我讲解勾股定理  ',
+        },
+        (event) => {
+          if (event.type === 'delta') {
+            assert.equal(repository.modelCalls.length, 0);
+          }
+
+          streamedEvents.push(event);
+        }
+      );
+
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(fetchCalls[0]?.body.stream, true);
+      assert.deepEqual(
+        streamedEvents
+          .filter((event) => event.type === 'delta')
+          .map((event) => (event.type === 'delta' ? event.content : '')),
+        ['第一段', '第二段']
+      );
+      assert.equal(repository.messages[1]?.content, '第一段第二段');
+      assert.equal(repository.modelCalls[0]?.totalTokens, 18);
+      assert.equal(result.sessionId, repository.conversations[0]?.id);
+      assert.equal(
+        streamedEvents.some((event) => event.type === 'done'),
+        true
+      );
+    }
+  );
+});
+
+test('generateInspiration resolves the mapped admin agent with grade and subject', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+
+  await service.generateInspiration({
+    userId: 'user-1',
+    grade: ' 三年级 ',
+    subject: ' 物理 ',
+    topic: ' 力学 ',
+  });
+
+  assert.deepEqual(repository.runtimeConfigLookups.at(-1), {
+    grade: '小学',
+    key: 'inspiration',
+    subject: '物理',
+  });
+});
+
+test('generateTeaching resolves the mapped admin agent with grade and subject', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+
+  await service.generateTeaching({
+    userId: 'user-1',
+    subject: '数学',
+    stage: ' 七年级 ',
+    mode: 'variant',
+    level: 'similar',
+    prompt: '一次函数',
+  });
+
+  assert.deepEqual(repository.runtimeConfigLookups.at(-1), {
+    grade: '初中',
+    key: 'teaching',
+    subject: '数学',
+  });
 });
 
 test('listHistory returns only chat conversations for the chat filter', async () => {
@@ -238,6 +479,34 @@ test('followUpInspiration appends to an inspiration conversation', async () => {
     result.events.some((event) => event.type === 'credit'),
     true
   );
+});
+
+test('followUpInspiration reuses the original agent classification', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const generated = await service.generateInspiration({
+    userId: 'user-1',
+    grade: '三年级',
+    subject: '语文',
+    topic: '春天',
+  });
+
+  await service.followUpInspiration({
+    userId: 'user-1',
+    sessionId: generated.sessionId,
+    message: '继续扩展活动',
+  });
+
+  assert.deepEqual(repository.runtimeConfigLookups.at(-2), {
+    grade: '小学',
+    key: 'inspiration',
+    subject: '语文',
+  });
+  assert.deepEqual(repository.runtimeConfigLookups.at(-1), {
+    grade: '小学',
+    key: 'inspiration',
+    subject: '语文',
+  });
 });
 
 test('generateTeaching rejects an empty prompt before persistence', async () => {
@@ -447,6 +716,36 @@ test('followUpTeaching appends to an existing teaching conversation', async () =
   );
 });
 
+test('followUpTeaching reuses the original agent classification', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const generated = await service.generateTeaching({
+    userId: 'user-1',
+    subject: '数学',
+    stage: '七年级',
+    mode: 'variant',
+    level: 'similar',
+    prompt: '一次函数',
+  });
+
+  await service.followUpTeaching({
+    userId: 'user-1',
+    sessionId: generated.sessionId,
+    message: '继续给解析',
+  });
+
+  assert.deepEqual(repository.runtimeConfigLookups.at(-2), {
+    grade: '初中',
+    key: 'teaching',
+    subject: '数学',
+  });
+  assert.deepEqual(repository.runtimeConfigLookups.at(-1), {
+    grade: '初中',
+    key: 'teaching',
+    subject: '数学',
+  });
+});
+
 test('followUpTeaching uses the previous assistant message when repository ordering is ambiguous', async () => {
   const repository = new FakeAiRepository();
   const service = new AiService(repository.asRepository());
@@ -539,6 +838,8 @@ class FakeAiRepository {
   readonly conversations: ConversationRow[] = [];
   readonly messages: MessageRow[] = [];
   readonly modelCalls: Array<{
+    agentId?: string | null;
+    engineId?: string | null;
     modelName: string;
     promptTokens: number;
     completionTokens: number;
@@ -546,6 +847,12 @@ class FakeAiRepository {
     latencyMs: number;
     costAmount: number;
     currency: string;
+  }> = [];
+  readonly runtimeConfigs = new Map<ConversationCategory, AgentRuntimeConfig>();
+  readonly runtimeConfigLookups: Array<{
+    key: ConversationCategory;
+    grade: string | null;
+    subject: string | null;
   }> = [];
   reverseMessageListOrder = false;
 
@@ -561,6 +868,7 @@ class FakeAiRepository {
     userId: string;
     category: ConversationCategory;
     title?: string;
+    metadata?: Record<string, unknown> | null;
   }): ConversationRow {
     const now = new Date('2026-05-19T00:00:00.000Z');
     const conversation: ConversationRow = {
@@ -568,7 +876,7 @@ class FakeAiRepository {
       userId: input.userId,
       category: input.category,
       title: input.title ?? input.id,
-      metadata: null,
+      metadata: input.metadata ?? null,
       isDeleted: false,
       createdAt: now,
       updatedAt: now,
@@ -577,6 +885,23 @@ class FakeAiRepository {
     this.conversations.push(conversation);
 
     return conversation;
+  }
+
+  setAgentRuntimeConfig(key: ConversationCategory, config: AgentRuntimeConfig): void {
+    this.runtimeConfigs.set(key, config);
+  }
+
+  async findAgentRuntimeConfigByKey(
+    key: ConversationCategory,
+    classification?: { grade?: string | null; subject?: string | null }
+  ): Promise<AgentRuntimeConfig | null> {
+    this.runtimeConfigLookups.push({
+      grade: classification?.grade ?? null,
+      key,
+      subject: classification?.subject ?? null,
+    });
+
+    return this.runtimeConfigs.get(key) ?? null;
   }
 
   async createConversation(input: {
@@ -592,6 +917,7 @@ class FakeAiRepository {
       userId: input.userId,
       category: input.category,
       title: input.title,
+      metadata: input.metadata ?? null,
     });
   }
 
@@ -692,6 +1018,8 @@ class FakeAiRepository {
       redirectTo?: string | null;
     };
     modelCall: {
+      agentId?: string | null;
+      engineId?: string | null;
       modelName: string;
       promptTokens: number;
       completionTokens: number;
@@ -756,6 +1084,24 @@ class FakeAiRepository {
     conversation.isDeleted = true;
 
     return true;
+  }
+}
+
+async function withMockFetch(
+  handler: (
+    url: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1]
+  ) => Promise<Response>,
+  callback: () => Promise<void>
+): Promise<void> {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = handler as typeof fetch;
+
+  try {
+    await callback();
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 }
 

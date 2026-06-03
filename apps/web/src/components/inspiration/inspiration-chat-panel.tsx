@@ -107,7 +107,7 @@ export function InspirationChatPanel({
   return (
     <section
       aria-label="灵感结果"
-      className="relative flex min-h-[500px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/60"
+      className="relative flex min-h-[500px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/60 lg:min-h-0"
     >
       {messages.length === 0 && !disabled ? (
         <div className="flex flex-1 flex-col items-center justify-center bg-slate-50/30 p-8">

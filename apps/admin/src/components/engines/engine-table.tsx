@@ -130,7 +130,7 @@ function formatDateTime(value: string): string {
 }
 
 const providerLabels: Record<AdminModelEngineItem['provider'], string> = {
-  custom: 'Custom',
+  custom: '模型 API 调用',
   gemini: 'Gemini',
   openai: 'OpenAI',
 };

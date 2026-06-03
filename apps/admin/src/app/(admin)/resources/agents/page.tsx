@@ -13,7 +13,10 @@ import { AnimatePresence, motion } from 'motion/react';
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AgentCard } from '../../../../components/resources/agent-card';
-import { AgentFormDialog } from '../../../../components/resources/agent-form-dialog';
+import {
+  AgentFormDialog,
+  type AgentFormSubmitInput,
+} from '../../../../components/resources/agent-form-dialog';
 import { useTrpcClient } from '../../../../trpc/provider';
 
 export default function AdminAgentsPage() {
@@ -124,7 +127,13 @@ export default function AdminAgentsPage() {
   }, [fetchResources, query]);
 
   const engineNameById = useMemo(
-    () => new Map(engines.map((engine) => [engine.id, `${engine.name} / ${engine.provider}`])),
+    () =>
+      new Map(
+        engines.map((engine) => [
+          engine.id,
+          `${engine.name} / ${getEngineProviderLabel(engine.provider)}`,
+        ])
+      ),
     [engines]
   );
   const promptTitleById = useMemo(
@@ -153,7 +162,7 @@ export default function AdminAgentsPage() {
     setDialogOpen(true);
   }
 
-  async function handleSubmit(input: AdminAgentCreateInput) {
+  async function handleSubmit(input: AgentFormSubmitInput) {
     setSubmitting(true);
     setMutationError(null);
 
@@ -166,7 +175,7 @@ export default function AdminAgentsPage() {
 
         await client.adminResources.agents.update.mutate(updateInput);
       } else {
-        await client.adminResources.agents.create.mutate(input);
+        await client.adminResources.agents.create.mutate(input as AdminAgentCreateInput);
       }
 
       await refreshResources();
@@ -234,7 +243,7 @@ export default function AdminAgentsPage() {
               aria-label="搜索智能体"
               className="focus:border-primary focus:ring-primary/10 w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pr-4 pl-11 transition-all outline-none focus:ring-4"
               onChange={(event) => setSearchInput(readFormValue(event.currentTarget))}
-              placeholder="按名称或 Key 搜索"
+              placeholder="按名称、Key、年级或学科搜索"
               value={searchInput}
             />
           </div>
@@ -403,4 +412,12 @@ function DeleteDialog({
 
 function readFormValue(target: EventTarget): string {
   return (target as EventTarget & { value: string }).value;
+}
+
+function getEngineProviderLabel(provider: AdminModelEngineItem['provider']): string {
+  if (provider === 'custom') {
+    return '模型 API 调用';
+  }
+
+  return provider;
 }

@@ -36,9 +36,9 @@
 
 | 应用           | 技术栈                            | 端口 | 说明         |
 | -------------- | --------------------------------- | ---- | ------------ |
-| `apps/web`     | Next.js 16 (App Router, React 19) | 3001 | 对外用户端   |
-| `apps/admin`   | Next.js 16 (App Router, React 19) | 3002 | 对内管理端   |
-| `apps/server`  | NestJS 10 + Fastify + tRPC        | 3000 | 统一服务端   |
+| `apps/web`     | Next.js 16 (App Router, React 19) | 3000 | 对外用户端   |
+| `apps/admin`   | Next.js 16 (App Router, React 19) | 3001 | 对内管理端   |
+| `apps/server`  | NestJS 10 + Fastify + tRPC        | 7001 | 统一服务端   |
 | `apps/db-init` | TypeScript (ts-node/tsx)          | -    | 数据库初始化 |
 
 ### Packages
@@ -617,6 +617,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
+  username: varchar('username', { length: 64 }).unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   name: varchar('name', { length: 100 }),
   password: text('password').notNull(),
@@ -801,19 +802,36 @@ import type { Database } from '@package/db';
 import bcrypt from 'bcryptjs';
 
 export async function seedAdmin(db: Database) {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin';
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  const adminEmail = process.env.ADMIN_EMAIL || `${adminUser}@aethercore.local`;
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin@123';
 
-  const [existing] = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
+  const [existingByUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.username, adminUser))
+    .limit(1);
+  const [legacyByEmail] = existingByUser
+    ? []
+    : await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
+  const existing = existingByUser ?? legacyByEmail;
 
   if (existing) {
-    console.log(`Admin user already exists: ${adminEmail}`);
+    if (existing.role === 'admin' && existing.username !== adminUser) {
+      await db
+        .update(users)
+        .set({ username: adminUser, updatedAt: new Date() })
+        .where(eq(users.id, existing.id));
+    }
+
+    console.log(`Admin user already exists: ${adminUser}`);
     return;
   }
 
   const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
   await db.insert(users).values({
+    username: adminUser,
     email: adminEmail,
     name: 'System Admin',
     password: hashedPassword,
@@ -821,7 +839,7 @@ export async function seedAdmin(db: Database) {
     isActive: true,
   });
 
-  console.log(`Admin user created: ${adminEmail}`);
+  console.log(`Admin user created: ${adminUser}`);
 }
 ```
 
@@ -877,7 +895,7 @@ CMD ["node", "dist/index.js"]
 ┌─────────────┐  ┌─────────────┐
 │    web      │  │    admin    │
 │  Next.js    │  │  Next.js    │
-│  :3001      │  │  :3002      │
+│  :3000      │  │  :3001      │
 └──────┬──────┘  └──────┬──────┘
        │                │
        └────────────────┘
@@ -887,7 +905,7 @@ CMD ["node", "dist/index.js"]
        ┌──────┴──────┐
        │   server    │
        │  NestJS     │
-       │  :3000      │
+       │  :7001      │
        └──────┬──────┘
               │
        data 网络 (bridge)
@@ -948,7 +966,8 @@ services:
     container_name: aether-db-init
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aether}:${POSTGRES_PASSWORD:-aether_secret}@postgres:5432/${POSTGRES_DB:-aether_db}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@aethercore.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme123}
     depends_on:
       postgres:
@@ -963,10 +982,12 @@ services:
     container_name: aether-server
     restart: unless-stopped
     ports:
-      - '${SERVER_PORT:-3000}:3000'
+      - '${SERVER_PORT:-7001}:7001'
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aether}:${POSTGRES_PASSWORD:-aether_secret}@postgres:5432/${POSTGRES_DB:-aether_db}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret}@redis:6379/0
+      SERVER_PORT: ${SERVER_PORT:-7001}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
       NODE_ENV: production
     depends_on:
       postgres:
@@ -986,9 +1007,9 @@ services:
     container_name: aether-web
     restart: unless-stopped
     ports:
-      - '${WEB_PORT:-3001}:3000'
+      - '${WEB_PORT:-3000}:3000'
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:7001}
     depends_on:
       - server
     networks:
@@ -1001,9 +1022,9 @@ services:
     container_name: aether-admin
     restart: unless-stopped
     ports:
-      - '${ADMIN_PORT:-3002}:3000'
+      - '${ADMIN_PORT:-3001}:3000'
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:7001}
     depends_on:
       - server
     networks:
@@ -1033,7 +1054,7 @@ networks:
   ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐
   │     web     │  │    admin    │  │   server    │
   │  Next.js    │  │  Next.js    │  │  NestJS     │
-  │  :3000      │  │  :3000      │  │  :3000      │
+  │  :3000      │  │  :3000      │  │  :7001      │
   └─────────────┘  └─────────────┘  └──────┬──────┘
                                           │
                                    data 网络 (bridge)
@@ -1088,6 +1109,7 @@ services:
     container_name: ${PROD_NAME:-aether}-db-init
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      ADMIN_USER: ${ADMIN_USER}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     depends_on:
@@ -1186,7 +1208,8 @@ COPY --from=builder /app/apps/server/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/server/package.json ./package.json
 USER nestjs
-EXPOSE 3000
+EXPOSE 7001
+ENV SERVER_PORT=7001
 CMD ["node", "dist/main.js"]
 ```
 
@@ -1310,15 +1333,20 @@ REDIS_PORT=6379
 REDIS_URL=redis://:redis_secret@localhost:6379/0
 
 # === Admin Seed ===
-ADMIN_EMAIL=admin@example.com
+ADMIN_USER=admin
+ADMIN_EMAIL=admin@aethercore.local
 ADMIN_PASSWORD=changeme123
 
 # === App ===
-APP_HTTP_URL=http://localhost:3000
+SERVER_PORT=7001
+WEB_PORT=3000
+ADMIN_PORT=3001
+APP_HTTP_URL=http://localhost:7001
 NODE_ENV=development
 
 # === Next.js ===
-NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:7001
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 
 # === Docker (生产) ===
 DOCKER_USER=aether

@@ -148,7 +148,7 @@ Old generation behavior:
 - `actualGenerate` creates or reuses a `teaching` session by calling `createNewSession('teaching')` when no current session exists.
 - The old page replaces the message list with the generated user message, then appends the assistant message after the model response.
 - It stores messages into the current session with `updateSession(currentSessionId, messages)`.
-- Loading uses `loading` state, the submit button text `命题专家思考中...`, a spinning icon, and `AdLoadingBot` inside the result panel.
+- Loading uses `loading` state, the submit button text `命题专家思考中...`, a spinning icon, and the shared top-level `GenerationAdOverlay` while AI generation is gated by advertising.
 - Initial-generation errors append an assistant message: `变身遇到了一点障碍，请检查网络或稍后再试。`
 
 Old result rendering:

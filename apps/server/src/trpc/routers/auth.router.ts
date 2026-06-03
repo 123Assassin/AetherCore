@@ -13,7 +13,7 @@ type RouterTools = {
 };
 
 type AdminLoginInput = {
-  username: string;
+  user: string;
   password: string;
 };
 
@@ -22,8 +22,22 @@ type AdminChangePasswordInput = {
   newPassword: string;
 };
 
+type WeChatCallbackInput = {
+  code: string;
+  state: string;
+};
+
 export function createAuthRouter(authService: AuthService, tools: RouterTools) {
   return tools.createTRPCRouter({
+    userLogin: tools.publicProcedure
+      .input(parseLoginInput)
+      .mutation(({ ctx, input }) => authService.userLogin(input, ctx)),
+    wechatCallback: tools.publicProcedure
+      .input(parseWeChatCallbackInput)
+      .mutation(({ ctx, input }) =>
+        mapAuthServiceError(() => authService.completeWeChatLogin(input, ctx))
+      ),
+    wechatLoginConfig: tools.publicProcedure.query(() => authService.getWeChatLoginConfig()),
     wechatLoginUrl: tools.publicProcedure.query(() => authService.getWeChatLoginUrl()),
     mockLogin: tools.publicProcedure.mutation(({ ctx }) =>
       mapAuthServiceError(() => authService.mockLogin(ctx))
@@ -53,7 +67,7 @@ export function createAdminAuthRouter(authService: AuthService, tools: RouterToo
         );
       }),
     login: tools.publicProcedure
-      .input(parseAdminLoginInput)
+      .input(parseLoginInput)
       .mutation(({ ctx, input }) => authService.adminLogin(input, ctx)),
     logout: tools.publicProcedure.mutation(({ ctx }) => authService.adminLogout(ctx)),
     session: tools.publicProcedure.query(async ({ ctx }) => {
@@ -87,25 +101,44 @@ function parseAdminChangePasswordInput(input: unknown): AdminChangePasswordInput
   };
 }
 
-function parseAdminLoginInput(input: unknown): AdminLoginInput {
+function parseLoginInput(input: unknown): AdminLoginInput {
   if (!isRecord(input)) {
     throwInvalidInput();
   }
 
-  if (typeof input.username !== 'string' || typeof input.password !== 'string') {
+  if (typeof input.user !== 'string' || typeof input.password !== 'string') {
     throwInvalidInput();
   }
 
-  const username = input.username.trim();
+  const user = input.user.trim();
 
-  if (!username || !input.password) {
+  if (!user || !input.password) {
     throwInvalidInput();
   }
 
   return {
-    username,
+    user,
     password: input.password,
   };
+}
+
+function parseWeChatCallbackInput(input: unknown): WeChatCallbackInput {
+  if (!isRecord(input)) {
+    throwInvalidWeChatCallbackInput();
+  }
+
+  if (typeof input.code !== 'string' || typeof input.state !== 'string') {
+    throwInvalidWeChatCallbackInput();
+  }
+
+  const code = input.code.trim();
+  const state = input.state.trim();
+
+  if (!code || !state) {
+    throwInvalidWeChatCallbackInput();
+  }
+
+  return { code, state };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,7 +155,14 @@ function throwInvalidChangePasswordInput(): never {
 function throwInvalidInput(): never {
   throw new TRPCError({
     code: 'BAD_REQUEST',
-    message: 'Admin login requires username and password',
+    message: 'Admin login requires user and password',
+  });
+}
+
+function throwInvalidWeChatCallbackInput(): never {
+  throw new TRPCError({
+    code: 'BAD_REQUEST',
+    message: 'WeChat callback requires code and state',
   });
 }
 

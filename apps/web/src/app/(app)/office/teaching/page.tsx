@@ -2,8 +2,9 @@
 
 import type { AiStreamEvent } from '@package/shared';
 import { RefreshCw, Sparkles } from 'lucide-react';
-import { type FormEvent, useCallback, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { GenerationAdOverlay } from '../../../../components/sponsor/ad-system';
 import {
   defaultFollowUpSuggestions,
   getDefaultTeachingLevel,
@@ -23,7 +24,17 @@ import {
   TeachingResultPanel,
 } from '../../../../components/teaching/teaching-result-panel';
 import { TransformationLevelSelector } from '../../../../components/teaching/transformation-level-selector';
+import { useChatHistory } from '../../../../contexts/chat-history-context';
+import { useAiGenerationAdGate } from '../../../../hooks/use-ai-generation-ad-gate';
 import { useTrpcClient } from '../../../../trpc/provider';
+
+type TeachingHistoryState = {
+  formValues: TeachingFormValues;
+  kind: 'teaching';
+  messages: TeachingMessage[];
+  sessionId?: string;
+  suggestions: string[];
+};
 
 const initialFormValues: TeachingFormValues = {
   level: 'similar',
@@ -104,9 +115,66 @@ function formatUserMessage(values: TeachingFormValues, prompt: string) {
   return `${teachingModeCopy[values.mode].userMessageLabel}（${values.stage} · ${values.subject}）\n${prompt}`;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readTeachingHistoryState(value: unknown): TeachingHistoryState | null {
+  if (!isRecord(value) || value.kind !== 'teaching' || !isRecord(value.formValues)) {
+    return null;
+  }
+
+  return {
+    formValues: {
+      ...initialFormValues,
+      ...value.formValues,
+    } as TeachingFormValues,
+    kind: 'teaching',
+    messages: Array.isArray(value.messages)
+      ? value.messages.filter(
+          (item): item is TeachingMessage =>
+            isRecord(item) &&
+            typeof item.id === 'string' &&
+            typeof item.content === 'string' &&
+            (item.role === 'user' || item.role === 'assistant')
+        )
+      : [],
+    ...(typeof value.sessionId === 'string' ? { sessionId: value.sessionId } : {}),
+    suggestions: Array.isArray(value.suggestions)
+      ? value.suggestions.filter((item): item is string => typeof item === 'string')
+      : [],
+  };
+}
+
+function createTeachingHistoryMessages(messages: TeachingMessage[]) {
+  return messages.map((message) => ({
+    content: message.content,
+    id: message.id,
+    role: message.role,
+    timestamp: new Date().toISOString(),
+  }));
+}
+
+function getMaxMessageIndex(messages: TeachingMessage[]) {
+  return messages.reduce((maxIndex, message) => {
+    const match = /-(\d+)$/.exec(message.id);
+    const nextIndex = match ? Number.parseInt(match[1]!, 10) : 0;
+
+    return Number.isFinite(nextIndex) ? Math.max(maxIndex, nextIndex) : maxIndex;
+  }, 0);
+}
+
 export default function OfficeTeachingPage() {
   const client = useTrpcClient();
+  const { currentSessionIds, sessions, setCurrentSessionId, upsertSession } = useChatHistory();
+  const { adMode, adOpen, closeAdGate, runWithAdGate } = useAiGenerationAdGate();
   const nextMessageId = useRef(0);
+  const appliedSessionIdRef = useRef<string | null | undefined>(undefined);
+  const currentHistorySessionId = currentSessionIds.teaching;
+  const activeHistorySession = useMemo(
+    () => sessions.find((session) => session.id === currentHistorySessionId),
+    [currentHistorySessionId, sessions]
+  );
   const [formValues, setFormValues] = useState<TeachingFormValues>(initialFormValues);
   const [messages, setMessages] = useState<TeachingMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -128,6 +196,61 @@ export default function OfficeTeachingPage() {
     []
   );
 
+  const persistTeachingSession = useCallback(
+    (state: TeachingHistoryState) => {
+      const historySessionId = currentHistorySessionId ?? `teaching-${Date.now()}`;
+
+      if (!currentHistorySessionId) {
+        setCurrentSessionId('teaching', historySessionId);
+        appliedSessionIdRef.current = historySessionId;
+      }
+
+      upsertSession({
+        category: 'teaching',
+        id: historySessionId,
+        messages: createTeachingHistoryMessages(state.messages),
+        ...(state.sessionId ? { serverSessionId: state.sessionId } : {}),
+        state: state as unknown as Record<string, unknown>,
+        title: state.formValues.prompt.trim() || '题目变身',
+        updatedAt: Date.now(),
+      });
+    },
+    [currentHistorySessionId, setCurrentSessionId, upsertSession]
+  );
+
+  useEffect(() => {
+    if (appliedSessionIdRef.current === currentHistorySessionId) {
+      return;
+    }
+
+    appliedSessionIdRef.current = currentHistorySessionId;
+
+    const state = readTeachingHistoryState(activeHistorySession?.state);
+
+    const timeoutId = setTimeout(() => {
+      if (!currentHistorySessionId || !state) {
+        nextMessageId.current = 0;
+        setFormValues(initialFormValues);
+        setMessages([]);
+        setSessionId(undefined);
+        setSuggestions([]);
+        setFormError(null);
+        setResultError(null);
+        return;
+      }
+
+      nextMessageId.current = getMaxMessageIndex(state.messages);
+      setFormValues(state.formValues);
+      setMessages(state.messages);
+      setSessionId(state.sessionId);
+      setSuggestions(state.suggestions);
+      setFormError(null);
+      setResultError(null);
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeHistorySession?.state, currentHistorySessionId]);
+
   const handleFormChange = useCallback(
     (nextValues: TeachingFormValues) => {
       setFormValues(nextValues);
@@ -135,23 +258,48 @@ export default function OfficeTeachingPage() {
       if (formError && nextValues.prompt.trim()) {
         setFormError(null);
       }
+
+      if (currentHistorySessionId) {
+        persistTeachingSession({
+          formValues: nextValues,
+          kind: 'teaching',
+          messages,
+          ...(sessionId ? { sessionId } : {}),
+          suggestions,
+        });
+      }
     },
-    [formError]
+    [currentHistorySessionId, formError, messages, persistTeachingSession, sessionId, suggestions]
   );
 
-  const handleModeChange = useCallback((mode: TeachingMode) => {
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      level: isTeachingLevelValidForMode(currentValues.level, mode)
-        ? currentValues.level
-        : getDefaultTeachingLevel(mode),
-      mode,
-    }));
-    setFormError(null);
-  }, []);
+  const handleModeChange = useCallback(
+    (mode: TeachingMode) => {
+      const nextValues: TeachingFormValues = {
+        ...formValues,
+        level: isTeachingLevelValidForMode(formValues.level, mode)
+          ? formValues.level
+          : getDefaultTeachingLevel(mode),
+        mode,
+      };
+
+      setFormValues(nextValues);
+      setFormError(null);
+
+      if (currentHistorySessionId) {
+        persistTeachingSession({
+          formValues: nextValues,
+          kind: 'teaching',
+          messages,
+          ...(sessionId ? { sessionId } : {}),
+          suggestions,
+        });
+      }
+    },
+    [currentHistorySessionId, formValues, messages, persistTeachingSession, sessionId, suggestions]
+  );
 
   const generateTeaching = useCallback(
-    async (values: TeachingFormValues, promptOverride?: string) => {
+    (values: TeachingFormValues, promptOverride?: string) => {
       const prompt = (promptOverride ?? values.prompt).trim();
 
       if (!prompt) {
@@ -163,43 +311,63 @@ export default function OfficeTeachingPage() {
         return;
       }
 
-      setLoading(true);
-      setFormError(null);
-      setResultError(null);
-      setSessionId(undefined);
-      setSuggestions([]);
-      setMessages([createMessage('user', formatUserMessage(values, prompt))]);
+      runWithAdGate(async () => {
+        const userMessage = createMessage('user', formatUserMessage(values, prompt));
+        const baseMessages = [userMessage];
+        const nextValues = { ...values, prompt };
 
-      try {
-        const result = await client.ai.teaching.generate.mutate(
-          createGenerateInput(values, prompt)
-        );
-        const assistantResponse = collectAssistantResponse(result.events);
+        setLoading(true);
+        setFormError(null);
+        setResultError(null);
+        setSessionId(undefined);
+        setSuggestions([]);
+        setMessages(baseMessages);
 
-        setSessionId(result.sessionId);
+        try {
+          const result = await client.ai.teaching.generate.mutate(
+            createGenerateInput(nextValues, prompt)
+          );
+          const assistantResponse = collectAssistantResponse(result.events);
+          const nextSuggestions = getFollowUpSuggestions(assistantResponse.suggestions);
 
-        if (assistantResponse.errorMessage) {
-          setResultError(assistantResponse.errorMessage);
-          return;
+          setSessionId(result.sessionId);
+
+          if (assistantResponse.errorMessage) {
+            setResultError(assistantResponse.errorMessage);
+            persistTeachingSession({
+              formValues: nextValues,
+              kind: 'teaching',
+              messages: baseMessages,
+              sessionId: result.sessionId,
+              suggestions: nextSuggestions,
+            });
+            return;
+          }
+
+          setSuggestions(nextSuggestions);
+
+          const nextMessages = assistantResponse.content.trim()
+            ? [...baseMessages, createMessage('assistant', assistantResponse.content)]
+            : baseMessages;
+
+          setMessages(nextMessages);
+          persistTeachingSession({
+            formValues: nextValues,
+            kind: 'teaching',
+            messages: nextMessages,
+            sessionId: result.sessionId,
+            suggestions: nextSuggestions,
+          });
+        } catch (mutationError) {
+          setResultError(
+            getMutationErrorMessage(mutationError, '变身遇到了一点障碍，请检查网络或稍后再试。')
+          );
+        } finally {
+          setLoading(false);
         }
-
-        setSuggestions(getFollowUpSuggestions(assistantResponse.suggestions));
-
-        if (assistantResponse.content.trim()) {
-          setMessages((currentMessages) => [
-            ...currentMessages,
-            createMessage('assistant', assistantResponse.content),
-          ]);
-        }
-      } catch (mutationError) {
-        setResultError(
-          getMutationErrorMessage(mutationError, '变身遇到了一点障碍，请检查网络或稍后再试。')
-        );
-      } finally {
-        setLoading(false);
-      }
+      });
     },
-    [client, createMessage, loading]
+    [client, createMessage, loading, persistTeachingSession, runWithAdGate]
   );
 
   const handleExampleSelect = useCallback(
@@ -210,10 +378,7 @@ export default function OfficeTeachingPage() {
         subject: item.subject,
       };
 
-      setFormValues((currentValues) => ({
-        ...currentValues,
-        subject: item.subject,
-      }));
+      setFormValues(nextValues);
       void generateTeaching(nextValues, item.content);
     },
     [formValues, generateTeaching]
@@ -228,47 +393,75 @@ export default function OfficeTeachingPage() {
   );
 
   const handleFollowUp = useCallback(
-    async (message: string) => {
+    (message: string) => {
       const trimmedMessage = message.trim();
 
       if (!sessionId || !trimmedMessage || loading) {
         return;
       }
 
-      setLoading(true);
-      setResultError(null);
-      setSuggestions([]);
-      setMessages((currentMessages) => [...currentMessages, createMessage('user', trimmedMessage)]);
+      runWithAdGate(async () => {
+        const userMessage = createMessage('user', trimmedMessage);
+        const baseMessages = [...messages, userMessage];
 
-      try {
-        const result = await client.ai.teaching.followUp.mutate({
-          message: trimmedMessage,
-          sessionId,
-        });
-        const assistantResponse = collectAssistantResponse(result.events);
+        setLoading(true);
+        setResultError(null);
+        setSuggestions([]);
+        setMessages(baseMessages);
 
-        setSessionId(result.sessionId);
+        try {
+          const result = await client.ai.teaching.followUp.mutate({
+            message: trimmedMessage,
+            sessionId,
+          });
+          const assistantResponse = collectAssistantResponse(result.events);
+          const nextSuggestions = getFollowUpSuggestions(assistantResponse.suggestions);
 
-        if (assistantResponse.errorMessage) {
-          setResultError(assistantResponse.errorMessage);
-          return;
+          setSessionId(result.sessionId);
+
+          if (assistantResponse.errorMessage) {
+            setResultError(assistantResponse.errorMessage);
+            persistTeachingSession({
+              formValues,
+              kind: 'teaching',
+              messages: baseMessages,
+              sessionId: result.sessionId,
+              suggestions: nextSuggestions,
+            });
+            return;
+          }
+
+          setSuggestions(nextSuggestions);
+
+          const nextMessages = assistantResponse.content.trim()
+            ? [...baseMessages, createMessage('assistant', assistantResponse.content)]
+            : baseMessages;
+
+          setMessages(nextMessages);
+          persistTeachingSession({
+            formValues,
+            kind: 'teaching',
+            messages: nextMessages,
+            sessionId: result.sessionId,
+            suggestions: nextSuggestions,
+          });
+        } catch (mutationError) {
+          setResultError(getMutationErrorMessage(mutationError, '追问失败了，请稍后再试。'));
+        } finally {
+          setLoading(false);
         }
-
-        setSuggestions(getFollowUpSuggestions(assistantResponse.suggestions));
-
-        if (assistantResponse.content.trim()) {
-          setMessages((currentMessages) => [
-            ...currentMessages,
-            createMessage('assistant', assistantResponse.content),
-          ]);
-        }
-      } catch (mutationError) {
-        setResultError(getMutationErrorMessage(mutationError, '追问失败了，请稍后再试。'));
-      } finally {
-        setLoading(false);
-      }
+      });
     },
-    [client, createMessage, loading, sessionId]
+    [
+      client,
+      createMessage,
+      formValues,
+      loading,
+      messages,
+      persistTeachingSession,
+      runWithAdGate,
+      sessionId,
+    ]
   );
 
   const isPromptEmpty = !formValues.prompt.trim();
@@ -379,6 +572,7 @@ export default function OfficeTeachingPage() {
           suggestions={suggestions}
         />
       </div>
+      <GenerationAdOverlay isOpen={adOpen} mode={adMode} onClose={closeAdGate} />
     </div>
   );
 }

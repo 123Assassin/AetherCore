@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "node ../../scripts/next-dev-with-default-port.mjs 3002",
+    "dev": "node ../../scripts/next-dev-with-default-port.mjs 3001",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "next start -p 3002",
+    "start": "next start -p 3001",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

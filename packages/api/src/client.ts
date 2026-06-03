@@ -1,4 +1,4 @@
-import { createTRPCClient, httpBatchLink, type TRPCClient } from '@trpc/client';
+import { createTRPCClient, httpLink, type TRPCClient } from '@trpc/client';
 import type { AnyTRPCRouter, inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 
 export type ApiClient<TRouter extends AnyTRPCRouter> = TRPCClient<TRouter>;
@@ -7,12 +7,10 @@ export type ApiRouterInputs<TRouter extends AnyTRPCRouter> = inferRouterInputs<T
 
 export type ApiRouterOutputs<TRouter extends AnyTRPCRouter> = inferRouterOutputs<TRouter>;
 
-type HttpBatchLinkOptions<TRouter extends AnyTRPCRouter> = Parameters<
-  typeof httpBatchLink<TRouter>
->[0];
+type HttpLinkOptions<TRouter extends AnyTRPCRouter> = Parameters<typeof httpLink<TRouter>>[0];
 
 export type CreateApiClientOptions<TRouter extends AnyTRPCRouter> = Omit<
-  HttpBatchLinkOptions<TRouter>,
+  HttpLinkOptions<TRouter>,
   'url'
 >;
 
@@ -25,9 +23,9 @@ export const createApiClient = <TRouter extends AnyTRPCRouter>(
       fetch(input, { ...(init as RequestInit | undefined), credentials: 'include' }),
     ...(options ?? {}),
     url: `${baseUrl}/trpc`,
-  } as HttpBatchLinkOptions<TRouter>;
+  } as HttpLinkOptions<TRouter>;
 
   return createTRPCClient<TRouter>({
-    links: [httpBatchLink<TRouter>(linkOptions)],
+    links: [httpLink<TRouter>(linkOptions)],
   });
 };

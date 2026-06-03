@@ -1,5 +1,10 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import {
+  adminAgentKeys,
+  getAdminAgentClassificationMode,
+  getAdminAgentGradeOptions,
+  type AdminAgentKey,
+} from '@package/shared';
 
 import {
   AdminResourcesRepository,
@@ -12,8 +17,14 @@ import {
   type AdminSensitiveWordListRepositoryRow,
   type AdminSensitiveWordListSaveData,
 } from './admin-resources.repository.js';
+import {
+  decryptEngineApiKey,
+  encryptEngineApiKey,
+  EngineApiKeyCryptoError,
+  maskEngineApiKey,
+} from './engine-api-key.crypto.js';
 
-export type AdminAgentKey = 'chat' | 'inspiration' | 'comment' | 'teaching';
+export type { AdminAgentKey } from '@package/shared';
 export type AdminResourceStatus = 'enabled' | 'disabled';
 export type AdminModelEngineProvider = 'openai' | 'gemini' | 'custom';
 
@@ -33,6 +44,8 @@ export type AdminResourceListResult<TItem> = {
 export type AdminAgentItem = {
   id: string;
   key: AdminAgentKey;
+  grade: string | null;
+  subject: string | null;
   name: string;
   engineId: string;
   promptId: string | null;
@@ -48,10 +61,14 @@ export type AdminAgentItem = {
 export type AdminAgentListInput = AdminResourceListInput & {
   status?: AdminResourceStatus;
   engineId?: string;
+  grade?: string;
+  subject?: string;
 };
 
 export type AdminAgentCreateInput = {
   key: AdminAgentKey;
+  grade?: string | null;
+  subject?: string | null;
   name: string;
   engineId: string;
   promptId?: string | null;
@@ -121,7 +138,7 @@ export type AdminModelEngineItem = {
 
 export type AdminModelEngineCreateInput = {
   name: string;
-  provider: AdminModelEngineProvider;
+  provider?: AdminModelEngineProvider;
   apiBaseUrl: string;
   apiKey: string;
   modelName?: string | null;
@@ -177,11 +194,11 @@ const DEFAULT_AGENT_TEMPERATURE = 0.7;
 const DEFAULT_AGENT_TOP_P = 0.9;
 const DEFAULT_AGENT_MAX_TOKENS = 2000;
 const DEFAULT_STATUS = 'enabled';
-const ADMIN_AGENT_KEYS = ['chat', 'inspiration', 'comment', 'teaching'] as const;
+const DEFAULT_MODEL_ENGINE_PROVIDER = 'custom';
+const ADMIN_AGENT_KEYS = adminAgentKeys;
 const ADMIN_MODEL_ENGINE_PROVIDERS = ['openai', 'gemini', 'custom'] as const;
 const ADMIN_RESOURCE_STATUSES = ['enabled', 'disabled'] as const;
-const API_KEY_CIPHER_PREFIX = 'v1';
-const AGENT_KEY_UNIQUE_CONSTRAINTS = ['ai_agents_key_unique'];
+const AGENT_KEY_UNIQUE_CONSTRAINTS = ['ai_agents_key_unique', 'uniq_ai_agents_key_grade_subject'];
 const ENGINE_NAME_UNIQUE_CONSTRAINTS = ['model_engines_name_unique'];
 const PROMPT_TITLE_VERSION_UNIQUE_CONSTRAINTS = ['uniq_prompt_title_version'];
 const SENSITIVE_WORD_LIST_NAME_UNIQUE_CONSTRAINTS = ['sensitive_word_lists_name_unique'];
@@ -202,13 +219,23 @@ export class AdminResourcesService {
     let rows = await this.adminResourcesRepository.listAgents();
     const q = trimOptional(input.q)?.toLowerCase();
     const engineId = trimOptional(input.engineId);
+    const grade = trimOptional(input.grade);
+    const subject = trimOptional(input.subject);
     const status = normalizeOptionalStatus(input.status);
 
     if (q) {
-      rows = rows.filter((row) => `${row.key} ${row.name}`.toLowerCase().includes(q));
+      rows = rows.filter((row) =>
+        `${row.key} ${row.grade ?? ''} ${row.subject ?? ''} ${row.name}`.toLowerCase().includes(q)
+      );
     }
     if (engineId) {
       rows = rows.filter((row) => row.engineId === engineId);
+    }
+    if (grade) {
+      rows = rows.filter((row) => row.grade === grade);
+    }
+    if (subject) {
+      rows = rows.filter((row) => row.subject === subject);
     }
     if (status) {
       rows = rows.filter((row) => row.status === status);
@@ -220,12 +247,12 @@ export class AdminResourcesService {
   async createAgent(input: AdminAgentCreateInput): Promise<AdminAgentItem> {
     const data = normalizeAgentCreateInput(input);
     await this.validateAgentReferences(data);
-    await this.ensureAgentKeyAvailable(data.key);
+    await this.ensureAgentConfigAvailable(data.key, data.grade, data.subject);
 
     return toAgentItem(
       await mapUniqueConstraintError(
         () => this.adminResourcesRepository.createAgent(data),
-        'Agent key already exists',
+        'Agent key and category already exists',
         'AGENT_KEY_EXISTS',
         AGENT_KEY_UNIQUE_CONSTRAINTS
       )
@@ -242,12 +269,22 @@ export class AdminResourcesService {
 
     const data = normalizeAgentUpdateInput(input);
 
+    if (data.key !== undefined) {
+      if (data.key !== existing.key) {
+        throw new AdminResourcesServiceError('BAD_REQUEST', 'Agent key cannot be changed');
+      }
+
+      delete data.key;
+    }
+
     if (Object.keys(data).length === 0) {
       throw new AdminResourcesServiceError('BAD_REQUEST', 'Agent update has no changes');
     }
 
     await this.validateAgentReferences({
       key: data.key ?? existing.key,
+      grade: data.grade === undefined ? existing.grade : data.grade,
+      subject: data.subject === undefined ? existing.subject : data.subject,
       name: data.name ?? existing.name,
       engineId: data.engineId ?? existing.engineId,
       promptId: data.promptId === undefined ? existing.promptId : data.promptId,
@@ -259,13 +296,21 @@ export class AdminResourcesService {
       status: data.status ?? existing.status,
     });
 
-    if (data.key && data.key !== existing.key) {
-      await this.ensureAgentKeyAvailable(data.key);
+    const nextKey = data.key ?? existing.key;
+    const nextGrade = data.grade === undefined ? existing.grade : data.grade;
+    const nextSubject = data.subject === undefined ? existing.subject : data.subject;
+
+    if (
+      nextKey !== existing.key ||
+      nextGrade !== existing.grade ||
+      nextSubject !== existing.subject
+    ) {
+      await this.ensureAgentConfigAvailable(nextKey, nextGrade, nextSubject, id);
     }
 
     const updated = await mapUniqueConstraintError(
       () => this.adminResourcesRepository.updateAgent({ id, ...data }),
-      'Agent key already exists',
+      'Agent key and category already exists',
       'AGENT_KEY_EXISTS',
       AGENT_KEY_UNIQUE_CONSTRAINTS
     );
@@ -526,6 +571,8 @@ export class AdminResourcesService {
   }
 
   private async validateAgentReferences(input: AdminAgentSaveData): Promise<void> {
+    validateAgentClassification(input.key, input.grade, input.subject);
+
     if (!(await this.adminResourcesRepository.findEngineById(input.engineId))) {
       throw new AdminResourcesServiceError('NOT_FOUND', 'Engine not found');
     }
@@ -542,11 +589,22 @@ export class AdminResourcesService {
     }
   }
 
-  private async ensureAgentKeyAvailable(key: AdminAgentKey): Promise<void> {
-    if (await this.adminResourcesRepository.findAgentByKeyIncludingDeleted(key)) {
+  private async ensureAgentConfigAvailable(
+    key: AdminAgentKey,
+    grade: string | null,
+    subject: string | null,
+    excludeId?: string
+  ): Promise<void> {
+    const existing = await this.adminResourcesRepository.findAgentByClassificationIncludingDeleted({
+      key,
+      grade,
+      subject,
+    });
+
+    if (existing && existing.id !== excludeId) {
       throw new AdminResourcesServiceError(
         'CONFLICT',
-        'Agent key already exists',
+        'Agent key and category already exists',
         'AGENT_KEY_EXISTS'
       );
     }
@@ -584,8 +642,12 @@ export class AdminResourcesService {
 }
 
 function normalizeAgentCreateInput(input: AdminAgentCreateInput): AdminAgentSaveData {
+  const key = normalizeAgentKey(input.key);
+  const classification = normalizeAgentClassification(key, input.grade, input.subject);
+
   return {
-    key: normalizeAgentKey(input.key),
+    key,
+    ...classification,
     name: requireTrimmedMax(input.name, 'Agent name', 120, 'Agent name is required'),
     engineId: requireTrimmedMax(
       input.engineId,
@@ -613,8 +675,18 @@ function normalizeAgentCreateInput(input: AdminAgentCreateInput): AdminAgentSave
 }
 
 function normalizeAgentUpdateInput(input: AdminAgentUpdateInput): Partial<AdminAgentSaveData> {
+  const key = input.key === undefined ? undefined : normalizeAgentKey(input.key);
+  const hasGrade = input.grade !== undefined;
+  const hasSubject = input.subject !== undefined;
+
   return {
-    ...(input.key === undefined ? {} : { key: normalizeAgentKey(input.key) }),
+    ...(key === undefined ? {} : { key }),
+    ...(hasGrade
+      ? { grade: normalizeNullableClassificationValue(input.grade, 'Agent grade') }
+      : {}),
+    ...(hasSubject
+      ? { subject: normalizeNullableClassificationValue(input.subject, 'Agent subject') }
+      : {}),
     ...(input.name === undefined
       ? {}
       : { name: requireTrimmedMax(input.name, 'Agent name', 120, 'Agent name is required') }),
@@ -731,7 +803,7 @@ function normalizeSensitiveWordListUpdateInput(
 function normalizeEngineCreateInput(input: AdminModelEngineCreateInput): AdminEngineSaveData {
   return {
     name: requireTrimmedMax(input.name, 'Engine name', 100, 'Engine name is required'),
-    provider: normalizeProvider(input.provider),
+    provider: normalizeProvider(input.provider ?? DEFAULT_MODEL_ENGINE_PROVIDER),
     apiBaseUrl: normalizeApiBaseUrl(input.apiBaseUrl),
     apiKeyCiphertext: encryptApiKey(requireTrimmed(input.apiKey, 'Engine apiKey is required')),
     modelName: trimNullable(input.modelName),
@@ -783,6 +855,8 @@ function toAgentItem(row: AdminAgentRepositoryRow): AdminAgentItem {
   return {
     id: row.id,
     key: row.key,
+    grade: row.grade,
+    subject: row.subject,
     name: row.name,
     engineId: row.engineId,
     promptId: row.promptId,
@@ -853,6 +927,92 @@ function normalizeAgentKey(value: string): AdminAgentKey {
   }
 
   return key as AdminAgentKey;
+}
+
+function normalizeAgentClassification(
+  key: AdminAgentKey,
+  grade: string | null | undefined,
+  subject: string | null | undefined
+): { grade: string | null; subject: string | null } {
+  const normalizedGrade = normalizeNullableClassificationValue(grade, 'Agent grade');
+  const normalizedSubject = normalizeNullableClassificationValue(subject, 'Agent subject');
+
+  validateAgentClassification(key, normalizedGrade, normalizedSubject);
+
+  return {
+    grade: normalizedGrade,
+    subject: normalizedSubject,
+  };
+}
+
+function validateAgentClassification(
+  key: AdminAgentKey,
+  grade: string | null,
+  subject: string | null
+): void {
+  const mode = getAdminAgentClassificationMode(key);
+
+  if (mode === 'none') {
+    if (grade) {
+      throw new AdminResourcesServiceError(
+        'BAD_REQUEST',
+        `Agent grade is not supported for ${key}`
+      );
+    }
+
+    if (subject) {
+      throw new AdminResourcesServiceError(
+        'BAD_REQUEST',
+        `Agent subject is not supported for ${key}`
+      );
+    }
+
+    return;
+  }
+
+  if (!grade) {
+    throw new AdminResourcesServiceError('BAD_REQUEST', `Agent grade is required for ${key}`);
+  }
+
+  if (!getAdminAgentGradeOptions(key).includes(grade)) {
+    throw new AdminResourcesServiceError('BAD_REQUEST', `Agent grade is unsupported for ${key}`);
+  }
+
+  if (mode === 'grade') {
+    if (subject) {
+      throw new AdminResourcesServiceError(
+        'BAD_REQUEST',
+        `Agent subject is not supported for ${key}`
+      );
+    }
+
+    return;
+  }
+
+  if (!subject) {
+    throw new AdminResourcesServiceError('BAD_REQUEST', `Agent subject is required for ${key}`);
+  }
+}
+
+function normalizeNullableClassificationValue(
+  value: string | null | undefined,
+  field: string
+): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.length > 50) {
+    throw new AdminResourcesServiceError('BAD_REQUEST', `${field} must be 50 characters or fewer`);
+  }
+
+  return trimmed;
 }
 
 function normalizeProvider(value: string): AdminModelEngineProvider {
@@ -1004,68 +1164,27 @@ function trimNullable(value: string | null | undefined): string | null {
 }
 
 function encryptApiKey(apiKey: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', getApiKeyEncryptionKey(), iv);
-  const ciphertext = Buffer.concat([cipher.update(apiKey, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  return [
-    API_KEY_CIPHER_PREFIX,
-    iv.toString('base64url'),
-    tag.toString('base64url'),
-    ciphertext.toString('base64url'),
-  ].join(':');
+  return mapEngineApiKeyCryptoError(() => encryptEngineApiKey(apiKey));
 }
 
 function decryptApiKey(apiKeyCiphertext: string): string {
-  if (!apiKeyCiphertext.startsWith(`${API_KEY_CIPHER_PREFIX}:`)) {
-    return Buffer.from(apiKeyCiphertext, 'base64').toString('utf8');
-  }
-
-  try {
-    const [, iv, tag, ciphertext] = apiKeyCiphertext.split(':');
-
-    if (!iv || !tag || !ciphertext) {
-      return '';
-    }
-
-    const decipher = createDecipheriv(
-      'aes-256-gcm',
-      getApiKeyEncryptionKey(),
-      Buffer.from(iv, 'base64url')
-    );
-    decipher.setAuthTag(Buffer.from(tag, 'base64url'));
-
-    return Buffer.concat([
-      decipher.update(Buffer.from(ciphertext, 'base64url')),
-      decipher.final(),
-    ]).toString('utf8');
-  } catch {
-    return '';
-  }
-}
-
-function getApiKeyEncryptionKey(): Buffer {
-  const secret =
-    process.env.AETHERCORE_ENGINE_API_KEY_SECRET ??
-    (process.env.NODE_ENV === 'test' ? 'aethercore-admin-resources-test-key' : undefined);
-
-  if (!secret) {
-    throw new AdminResourcesServiceError(
-      'BAD_REQUEST',
-      'Engine API key encryption secret is not configured'
-    );
-  }
-
-  return createHash('sha256').update(secret).digest();
+  return mapEngineApiKeyCryptoError(() => decryptEngineApiKey(apiKeyCiphertext));
 }
 
 function maskApiKey(apiKey: string): string {
-  if (apiKey.length <= 8) {
-    return '*'.repeat(Math.max(apiKey.length, 1));
-  }
+  return maskEngineApiKey(apiKey);
+}
 
-  return `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
+function mapEngineApiKeyCryptoError<T>(operation: () => T): T {
+  try {
+    return operation();
+  } catch (error) {
+    if (error instanceof EngineApiKeyCryptoError) {
+      throw new AdminResourcesServiceError('BAD_REQUEST', error.message);
+    }
+
+    throw error;
+  }
 }
 
 export function isAdminResourcesDomainErrorCode(

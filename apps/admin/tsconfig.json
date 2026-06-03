@@ -8,8 +8,14 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./src/*"],
-      "@package/*": ["../../packages/*/src"]
+      "@/*": ["apps/admin/src/*"],
+      "@package/api": ["packages/api/src"],
+      "@package/auth": ["packages/auth/src"],
+      "@package/db": ["packages/db/src/index.ts"],
+      "@package/db/schema": ["packages/db/src/schema/index.ts"],
+      "@package/shared": ["packages/shared/src/index.ts"],
+      "@package/ui": ["packages/ui/src"],
+      "@package/*": ["packages/*/src"]
     }
   },
   "include": ["next-env.d.ts", "src", "**/*.ts", "**/*.tsx"],

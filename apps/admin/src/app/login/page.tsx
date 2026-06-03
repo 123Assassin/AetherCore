@@ -7,13 +7,13 @@ import { type FormEvent, useState } from 'react';
 
 import { useTrpcClient } from '../../trpc/provider';
 
-const defaultAdminUsername = 'admin';
+const defaultAdminUser = 'admin';
 const errorId = 'admin-login-error';
 
 export default function LoginPage() {
   const client = useTrpcClient();
   const router = useRouter();
-  const [username, setUsername] = useState(defaultAdminUsername);
+  const [user, setUser] = useState(defaultAdminUser);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -22,11 +22,11 @@ export default function LoginPage() {
     event.preventDefault();
 
     if (!password) {
-      setError('密码错误，请重试');
+      setError('用户名或密码错误，请重试');
       return;
     }
 
-    const submittedUsername = username.trim() || defaultAdminUsername;
+    const submittedUser = user.trim() || defaultAdminUser;
 
     setSubmitting(true);
     setError('');
@@ -34,11 +34,11 @@ export default function LoginPage() {
     try {
       const result = await client.adminAuth.login.mutate({
         password,
-        username: submittedUsername,
+        user: submittedUser,
       });
 
       if (!result.success) {
-        setError('密码错误，请重试');
+        setError('用户名或密码错误，请重试');
         return;
       }
 
@@ -73,9 +73,9 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label
                 className="ml-2 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-                htmlFor="admin-username"
+                htmlFor="admin-user"
               >
-                授权账号
+                User
               </label>
               <div className="relative">
                 <User
@@ -85,11 +85,11 @@ export default function LoginPage() {
                 <input
                   autoComplete="username"
                   className="focus:ring-primary/20 focus:border-primary w-full rounded-2xl border border-slate-700/50 bg-slate-800/50 py-4 pr-4 pl-12 text-white transition-all outline-none placeholder:text-slate-600 focus:ring-4"
-                  id="admin-username"
-                  onChange={(event) => setUsername(readInputValue(event.currentTarget))}
-                  placeholder={defaultAdminUsername}
+                  id="admin-user"
+                  onChange={(event) => setUser(readInputValue(event.currentTarget))}
+                  placeholder={defaultAdminUser}
                   type="text"
-                  value={username}
+                  value={user}
                 />
               </div>
             </div>
@@ -99,7 +99,7 @@ export default function LoginPage() {
                 className="ml-2 text-[10px] font-black tracking-widest text-slate-500 uppercase"
                 htmlFor="admin-password"
               >
-                访问凭据
+                Password
               </label>
               <div className="relative">
                 <Lock
