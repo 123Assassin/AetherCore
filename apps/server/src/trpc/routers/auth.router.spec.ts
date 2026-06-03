@@ -408,6 +408,31 @@ test('AuthService adminLogin authenticates by admin user name instead of email',
   );
 });
 
+test('AuthService adminLogin omits Secure cookie when SESSION_COOKIE_SECURE is false', async () => {
+  await withEnv({ NODE_ENV: 'production', SESSION_COOKIE_SECURE: 'false' }, async () => {
+    const repository = new FakeAuthRepository();
+    const sessionStore = new FakeSessionStore();
+    const service = createMockLoginService(repository, sessionStore);
+    const { context, responseHeaders } = createContext();
+    await repository.createUser({
+      email: 'admin@example.com',
+      isActive: true,
+      password: await hashTestPassword('admin@123'),
+      role: 'admin',
+      username: 'admin',
+    });
+
+    const result = await service.adminLogin({ user: 'admin', password: 'admin@123' }, context);
+
+    assert.equal(result.success, true);
+    const setCookie = responseHeaders['Set-Cookie'];
+    if (typeof setCookie !== 'string') {
+      assert.fail('Set-Cookie header was not set');
+    }
+    assert.doesNotMatch(setCookie, /;\s*Secure(?:;|$)/);
+  });
+});
+
 test('AuthService changeAdminPassword verifies current password and stores a new hash', async () => {
   const repository = new FakeAuthRepository();
   const sessionStore = new FakeSessionStore();
