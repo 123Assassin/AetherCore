@@ -30,26 +30,29 @@
 | `activity_status`       | `draft`, `published`                                                                                                |
 | `audit_actor_type`      | `admin`, `user`, `system`                                                                                           |
 
+`agent_key` 与 `conversation_category` 的业务映射由 `packages/shared/src/types/agent-mapping.ts` 的 `WEB_AGENT_MAPPING` 维护，数据库 check 约束需要与该映射保持一致。
+
 ## 3. 用户与认证
 
 ### 3.1 `users`
 
-当前 `apps/db-init` 已落库的 `users` 同时承载普通用户和管理员账号。管理员由 `seed-admin.ts` 写入，默认 `role='admin'`、`is_active=true`。微信账号、黑名单、额度等用户运营字段属于后续规划表，不在当前迁移中。
+当前 `apps/db-init` 已落库的 `users` 同时承载普通用户和管理员账号。管理员由 `seed-admin.ts` 写入，默认 `role='admin'`、`is_active=true`。微信登录用户写入 `users.role='user'`，并通过 `wechat_accounts` 保存微信身份映射。黑名单、额度等用户运营字段属于后续规划表，不在当前迁移中。
 
-| 字段         | 类型         | 约束                     | 说明                                                         |
-| ------------ | ------------ | ------------------------ | ------------------------------------------------------------ |
-| `id`         | uuid         | pk                       | 用户 ID。                                                    |
-| `email`      | varchar(255) | unique, not null         | 登录账号；管理员默认来自 `ADMIN_EMAIL`，未配置时为 `admin`。 |
-| `name`       | varchar(100) | nullable                 | 展示名。                                                     |
-| `password`   | text         | not null                 | bcrypt hash 后的密码。                                       |
-| `role`       | varchar(20)  | not null, default `user` | 用户角色；管理员为 `admin`。                                 |
-| `is_active`  | boolean      | not null, default true   | 是否启用。                                                   |
-| `created_at` | timestamptz  | not null                 | 创建时间。                                                   |
-| `updated_at` | timestamptz  | not null                 | 更新时间。                                                   |
+| 字段         | 类型         | 约束                     | 说明                                                          |
+| ------------ | ------------ | ------------------------ | ------------------------------------------------------------- |
+| `id`         | uuid         | pk                       | 用户 ID。                                                     |
+| `username`   | varchar(64)  | unique, nullable         | 管理员登录用户名；默认来自 `ADMIN_USER`，未配置时为 `admin`。 |
+| `email`      | varchar(255) | unique, not null         | 用户邮箱；管理员初始化未配置 `ADMIN_EMAIL` 时使用派生邮箱。   |
+| `name`       | varchar(100) | nullable                 | 展示名。                                                      |
+| `password`   | text         | not null                 | bcrypt hash 后的密码。                                        |
+| `role`       | varchar(20)  | not null, default `user` | 用户角色；管理员为 `admin`。                                  |
+| `is_active`  | boolean      | not null, default true   | 是否启用。                                                    |
+| `created_at` | timestamptz  | not null                 | 创建时间。                                                    |
+| `updated_at` | timestamptz  | not null                 | 更新时间。                                                    |
 
 ### 3.2 `wechat_accounts`
 
-规划表，当前 `packages/db` 迁移尚未创建。
+当前 `packages/db` 已创建该表，用于保存微信开放平台网站应用登录身份与站内用户的映射。
 
 | 字段          | 类型         | 约束                  | 说明               |
 | ------------- | ------------ | --------------------- | ------------------ |
@@ -59,7 +62,6 @@
 | `unionid`     | varchar(128) | nullable              | 开放平台 unionid。 |
 | `nickname`    | varchar(100) | nullable              | 微信昵称。         |
 | `avatar_url`  | text         | nullable              | 微信头像。         |
-| `scope`       | varchar(100) | nullable              | 授权 scope。       |
 | `raw_profile` | jsonb        | nullable              | 微信返回原始资料。 |
 | `created_at`  | timestamptz  | not null              | 创建时间。         |
 | `updated_at`  | timestamptz  | not null              | 更新时间。         |
@@ -148,19 +150,19 @@
 
 ### 5.1 `model_engines`
 
-| 字段                 | 类型         | 约束                        | 说明                                      |
-| -------------------- | ------------ | --------------------------- | ----------------------------------------- |
-| `id`                 | uuid         | pk                          | 引擎 ID。                                 |
-| `name`               | varchar(100) | unique, not null            | 引擎名称。                                |
-| `provider`           | varchar(50)  | not null                    | 供应商，如 `openai`、`gemini`、`custom`。 |
-| `api_base_url`       | text         | not null                    | API 地址。                                |
-| `api_key_ciphertext` | text         | not null                    | 加密后的 API Key。                        |
-| `model_name`         | varchar(100) | nullable                    | 默认模型名。                              |
-| `pricing`            | jsonb        | nullable                    | token 单价配置。                          |
-| `status`             | varchar(20)  | not null, default `enabled` | 启用状态。                                |
-| `created_at`         | timestamptz  | not null                    | 创建时间。                                |
-| `updated_at`         | timestamptz  | not null                    | 更新时间。                                |
-| `deleted_at`         | timestamptz  | nullable                    | 软删除。                                  |
+| 字段                 | 类型         | 约束                        | 说明                                                             |
+| -------------------- | ------------ | --------------------------- | ---------------------------------------------------------------- |
+| `id`                 | uuid         | pk                          | 引擎 ID。                                                        |
+| `name`               | varchar(100) | unique, not null            | 引擎名称。                                                       |
+| `provider`           | varchar(50)  | not null                    | 内部供应商标识；管理端新增默认写入 `custom`，表示模型 API 调用。 |
+| `api_base_url`       | text         | not null                    | API 地址。                                                       |
+| `api_key_ciphertext` | text         | not null                    | 加密后的 API Key。                                               |
+| `model_name`         | varchar(100) | nullable                    | 默认模型名。                                                     |
+| `pricing`            | jsonb        | nullable                    | token 单价配置。                                                 |
+| `status`             | varchar(20)  | not null, default `enabled` | 启用状态。                                                       |
+| `created_at`         | timestamptz  | not null                    | 创建时间。                                                       |
+| `updated_at`         | timestamptz  | not null                    | 更新时间。                                                       |
+| `deleted_at`         | timestamptz  | nullable                    | 软删除。                                                         |
 
 ### 5.2 `ai_prompts`
 
@@ -192,21 +194,30 @@
 
 ### 5.4 `ai_agents`
 
-| 字段                | 类型         | 约束                                 | 说明          |
-| ------------------- | ------------ | ------------------------------------ | ------------- |
-| `id`                | uuid         | pk                                   | 智能体 ID。   |
-| `key`               | agent_key    | unique, not null                     | 功能 key。    |
-| `name`              | varchar(120) | not null                             | 智能体名称。  |
-| `engine_id`         | uuid         | fk model_engines.id, not null        | 模型引擎。    |
-| `prompt_id`         | uuid         | fk ai_prompts.id, nullable           | 系统 Prompt。 |
-| `sensitive_list_id` | uuid         | fk sensitive_word_lists.id, nullable | 敏感词库。    |
-| `temperature`       | numeric(3,2) | not null, default 0.7                | 温度。        |
-| `top_p`             | numeric(3,2) | not null, default 0.9                | topP。        |
-| `max_tokens`        | integer      | not null, default 2000               | 最大 token。  |
-| `status`            | agent_status | not null, default `enabled`          | 状态。        |
-| `created_at`        | timestamptz  | not null                             | 创建时间。    |
-| `updated_at`        | timestamptz  | not null                             | 更新时间。    |
-| `deleted_at`        | timestamptz  | nullable                             | 软删除。      |
+| 字段                | 类型         | 约束                                 | 说明            |
+| ------------------- | ------------ | ------------------------------------ | --------------- |
+| `id`                | uuid         | pk                                   | 智能体 ID。     |
+| `key`               | agent_key    | not null                             | 功能 key。      |
+| `grade`             | varchar(50)  | nullable                             | 年级/学段分类。 |
+| `subject`           | varchar(50)  | nullable                             | 学科分类。      |
+| `name`              | varchar(120) | not null                             | 智能体名称。    |
+| `engine_id`         | uuid         | fk model_engines.id, not null        | 模型引擎。      |
+| `prompt_id`         | uuid         | fk ai_prompts.id, nullable           | 系统 Prompt。   |
+| `sensitive_list_id` | uuid         | fk sensitive_word_lists.id, nullable | 敏感词库。      |
+| `temperature`       | numeric(3,2) | not null, default 0.7                | 温度。          |
+| `top_p`             | numeric(3,2) | not null, default 0.9                | topP。          |
+| `max_tokens`        | integer      | not null, default 2000               | 最大 token。    |
+| `status`            | agent_status | not null, default `enabled`          | 状态。          |
+| `created_at`        | timestamptz  | not null                             | 创建时间。      |
+| `updated_at`        | timestamptz  | not null                             | 更新时间。      |
+| `deleted_at`        | timestamptz  | nullable                             | 软删除。        |
+
+`key` 的可选值不在管理端本地硬编码；创建/编辑智能体时从共享 `WEB_AGENT_MAPPING` 读取，服务端 AI 调用也按该映射把用户端功能解析为管理端智能体配置。智能体允许同一个 `key` 下按业务分类创建多条配置：`inspiration`、`teaching` 必须同时填写 `grade` 和 `subject`，`comment` 必须填写 `grade` 且不填写 `subject`，`chat` 不填写分类字段。`comment`、`inspiration`、`teaching` 的管理端年级分类限定为 `小学`、`初中`；运行时将用户端细分年级归并到这两类后查询配置。
+
+约束与索引：
+
+- `uniq_ai_agents_key_grade_subject(key, coalesce(grade, ''), coalesce(subject, ''))`
+- `idx_ai_agents_key_grade_subject(key, grade, subject)`
 
 ## 6. AI 会话与调用记录
 
@@ -223,6 +234,8 @@
 | `is_deleted` | boolean               | not null, default false   | 内容审计软删除。     |
 | `created_at` | timestamptz           | not null                  | 创建时间。           |
 | `updated_at` | timestamptz           | not null                  | 更新时间。           |
+
+`metadata.agentClassification` 保存首轮 AI 调用解析出的管理端智能体分类，例如 `{ key: "inspiration", grade: "小学", subject: "语文" }` 或 `{ key: "teaching", grade: "初中", subject: "数学" }`。后续追问使用该 metadata 继续匹配同一分类的智能体配置。
 
 索引：
 
@@ -473,9 +486,10 @@
 `apps/db-init` 应初始化：
 
 1. 执行 `packages/db/drizzle` 迁移；`--seed-only` 模式跳过迁移。
-2. 默认管理员账号：写入 `users`，`email` 来自 `ADMIN_EMAIL` 或默认 `admin`，`password` 使用 bcrypt hash，默认密码 `admin@123`，`role='admin'`。
-3. 默认仿真分类与应用：从 `apps/db-init/data.json` 生成 `simulation_categories` 和 `simulation_apps`。
-4. 默认年级与仿真映射：从 `apps/db-init/grade.json` 生成 `grades` 和 `grade_simulation_apps`。
+2. 默认管理员账号：写入 `users`，`username` 来自 `ADMIN_USER` 或默认 `admin`，`email` 来自 `ADMIN_EMAIL` 或默认 `admin@aethercore.local`，`password` 使用 bcrypt hash，默认密码 `admin@123`，`role='admin'`。
+3. 默认用户端账号：写入 20 个 `role='user'` 的 `users` 账号。主账号 `username` 来自 `WEB_USER` 或默认 `teacher`，`email` 来自 `WEB_USER_EMAIL` 或默认 `teacher@aethercore.local`；其余账号为 `teacher01` 到 `teacher19`，邮箱为 `<username>@aethercore.local`。所有内置用户端账号密码使用 bcrypt hash，密码来自 `WEB_USER_PASSWORD` 或默认 `teacher123`。
+4. 默认仿真分类与应用：从 `apps/db-init/data.json` 生成 `simulation_categories` 和 `simulation_apps`。
+5. 默认年级与仿真映射：从 `apps/db-init/grade.json` 生成 `grades` 和 `grade_simulation_apps`。
 
 当前 `db-init` 不初始化模型引擎、智能体、Prompt、敏感词库、裂变奖励或告警配置；这些仍是后续业务规划数据。
 

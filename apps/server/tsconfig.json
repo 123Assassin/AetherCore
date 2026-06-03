@@ -8,8 +8,7 @@
     "declaration": true,
     "noEmit": false,
     "paths": {
-      "@/*": ["./src/*"],
-      "@package/*": ["../../packages/*/src"]
+      "@/*": ["apps/server/src/*"]
     }
   },
   "include": ["src"]

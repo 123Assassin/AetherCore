@@ -18,7 +18,7 @@
 | ---------------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
 | `src/App.tsx`                      | 应用壳、主布局、全局弹窗、Provider 包裹 | `apps/web/app/(app)/layout.tsx` + `apps/web/components/app-shell.tsx` |
 | `src/pages/ChatAssistant.tsx`      | AI 助手页面                             | `apps/web/app/(app)/chat/page.tsx`                                    |
-| `src/pages/LessonModule.tsx`       | 备课精讲容器                            | `apps/web/app/(app)/lesson/layout.tsx`                                |
+| `src/pages/LessonModule.tsx`       | 知识库精讲容器                          | `apps/web/app/(app)/lesson/layout.tsx`                                |
 | `src/pages/InspirationLibrary.tsx` | 知识精讲页面                            | `apps/web/app/(app)/lesson/inspiration/page.tsx`                      |
 | `src/pages/SimulationLab.tsx`      | 互动实验页面                            | `apps/web/app/(app)/lesson/simulation/page.tsx`                       |
 | `src/pages/OfficeModule.tsx`       | 办公提效容器                            | `apps/web/app/(app)/office/layout.tsx`                                |
@@ -40,15 +40,15 @@
 
 ### 聊天与 AI 输出
 
-| 旧文件/片段    | 建议组件                  | 说明                                                                 |
-| -------------- | ------------------------- | -------------------------------------------------------------------- |
-| 多页面消息列表 | `ChatMessageList`         | user/assistant 气泡、自动滚动                                        |
-| 多页面消息气泡 | `AiMessageBubble`         | 基于 Ant Design X `Bubble` 封装角色、头像、图片样式和 streaming 状态 |
-| 多页面追问按钮 | `SuggestionChips`         | 最后一条 assistant 消息后的追问                                      |
-| 多页面输入框   | `AiSender`                | 基于 Ant Design X `Sender` 封装输入、Enter 发送、loading 禁用        |
-| 多页面会话列表 | `AiConversations`         | 基于 Ant Design X `Conversations` 或现有业务历史侧栏封装             |
-| `AdLoadingBot` | `SponsoredLoadingMessage` | 业务广告 loading                                                     |
-| 多页面复制逻辑 | `CopyResultButton`        | copy 状态和按钮                                                      |
+| 旧文件/片段           | 建议组件             | 说明                                                                 |
+| --------------------- | -------------------- | -------------------------------------------------------------------- |
+| 多页面消息列表        | `ChatMessageList`    | user/assistant 气泡、自动滚动                                        |
+| 多页面消息气泡        | `AiMessageBubble`    | 基于 Ant Design X `Bubble` 封装角色、头像、图片样式和 streaming 状态 |
+| 多页面追问按钮        | `SuggestionChips`    | 最后一条 assistant 消息后的追问                                      |
+| 多页面输入框          | `AiSender`           | 基于 Ant Design X `Sender` 封装输入、Enter 发送、loading 禁用        |
+| 多页面会话列表        | `AiConversations`    | 基于 Ant Design X `Conversations` 或现有业务历史侧栏封装             |
+| `GenerationAdOverlay` | `SponsoredGateModal` | AI 生成期间顶层毛玻璃广告，支持额度充足同步生成和额度不足延后生成    |
+| 多页面复制逻辑        | `CopyResultButton`   | copy 状态和按钮                                                      |
 
 ### 知识精讲
 
@@ -94,11 +94,11 @@
 
 ### 弹窗与广告
 
-| 旧文件            | 建议组件             | 说明                                 |
-| ----------------- | -------------------- | ------------------------------------ |
-| `LoginModal.tsx`  | `WechatLoginModal`   | 当前为模拟扫码                       |
-| `DonateModal.tsx` | `DonateModal`        | 赞助合作                             |
-| `ExportAdModal`   | `SponsoredGateModal` | 建议支持不同场景文案：额度解锁、导出 |
+| 旧文件            | 建议组件             | 说明                   |
+| ----------------- | -------------------- | ---------------------- |
+| `LoginModal.tsx`  | `UserLoginModal`     | 当前默认用户名密码登录 |
+| `DonateModal.tsx` | `DonateModal`        | 赞助合作               |
+| `ExportAdModal`   | `SponsoredGateModal` | 导出前广告等待         |
 
 ## 可抽到 packages/ui 的通用 UI 组件
 

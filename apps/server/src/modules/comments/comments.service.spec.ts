@@ -1,0 +1,846 @@
+import * as assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import type { CommentsRepository } from './comments.repository.js';
+import { CommentsService, CommentsServiceError } from './comments.service.js';
+
+test('generateSingle rejects invalid gender before persistence', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.generateSingle({
+        userId: 'user-1',
+        gender: '未知' as never,
+        grade: '三年级',
+        tags: ['思维活跃'],
+      }),
+    serviceError('BAD_REQUEST', 'Comment gender must be 男 or 女')
+  );
+  assert.equal(repository.singleCalls, 0);
+});
+
+test('generateSingle rejects empty grade before persistence', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.generateSingle({
+        userId: 'user-1',
+        gender: '男',
+        grade: '   ',
+        tags: ['思维活跃'],
+      }),
+    serviceError('BAD_REQUEST', 'Comment grade is required')
+  );
+  assert.equal(repository.singleCalls, 0);
+});
+
+test('generateSingle rejects invalid tags before persistence', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.generateSingle({
+        userId: 'user-1',
+        gender: '男',
+        grade: '三年级',
+        tags: ['不存在的标签'],
+      }),
+    serviceError('BAD_REQUEST', 'Comment tags contain unsupported values')
+  );
+  assert.equal(repository.singleCalls, 0);
+});
+
+test('generateSingle creates a comment session when sessionId is absent', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  const result = await service.generateSingle({
+    userId: 'user-1',
+    nickname: '小林',
+    gender: '男',
+    grade: '三年级',
+    tags: ['思维活跃'],
+  });
+
+  assert.equal(result.sessionId, 'session-1');
+  assert.equal(repository.singleCalls, 1);
+  assert.equal(repository.conversations[0]?.category, 'comment');
+  assert.equal(repository.messages.length, 2);
+  assert.equal(repository.messages[0]?.role, 'user');
+  assert.equal(repository.messages[1]?.role, 'assistant');
+});
+
+test('generateSingle resolves the mapped comment agent before calling a model API', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  const fetchCalls: Array<{ url: string; body: Record<string, unknown>; headers: Headers }> = [];
+
+  repository.setAgentRuntimeConfig('comment', {
+    agent: {
+      id: 'agent-comment',
+      key: 'comment',
+      name: '学生评语智能体',
+      temperature: 0.3,
+      topP: 0.9,
+      maxTokens: 600,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-dsv4',
+      name: 'DSv4',
+      apiBaseUrl: 'https://model.example.test/v1/chat/completions',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'deepseek-chat',
+      status: 'enabled',
+    },
+    prompt: {
+      id: 'prompt-comment',
+      content: '你只输出学生评语列表。',
+    },
+    sensitiveWordList: null,
+  });
+
+  await withMockFetch(
+    async (url, init) => {
+      const headers = new Headers(init?.headers);
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      fetchCalls.push({ url: String(url), body, headers });
+
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  '1. 小林课堂思维活跃，能够主动分享想法。\n2. 小林保持认真态度，学习状态稳定。\n3. 小林后续可以继续加强表达训练。',
+              },
+            },
+          ],
+          usage: { prompt_tokens: 21, completion_tokens: 33, total_tokens: 54 },
+        }),
+        { status: 200 }
+      );
+    },
+    async () => {
+      const result = await service.generateSingle({
+        userId: 'user-1',
+        nickname: ' 小林 ',
+        gender: '男',
+        grade: '三年级',
+        tags: ['思维活跃'],
+        keywords: ' 课堂发言积极 ',
+      });
+
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(fetchCalls[0]?.url, 'https://model.example.test/v1/chat/completions');
+      assert.equal(fetchCalls[0]?.headers.get('authorization'), 'Bearer test-api-key');
+      assert.equal(fetchCalls[0]?.body.model, 'deepseek-chat');
+      assert.deepEqual(fetchCalls[0]?.body.messages, [
+        { role: 'system', content: '你只输出学生评语列表。' },
+        {
+          role: 'user',
+          content:
+            '请为小林生成3条三年级学生评语。性别：男。语气：温和鼓励。表现标签：思维活跃。关注点：课堂发言积极。请每条单独成行。',
+        },
+      ]);
+      assert.deepEqual(result.comments, [
+        '小林课堂思维活跃，能够主动分享想法。',
+        '小林保持认真态度，学习状态稳定。',
+        '小林后续可以继续加强表达训练。',
+      ]);
+      assert.equal(repository.modelCalls[0]?.agentId, 'agent-comment');
+      assert.equal(repository.modelCalls[0]?.engineId, 'engine-dsv4');
+      assert.equal(repository.modelCalls[0]?.totalTokens, 54);
+    }
+  );
+});
+
+test('generateSingle resolves the mapped comment agent with grade classification only', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await service.generateSingle({
+    userId: 'user-1',
+    nickname: '小林',
+    gender: '男',
+    grade: '三年级',
+    subject: '语文',
+    tags: ['思维活跃'],
+  } as never);
+
+  assert.deepEqual(repository.runtimeConfigLookups.at(-1), {
+    grade: '小学',
+    key: 'comment',
+    subject: null,
+  });
+});
+
+test('generateSingleStream emits model deltas and persists the final comments', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  const fetchCalls: Array<{ url: string; body: Record<string, unknown>; headers: Headers }> = [];
+  const deltas: string[] = [];
+
+  repository.setAgentRuntimeConfig('comment', {
+    agent: {
+      id: 'agent-comment',
+      key: 'comment',
+      name: '学生评语智能体',
+      temperature: 0.3,
+      topP: 0.9,
+      maxTokens: 600,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-dsv4',
+      name: 'DSv4',
+      apiBaseUrl: 'https://model.example.test/v1',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'deepseek-chat',
+      status: 'enabled',
+    },
+    prompt: {
+      id: 'prompt-comment',
+      content: '你只输出学生评语列表。',
+    },
+    sensitiveWordList: null,
+  });
+
+  await withMockFetch(
+    async (url, init) => {
+      const headers = new Headers(init?.headers);
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      fetchCalls.push({ url: String(url), body, headers });
+
+      return createSseResponse([
+        'data: {"choices":[{"delta":{"content":"1. 小林课堂思维活跃"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"，能主动表达。\\n2. 小林作业进步明显。"}}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}\n\n',
+        'data: [DONE]\n\n',
+      ]);
+    },
+    async () => {
+      const result = await service.generateSingleStream(
+        {
+          userId: 'user-1',
+          nickname: '小林',
+          gender: '男',
+          grade: '三年级',
+          tags: ['思维活跃'],
+        },
+        (content) => {
+          deltas.push(content);
+        }
+      );
+
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(fetchCalls[0]?.url, 'https://model.example.test/v1/chat/completions');
+      assert.equal(fetchCalls[0]?.headers.get('authorization'), 'Bearer test-api-key');
+      assert.equal(fetchCalls[0]?.body.stream, true);
+      assert.deepEqual(deltas, ['1. 小林课堂思维活跃', '，能主动表达。\n2. 小林作业进步明显。']);
+      assert.deepEqual(result.comments, ['小林课堂思维活跃，能主动表达。', '小林作业进步明显。']);
+      assert.equal(repository.singleCalls, 1);
+      assert.equal(repository.modelCalls[0]?.totalTokens, 30);
+    }
+  );
+});
+
+test('generateSingle rejects invalid comment session before returning comments', async () => {
+  const repository = new FakeCommentsRepository();
+  repository.conversations.push({
+    id: 'chat-session',
+    userId: 'user-1',
+    category: 'chat',
+  });
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.generateSingle({
+        userId: 'user-1',
+        sessionId: 'chat-session',
+        gender: '男',
+        grade: '三年级',
+        tags: ['思维活跃'],
+      }),
+    serviceError('NOT_FOUND', 'Comment conversation not found')
+  );
+  assert.equal(repository.messages.length, 0);
+});
+
+test('createFromUpload accepts file metadata and returns mock row previews', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  const result = await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    tone: '温和鼓励',
+  });
+
+  assert.equal(result.job.fileName, 'comments.xlsx');
+  assert.equal(result.job.status, 'pending');
+  assert.equal(result.rowPreviews.length, 3);
+  assert.deepEqual(result.rowPreviews[0]?.comments, []);
+  assert.equal(repository.jobs.length, 1);
+  assert.equal(repository.rows.length, 3);
+});
+
+test('createFromUpload parses uploaded xlsx rows instead of mock previews', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  const result = await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 4096,
+    contentBase64: createTestXlsxBase64([
+      ['昵称', '性别', '年级', '标签', '关键词'],
+      ['小一', '男', '1', '思维活跃', '课堂发言积极'],
+      ['小二', '女', '2', '团结协作', '小组合作主动'],
+      ['小三', '男', '3', '基础扎实', '作业稳定认真'],
+      ['小四', '女', '4', '遵守纪律', '课堂状态稳定'],
+      ['小五', '男', '5', '乐于分享', '表达更自信'],
+    ]),
+  });
+
+  assert.equal(result.rowPreviews.length, 5);
+  assert.equal(result.job.totalRows, 5);
+  assert.equal(result.rowPreviews[0]?.nickname, '小一');
+  assert.equal(result.rowPreviews[0]?.grade, '一年级');
+  assert.deepEqual(result.rowPreviews[4]?.tags, ['乐于分享']);
+  assert.equal(repository.rows.length, 5);
+});
+
+test('createFromUpload rejects zero-byte files before persistence', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.createFromUpload({
+        userId: 'user-1',
+        fileName: 'comments.xlsx',
+        fileSize: 0,
+      }),
+    serviceError('BAD_REQUEST', 'Comment upload fileSize must be a positive integer')
+  );
+  assert.equal(repository.jobs.length, 0);
+});
+
+test('generateRow updates the row status to success', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+
+  const result = await service.generateRow({
+    userId: 'user-1',
+    jobId: 'job-1',
+    rowId: 'row-1',
+  });
+
+  assert.equal(result.row.status, 'success');
+  assert.equal(repository.rows[0]?.status, 'success');
+  assert.equal((repository.rows[0]?.generatedResults as string[] | undefined)?.length, 3);
+});
+
+test('generateAll returns completed aggregate after multiple row generations', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+
+  const result = await service.generateAll({
+    userId: 'user-1',
+    jobId: 'job-1',
+  });
+
+  assert.equal(result.job.status, 'completed');
+  assert.equal(result.job.successRows, 3);
+  assert.equal(result.job.failedRows, 0);
+  assert.equal(result.rows.length, 3);
+  assert.equal(
+    result.rows.every((row) => row.status === 'success'),
+    true
+  );
+});
+
+test('exportBatch returns an Excel base64 payload', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+  await service.generateRow({
+    userId: 'user-1',
+    jobId: 'job-1',
+    rowId: 'row-1',
+  });
+
+  const result = await service.exportBatch({
+    userId: 'user-1',
+    jobId: 'job-1',
+  });
+
+  assert.equal(result.fileName.endsWith('.xlsx'), true);
+  assert.equal(
+    result.mimeType,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  assert.equal(typeof result.contentBase64, 'string');
+  assert.equal(Buffer.from(result.contentBase64, 'base64').subarray(0, 2).toString(), 'PK');
+});
+
+test('exportBatch writes three plain-text comment columns', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+  await service.generateRow({
+    userId: 'user-1',
+    jobId: 'job-1',
+    rowId: 'row-1',
+  });
+  const row = repository.rows.find((item) => item.id === 'row-1');
+
+  assert.ok(row);
+  row.generatedResults = [
+    '**第一条评语**\n- 课堂表现稳定',
+    '```markdown\n第二条评语\n```',
+    '`第三条评语`',
+  ];
+
+  const result = await service.exportBatch({
+    userId: 'user-1',
+    jobId: 'job-1',
+  });
+  const workbook = Buffer.from(result.contentBase64, 'base64').toString('utf8');
+
+  assert.match(workbook, /评语1/);
+  assert.match(workbook, /评语2/);
+  assert.match(workbook, /评语3/);
+  assert.match(workbook, /第一条评语\s*课堂表现稳定/);
+  assert.match(workbook, /第二条评语/);
+  assert.match(workbook, /第三条评语/);
+  assert.doesNotMatch(workbook, /\*\*|```|`|- 课堂表现稳定/);
+});
+
+type JobRow = {
+  id: string;
+  userId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string | null;
+  tone: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  totalRows: number;
+  successRows: number;
+  failedRows: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type BatchRow = {
+  id: string;
+  jobId: string;
+  rowIndex: number;
+  nickname: string | null;
+  gender: '男' | '女';
+  grade: string;
+  tags: string[];
+  keywords: string | null;
+  status: 'pending' | 'generating' | 'success' | 'error';
+  generatedResults: string[] | null;
+  errorMessage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type ConversationRow = {
+  id: string;
+  userId: string;
+  category: 'chat' | 'inspiration' | 'comment' | 'teaching';
+};
+
+type MessageRow = {
+  conversationId: string;
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+type AgentRuntimeConfig = {
+  agent: {
+    id: string;
+    key: 'comment';
+    name: string;
+    temperature: number;
+    topP: number;
+    maxTokens: number;
+    status: 'enabled' | 'disabled';
+  };
+  engine: {
+    id: string;
+    name: string;
+    apiBaseUrl: string;
+    apiKeyCiphertext: string;
+    modelName: string | null;
+    status: 'enabled' | 'disabled';
+  };
+  prompt: {
+    id: string;
+    content: string;
+  } | null;
+  sensitiveWordList: {
+    id: string;
+    words: string[];
+  } | null;
+};
+
+type ModelCallInput = {
+  agentId?: string | null;
+  engineId?: string | null;
+  modelName: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  latencyMs: number;
+  costAmount: number;
+  currency: string;
+};
+
+class FakeCommentsRepository {
+  singleCalls = 0;
+  readonly jobs: JobRow[] = [];
+  readonly rows: BatchRow[] = [];
+  readonly conversations: ConversationRow[] = [];
+  readonly messages: MessageRow[] = [];
+  readonly runtimeConfigs = new Map<'comment', AgentRuntimeConfig>();
+  readonly runtimeConfigLookups: Array<{
+    key: 'comment';
+    grade: string | null;
+    subject: string | null;
+  }> = [];
+  readonly modelCalls: ModelCallInput[] = [];
+
+  asRepository(): CommentsRepository {
+    return this as unknown as CommentsRepository;
+  }
+
+  async saveSingleGeneration(input: {
+    userId: string;
+    sessionId?: string;
+    nickname?: string | null;
+    gender: '男' | '女';
+    grade: string;
+    tags: string[];
+    keywords?: string | null;
+    tone: string;
+    comments: string[];
+    modelCall?: ModelCallInput;
+  }): Promise<{ sessionId: string } | null> {
+    this.singleCalls += 1;
+
+    let conversation = input.sessionId
+      ? this.conversations.find(
+          (item) =>
+            item.id === input.sessionId &&
+            item.userId === input.userId &&
+            item.category === 'comment'
+        )
+      : undefined;
+
+    if (input.sessionId && !conversation) {
+      return null;
+    }
+
+    if (!conversation) {
+      conversation = {
+        id: `session-${this.conversations.length + 1}`,
+        userId: input.userId,
+        category: 'comment',
+      };
+      this.conversations.push(conversation);
+    }
+
+    this.messages.push(
+      {
+        conversationId: conversation.id,
+        role: 'user',
+        content: input.nickname ? `${input.nickname}评语生成` : '评语生成',
+      },
+      {
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: input.comments.join('\n\n'),
+      }
+    );
+    if (input.modelCall) {
+      this.modelCalls.push(input.modelCall);
+    }
+
+    return { sessionId: conversation.id };
+  }
+
+  setAgentRuntimeConfig(key: 'comment', config: AgentRuntimeConfig): void {
+    this.runtimeConfigs.set(key, config);
+  }
+
+  async findAgentRuntimeConfigByKey(
+    key: 'comment',
+    classification?: { grade?: string | null; subject?: string | null }
+  ): Promise<AgentRuntimeConfig | null> {
+    this.runtimeConfigLookups.push({
+      grade: classification?.grade ?? null,
+      key,
+      subject: classification?.subject ?? null,
+    });
+
+    return this.runtimeConfigs.get(key) ?? null;
+  }
+
+  async createBatch(input: {
+    userId: string;
+    fileName: string;
+    fileSize: number;
+    mimeType?: string | null;
+    tone: string;
+    rows: Array<{
+      rowIndex: number;
+      nickname?: string | null;
+      gender: '男' | '女';
+      grade: string;
+      tags: string[];
+      keywords?: string | null;
+    }>;
+  }): Promise<{ job: JobRow; rows: BatchRow[] }> {
+    const now = new Date('2026-05-20T00:00:00.000Z');
+    const job: JobRow = {
+      id: 'job-1',
+      userId: input.userId,
+      fileName: input.fileName,
+      fileSize: input.fileSize,
+      mimeType: input.mimeType ?? null,
+      tone: input.tone,
+      status: 'pending',
+      totalRows: input.rows.length,
+      successRows: 0,
+      failedRows: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rows = input.rows.map((row, index) => ({
+      id: `row-${index + 1}`,
+      jobId: job.id,
+      rowIndex: row.rowIndex,
+      nickname: row.nickname ?? null,
+      gender: row.gender,
+      grade: row.grade,
+      tags: row.tags,
+      keywords: row.keywords ?? null,
+      status: 'pending' as const,
+      generatedResults: null,
+      errorMessage: null,
+      createdAt: now,
+      updatedAt: now,
+    }));
+
+    this.jobs.push(job);
+    this.rows.push(...rows);
+
+    return { job, rows };
+  }
+
+  async findBatchForUser(
+    userId: string,
+    jobId: string
+  ): Promise<{ job: JobRow; rows: BatchRow[] } | null> {
+    const job = this.jobs.find((item) => item.id === jobId && item.userId === userId);
+
+    if (!job) {
+      return null;
+    }
+
+    return {
+      job,
+      rows: this.rows.filter((row) => row.jobId === job.id),
+    };
+  }
+
+  async updateRowGenerated(input: {
+    jobId: string;
+    rowId: string;
+    generatedResults: string[];
+    modelCall?: ModelCallInput;
+  }): Promise<{ job: JobRow; row: BatchRow } | null> {
+    const job = this.jobs.find((item) => item.id === input.jobId);
+    const row = this.rows.find((item) => item.id === input.rowId && item.jobId === input.jobId);
+
+    if (!job || !row) {
+      return null;
+    }
+
+    row.status = 'success';
+    row.generatedResults = input.generatedResults;
+    row.updatedAt = new Date('2026-05-20T00:01:00.000Z');
+    job.successRows = this.rows.filter(
+      (item) => item.jobId === job.id && item.status === 'success'
+    ).length;
+    job.status = job.successRows === job.totalRows ? 'completed' : 'running';
+    job.updatedAt = row.updatedAt;
+    if (input.modelCall) {
+      this.modelCalls.push(input.modelCall);
+    }
+
+    return { job, row };
+  }
+}
+
+function serviceError(code: string, message: string): (error: unknown) => boolean {
+  return (error: unknown) =>
+    error instanceof CommentsServiceError && error.code === code && error.message === message;
+}
+
+async function withMockFetch(
+  handler: (
+    url: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1]
+  ) => Promise<Response>,
+  callback: () => Promise<void>
+): Promise<void> {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = handler as typeof fetch;
+
+  try {
+    await callback();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+function createSseResponse(events: string[]): Response {
+  const encoder = new TextEncoder();
+
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const event of events) {
+          controller.enqueue(encoder.encode(event));
+        }
+
+        controller.close();
+      },
+    }),
+    {
+      headers: {
+        'content-type': 'text/event-stream',
+      },
+      status: 200,
+    }
+  );
+}
+
+function createTestXlsxBase64(rows: string[][]): string {
+  return createStoredZipBase64([
+    {
+      path: 'xl/worksheets/sheet1.xml',
+      content: createTestWorksheetXml(rows),
+    },
+  ]);
+}
+
+function createTestWorksheetXml(rows: string[][]): string {
+  const sheetRows = rows
+    .map((row, rowIndex) => {
+      const rowNumber = rowIndex + 1;
+      const cells = row
+        .map((value, columnIndex) => {
+          const cellRef = `${String.fromCharCode(65 + columnIndex)}${rowNumber}`;
+
+          return `<c r="${cellRef}" t="inlineStr"><is><t>${escapeXml(value)}</t></is></c>`;
+        })
+        .join('');
+
+      return `<row r="${rowNumber}">${cells}</row>`;
+    })
+    .join('');
+
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    `<sheetData>${sheetRows}</sheetData>` +
+    '</worksheet>'
+  );
+}
+
+function createStoredZipBase64(entries: Array<{ path: string; content: string }>): string {
+  const localParts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const fileName = Buffer.from(entry.path, 'utf8');
+    const content = Buffer.from(entry.content, 'utf8');
+    const localHeader = Buffer.alloc(30);
+    const centralHeader = Buffer.alloc(46);
+
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0, 8);
+    localHeader.writeUInt32LE(0, 14);
+    localHeader.writeUInt32LE(content.length, 18);
+    localHeader.writeUInt32LE(content.length, 22);
+    localHeader.writeUInt16LE(fileName.length, 26);
+
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0, 10);
+    centralHeader.writeUInt32LE(0, 16);
+    centralHeader.writeUInt32LE(content.length, 20);
+    centralHeader.writeUInt32LE(content.length, 24);
+    centralHeader.writeUInt16LE(fileName.length, 28);
+    centralHeader.writeUInt32LE(offset, 42);
+
+    localParts.push(Buffer.concat([localHeader, fileName, content]));
+    centralParts.push(Buffer.concat([centralHeader, fileName]));
+    offset += localHeader.length + fileName.length + content.length;
+  }
+
+  const centralDirectory = Buffer.concat(centralParts);
+  const endRecord = Buffer.alloc(22);
+
+  endRecord.writeUInt32LE(0x06054b50, 0);
+  endRecord.writeUInt16LE(entries.length, 8);
+  endRecord.writeUInt16LE(entries.length, 10);
+  endRecord.writeUInt32LE(centralDirectory.length, 12);
+  endRecord.writeUInt32LE(offset, 16);
+
+  return Buffer.concat([...localParts, centralDirectory, endRecord]).toString('base64');
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}

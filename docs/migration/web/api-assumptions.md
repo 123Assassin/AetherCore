@@ -4,6 +4,17 @@
 
 迁移目标下，前端不再安装 `@google/genai`、不感知具体模型、不拼装 prompt。前端只把输入、文件和会话信息发给后端；后端负责 prompt 拼装、模型调用、结构化解析、额度扣减、Excel 解析和导出。AI 文本类接口优先以流式响应返回，前端使用 `@ant-design/x` 进行流式渲染。
 
+用户端 AI 功能与管理端智能体配置通过共享映射配对，映射常量位于 `packages/shared/src/types/agent-mapping.ts`：
+
+| 用户端功能 | category      | 管理端 agent key |
+| ---------- | ------------- | ---------------- |
+| AI 助手    | `chat`        | `chat`           |
+| 知识精讲   | `inspiration` | `inspiration`    |
+| 学生评语   | `comment`     | `comment`        |
+| 题目变身   | `teaching`    | `teaching`       |
+
+前端不传任意 agent key。后端收到 `chat`、`inspiration`、`comment`、`teaching` 请求后，先从该映射取管理端 key，再查询数据库中的智能体、模型引擎、Prompt 和敏感词库配置，最后调用模型 API。
+
 前端依赖调整：
 
 - 移除：`@google/genai`
@@ -329,6 +340,8 @@ type AiStreamEvent =
 
 - `200 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 - 文件名示例：`红笔AI_批量评语生成结果_YYYY-MM-DD.xlsx`
+- 导出列包含原始学生信息与 `评语1`、`评语2`、`评语3` 三个结果列。
+- 写入 Excel 前需要去除 Markdown 代码块、行内代码和常见列表/强调标记。
 
 错误状态：
 
@@ -682,12 +695,13 @@ type AiStreamEvent =
 
 ### 15. 登录认证
 
-建议接口：
+当前接口：
 
-- `POST /api/auth/wechat/qrcode`
-- `GET /api/auth/wechat/status?ticket=...`
+- tRPC `auth.userLogin`：当前默认登录入口，提交 `user/password` 并创建用户端 session。
+- tRPC `auth.wechatLoginConfig`：返回微信内嵌二维码所需 `appId`、`redirectUri`、`scope`、`state`。
+- tRPC `auth.wechatCallback`：接收微信回调 `code/state`，服务端换取微信授权信息并写入 session。
 - `POST /api/auth/logout`
-- `GET /api/me`
+- tRPC `me.profile`
 
 `GET /api/me` 响应：
 
@@ -702,11 +716,11 @@ type AiStreamEvent =
 }
 ```
 
-当前来源：
+当前实现：
 
-- `LoginModal.tsx` 使用 `setTimeout` 模拟扫码和成功。
-- user 只保存在 `App.tsx` 内存状态。
-- 无真实 token、cookie、session。
+- `UserLoginModal` 使用用户名和密码登录；`WechatLoginModal` 代码保留，暂不作为默认入口。
+- user 从服务端 session 对应的 `me.profile` 查询恢复。
+- session 使用 HttpOnly Cookie，不在前端存储 token。
 
 ## 哪些数据目前是 mock、localStorage 或硬编码
 

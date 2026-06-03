@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 
 export const baseConfig = [
   {
-    ignores: ['dist/**', '.next/**', 'node_modules/**'],
+    ignores: ['dist/**', '.next/**', 'node_modules/**', 'next-env.d.ts'],
   },
   {
     languageOptions: {

@@ -4,19 +4,23 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev -p 3001",
+    "dev": "node ../../scripts/next-dev-with-default-port.mjs 3000",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "next start -p 3001",
+    "start": "next start -p 3000",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ant-design/x": "^2.7.0",
+    "@fontsource/inter": "^5.2.8",
     "@package/api": "workspace:*",
     "@package/shared": "workspace:*",
     "@package/ui": "workspace:*",
+    "lucide-react": "^1.16.0",
     "next": "^16.0.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@package/eslint-config": "workspace:*",

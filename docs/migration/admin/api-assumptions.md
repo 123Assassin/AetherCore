@@ -17,11 +17,11 @@
 
 ## Auth
 
-| 接口                      | 方法 | 请求                     | 响应                        | 当前替代                                       |
-| ------------------------- | ---- | ------------------------ | --------------------------- | ---------------------------------------------- |
-| `/api/admin/auth/login`   | POST | `{ username, password }` | `{ user }` + session cookie | `admin123` 硬编码 + `localStorage.isAdminAuth` |
-| `/api/admin/auth/logout`  | POST | 无                       | `{ success: true }`         | 删除 `localStorage.isAdminAuth`                |
-| `/api/admin/auth/session` | GET  | 无                       | `{ authenticated, user }`   | 读取 localStorage                              |
+| 接口                      | 方法 | 请求                 | 响应                        | 当前替代                                       |
+| ------------------------- | ---- | -------------------- | --------------------------- | ---------------------------------------------- |
+| `/api/admin/auth/login`   | POST | `{ user, password }` | `{ user }` + session cookie | `admin123` 硬编码 + `localStorage.isAdminAuth` |
+| `/api/admin/auth/logout`  | POST | 无                   | `{ success: true }`         | 删除 `localStorage.isAdminAuth`                |
+| `/api/admin/auth/session` | GET  | 无                   | `{ authenticated, user }`   | 读取 localStorage                              |
 
 ## Dashboard
 

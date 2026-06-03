@@ -2,8 +2,14 @@
   "name": "@package/auth",
   "private": true,
   "type": "module",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -13,6 +19,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "ioredis": "^5.8.2"
   },
   "devDependencies": {

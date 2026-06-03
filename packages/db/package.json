@@ -2,14 +2,25 @@
   "name": "@package/db",
   "private": true,
   "type": "module",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./schema": {
       "types": "./dist/schema/index.d.ts",
-      "import": "./dist/schema/index.js"
+      "import": "./dist/schema/index.js",
+      "require": "./dist/schema/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "schema": [
+        "dist/schema/index.d.ts"
+      ]
     }
   },
   "scripts": {

@@ -15,6 +15,76 @@
       "when": 1779092537189,
       "tag": "0001_chief_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779184964660,
+      "tag": "0002_productive_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779194760200,
+      "tag": "0003_parallel_justin_hammer",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779213655895,
+      "tag": "0004_petite_morlun",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779220805116,
+      "tag": "0005_woozy_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779225223854,
+      "tag": "0006_wet_moon_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779239209347,
+      "tag": "0007_smart_wendell_vaughn",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779259354953,
+      "tag": "0008_mature_dreaming_celestial",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779320000000,
+      "tag": "0009_admin_username_login",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779362485110,
+      "tag": "0010_nebulous_emma_frost",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779897600000,
+      "tag": "0011_agent_classification",
+      "breakpoints": true
     }
   ]
 }

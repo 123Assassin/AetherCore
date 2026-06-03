@@ -1,7 +1,7 @@
 import { db } from '@package/db';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-import { seedAdmin } from './seed-admin.js';
+import { seedAdmin, seedWebUsers } from './seed-admin.js';
 import { seedData } from './seed-data.js';
 import { resolveMigrationsFolder } from './utils.js';
 
@@ -17,6 +17,9 @@ async function main() {
 
     console.log('Seeding admin user...');
     await seedAdmin(db);
+
+    console.log('Seeding web users...');
+    await seedWebUsers(db);
 
     console.log('Seeding default data...');
     await seedData(db);

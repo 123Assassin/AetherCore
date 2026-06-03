@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev -p 3002",
+    "dev": "node ../../scripts/next-dev-with-default-port.mjs 3001",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "next start -p 3002",
+    "start": "next start -p 3001",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -15,9 +15,12 @@
     "@package/auth": "workspace:*",
     "@package/shared": "workspace:*",
     "@package/ui": "workspace:*",
+    "lucide-react": "^1.16.0",
+    "motion": "^12.39.0",
     "next": "^16.0.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@package/eslint-config": "workspace:*",
