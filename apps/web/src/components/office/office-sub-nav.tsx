@@ -3,10 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const officeNavItems = [
-  { href: '/office/comment', label: '评语办公' },
-  { href: '/office/teaching', label: '教案办公' },
-] as const;
+const officeNavItems = [{ href: '/office/comment', label: '评语办公' }] as const;
 
 function isActiveOfficeRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);

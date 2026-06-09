@@ -114,10 +114,10 @@ export function ExcelUploadDropzone({
       className="flex flex-1 flex-col items-center justify-center p-8 text-center md:p-12"
     >
       <label
-        className={`group flex w-full max-w-xl cursor-pointer flex-col items-center justify-center rounded-[2.5rem] border-4 border-dashed p-10 transition-all md:p-16 ${
+        className={`group flex w-full max-w-xl cursor-pointer flex-col items-center justify-center rounded-[2.5rem] border border-slate-200 p-10 transition-all md:p-16 ${
           isDragging
             ? 'border-emerald-500 bg-emerald-50/50'
-            : 'border-slate-100 hover:border-emerald-200 hover:bg-slate-50/50'
+            : 'hover:border-emerald-300 hover:bg-slate-50/50'
         } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
         htmlFor={inputId}
         onDragLeave={handleDragLeave}

@@ -317,6 +317,32 @@ test('createFromUpload parses uploaded xlsx rows instead of mock previews', asyn
   assert.equal(repository.rows.length, 5);
 });
 
+test('createFromUpload accepts freeform tags from uploaded xlsx rows', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  const result = await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 4096,
+    contentBase64: createTestXlsxBase64([
+      ['昵称', '性别', '年级', '标签', '关键词'],
+      ['小王', '男', '二年级', '学习认真', '继续保持学习热情'],
+      ['小张', '女', '二年级', '体育出众', '多提高文化课热情'],
+      ['小陈', '女', '二年级', '进步神速', '继续努力'],
+      ['小吴', '男', '二年级', '爱开小差', '改掉坏习惯'],
+      ['小高', '男', '二年级', '成绩退步', '改掉坏习惯'],
+    ]),
+  });
+
+  assert.equal(result.rowPreviews.length, 5);
+  assert.equal(result.rowPreviews[0]?.nickname, '小王');
+  assert.equal(result.rowPreviews[0]?.grade, '二年级');
+  assert.deepEqual(result.rowPreviews[0]?.tags, ['学习认真']);
+  assert.deepEqual(result.rowPreviews[4]?.tags, ['成绩退步']);
+  assert.equal(repository.rows.length, 5);
+});
+
 test('createFromUpload rejects zero-byte files before persistence', async () => {
   const repository = new FakeCommentsRepository();
   const service = new CommentsService(repository.asRepository());

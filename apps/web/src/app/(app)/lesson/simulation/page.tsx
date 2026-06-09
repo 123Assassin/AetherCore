@@ -1,11 +1,6 @@
 'use client';
 
-import type {
-  SimulationFilters,
-  SimulationItem,
-  SimulationListInput,
-  SimulationListResult,
-} from '@package/shared';
+import type { SimulationFilters, SimulationListInput, SimulationListResult } from '@package/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { SimulationCard } from '../../../../components/simulations/simulation-card';
@@ -19,6 +14,7 @@ import {
   getSimulationDescription,
   simulationPageSize,
 } from '../../../../components/simulations/simulations.data';
+import { expandWebGradeFilters, normalizeWebGradeOptions } from '../../../../lib/web-grades';
 import type { TrpcClient } from '../../../../trpc/client';
 import { useTrpcClient } from '../../../../trpc/provider';
 
@@ -47,6 +43,23 @@ function toggleValue(values: string[], value: string) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
+function normalizeSimulationFilters(filters: SimulationFilters): SimulationFilters {
+  return {
+    ...filters,
+    grades: normalizeWebGradeOptions(filters.grades),
+  };
+}
+
+function normalizeSimulationListResult(result: SimulationListResult): SimulationListResult {
+  return {
+    ...result,
+    items: result.items.map((item) => ({
+      ...item,
+      grades: normalizeWebGradeOptions(item.grades),
+    })),
+  };
+}
+
 function buildListInput(
   selectedSubjects: string[],
   selectedCategoryIds: string[],
@@ -60,7 +73,7 @@ function buildListInput(
     pageSize: simulationPageSize,
     ...(selectedSubjects.length > 0 ? { subjects: selectedSubjects } : {}),
     ...(selectedCategoryIds.length > 0 ? { categoryIds: selectedCategoryIds } : {}),
-    ...(selectedGrades.length > 0 ? { grades: selectedGrades } : {}),
+    ...(selectedGrades.length > 0 ? { grades: expandWebGradeFilters(selectedGrades) } : {}),
     ...(trimmedSearch ? { q: trimmedSearch } : {}),
   };
 }
@@ -119,7 +132,7 @@ export default function SimulationPage() {
       .query()
       .then((nextFilters) => {
         if (!ignore) {
-          setFilters(nextFilters);
+          setFilters(normalizeSimulationFilters(nextFilters));
           setFiltersError(null);
         }
       })
@@ -158,7 +171,7 @@ export default function SimulationPage() {
         const nextResult = await fetchSimulationListPages(client, input, () => !ignore);
 
         if (!ignore) {
-          setResult(nextResult);
+          setResult(normalizeSimulationListResult(nextResult));
           setListError(null);
         }
       })

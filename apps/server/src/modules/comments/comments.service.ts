@@ -554,7 +554,7 @@ function normalizeUploadRows(rows: CommentUploadRowInput[]): CommentBatchCreateR
     nickname: trimOptionalMax(row.nickname ?? undefined, 'Comment row nickname', 100) ?? null,
     gender: normalizeGender(row.gender),
     grade: normalizeGrade(row.grade),
-    tags: normalizeTags(row.tags),
+    tags: normalizeUploadTags(row.tags),
     keywords: trimOptionalMax(row.keywords ?? undefined, 'Comment row keywords', 1000) ?? null,
   }));
 }
@@ -589,6 +589,20 @@ function normalizeTags(value: string[]): string[] {
   }
 
   return tags;
+}
+
+function normalizeUploadTags(value: string[]): string[] {
+  if (!Array.isArray(value)) {
+    throw new CommentsServiceError('BAD_REQUEST', 'Comment tags must be an array');
+  }
+
+  return [
+    ...new Set(
+      value
+        .map((tag) => trimOptionalMax(tag, 'Comment row tag', 40))
+        .filter((tag): tag is string => tag !== undefined)
+    ),
+  ];
 }
 
 function normalizeFileSize(value: number): number {

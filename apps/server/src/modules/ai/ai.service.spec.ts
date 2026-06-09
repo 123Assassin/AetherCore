@@ -322,7 +322,7 @@ test('sendChat returns workflow events with the documented routes', async () => 
   const cases: Array<[ConversationCategory, string]> = [
     ['comment', '/office/comment'],
     ['inspiration', '/lesson/inspiration'],
-    ['teaching', '/office/teaching'],
+    ['teaching', '/lesson/teaching'],
   ];
 
   for (const [category, redirectTo] of cases) {
@@ -709,7 +709,7 @@ test('followUpTeaching appends to an existing teaching conversation', async () =
     '[mock:teaching] 追问回应：基于上一轮“[mock:teaching] 原题变式设计：围绕“一次函数应用题”生成 challenge 层级变式题。”，回应“请再给一个解析步骤”。'
   );
   assert.equal(repository.messages[3]?.workflowName, 'teaching');
-  assert.equal(repository.messages[3]?.redirectTo, '/office/teaching');
+  assert.equal(repository.messages[3]?.redirectTo, '/lesson/teaching');
   assert.equal(
     result.events[1]?.type === 'delta' ? result.events[1].content : '',
     repository.messages[3]?.content

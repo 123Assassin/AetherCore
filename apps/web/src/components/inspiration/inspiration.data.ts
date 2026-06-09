@@ -1,3 +1,11 @@
+import {
+  getDefaultWebSubjectForGrade,
+  getWebSubjectsForGrade,
+  normalizeWebSubjectForGrade,
+  webGradeOptions,
+  webSubjectsByGrade,
+} from '../../lib/web-grades';
+
 export type InspirationFormValues = {
   grade: string;
   subject: string;
@@ -12,30 +20,28 @@ export type FeaturedInspirationCase = InspirationFormValues & {
   description: string;
 };
 
-export const gradeOptions = ['小学', '初中', '高中', '大学'] as const;
+export const gradeOptions = webGradeOptions;
 
-export const subjectOptions = [
-  '语文',
-  '数学',
-  '英语',
-  '物理',
-  '化学',
-  '生物',
-  '历史',
-  '地理',
-  '政治',
-  '信息技术',
-  '科学',
-] as const;
+export const subjectOptions = Array.from(new Set(Object.values(webSubjectsByGrade).flat()));
 
-export const availableInspirationSubjectsByGrade = {
-  初中: ['化学', '地理', '历史', '英语', '生物'],
-} as const;
+export const availableInspirationSubjectsByGrade = webSubjectsByGrade;
+
+export function getInspirationSubjectOptions(grade: string) {
+  return getWebSubjectsForGrade(grade);
+}
+
+export function getDefaultInspirationSubjectForGrade(grade: string) {
+  return getDefaultWebSubjectForGrade(grade);
+}
+
+export function normalizeInspirationSubjectForGrade(grade: string, subject: string) {
+  return normalizeWebSubjectForGrade(grade, subject);
+}
 
 export const defaultInspirationFormValues: InspirationFormValues = {
   context: '',
-  grade: '初中',
-  subject: '化学',
+  grade: '小学',
+  subject: getDefaultInspirationSubjectForGrade('小学'),
   topic: '',
 };
 

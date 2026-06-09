@@ -1,7 +1,7 @@
 export const chatWorkflowRoutes = [
   '/office/comment',
   '/lesson/inspiration',
-  '/office/teaching',
+  '/lesson/teaching',
 ] as const;
 
 export type ChatWorkflowRoute = (typeof chatWorkflowRoutes)[number];
@@ -21,7 +21,7 @@ type ChatWorkflowIntentAction = {
 const workflowButtonLabels: Record<ChatWorkflowRoute, string> = {
   '/office/comment': '评语助手',
   '/lesson/inspiration': '知识精讲',
-  '/office/teaching': '题目变身',
+  '/lesson/teaching': '题目变身',
 };
 
 const intentRules: ChatWorkflowIntentRule[] = [
@@ -34,7 +34,7 @@ const intentRules: ChatWorkflowIntentRule[] = [
     pattern: /备课|备一节课|备个课|备课灵感|课程灵感|知识精讲|精讲/,
   },
   {
-    route: '/office/teaching',
+    route: '/lesson/teaching',
     pattern: /题目变身|题目变式|变式题|改编题|题目改编|出题/,
   },
 ];

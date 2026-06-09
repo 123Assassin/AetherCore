@@ -9,6 +9,10 @@ import type { ReactNode } from 'react';
 import { TrpcProvider } from '../trpc/provider';
 
 export const metadata: Metadata = {
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+  },
   title: 'AetherCore Web',
 };
 

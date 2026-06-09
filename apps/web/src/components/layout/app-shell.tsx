@@ -32,6 +32,7 @@ function AppShellContent({ children }: AppShellProps) {
   const [donateOpen, setDonateOpen] = useState(false);
   const [user, setUser] = useState<AuthUserSummary | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const historyEnabled = route.activeCategory !== 'chat';
 
   const requestLogin = useCallback((message?: string | null) => {
     setLoginMessage(message ?? null);
@@ -39,6 +40,10 @@ function AppShellContent({ children }: AppShellProps) {
   }, []);
 
   useEffect(() => {
+    if (!historyEnabled) {
+      return;
+    }
+
     const location = (globalThis as { location?: { search?: string } }).location;
 
     if (new URLSearchParams(location?.search ?? '').get('history') === 'open') {
@@ -46,7 +51,15 @@ function AppShellContent({ children }: AppShellProps) {
 
       return () => clearTimeout(timeoutId);
     }
-  }, []);
+  }, [historyEnabled]);
+
+  useEffect(() => {
+    if (!historyEnabled) {
+      const timeoutId = setTimeout(() => setHistoryOpen(false), 0);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [historyEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,16 +97,19 @@ function AppShellContent({ children }: AppShellProps) {
     const location = (globalThis as { location?: { search?: string } }).location;
 
     if (new URLSearchParams(location?.search ?? '').get('login') === 'required') {
-      requestLogin(getLoginRequiredMessage());
-      router.replace('/chat');
-      return;
+      const timeoutId = setTimeout(() => requestLogin(getLoginRequiredMessage()), 0);
+
+      router.replace('/');
+      return () => clearTimeout(timeoutId);
     }
 
     const redirectPath = getLoggedOutRedirectPath(pathname);
 
     if (redirectPath) {
-      requestLogin(getLoginRequiredMessage());
+      const timeoutId = setTimeout(() => requestLogin(getLoginRequiredMessage()), 0);
+
       router.replace(redirectPath);
+      return () => clearTimeout(timeoutId);
     }
   }, [authChecked, pathname, requestLogin, router, user]);
 
@@ -117,27 +133,34 @@ function AppShellContent({ children }: AppShellProps) {
           onLogoutClick={handleLogout}
           user={user}
         />
-        <HistorySidebar
-          activeCategory={route.activeCategory}
-          activeTab={route.activeTab}
-          currentSessionId={currentSessionIds[route.activeCategory] ?? null}
-          isOpen={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          onSelectSession={(session) => {
-            if (session) {
-              setCurrentSessionId(session.category, session.id);
-            } else if (route.activeCategory === 'chat') {
-              setCurrentSessionId(route.activeCategory, null);
-            } else {
-              createNewSession(route.activeCategory);
-            }
-          }}
-        />
+        {historyEnabled ? (
+          <HistorySidebar
+            activeCategory={route.activeCategory}
+            activeTab={route.activeTab}
+            currentSessionId={currentSessionIds[route.activeCategory] ?? null}
+            isOpen={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            onSelectSession={(session) => {
+              if (session) {
+                setCurrentSessionId(session.category, session.id);
+              } else if (route.activeCategory === 'chat') {
+                setCurrentSessionId(route.activeCategory, null);
+              } else {
+                createNewSession(route.activeCategory);
+              }
+            }}
+          />
+        ) : null}
         <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col bg-white/50">
           <AppHeader
             activeTab={route.activeTab}
             historyOpen={historyOpen}
-            onToggleHistory={() => setHistoryOpen((open) => !open)}
+            onToggleHistory={() => {
+              if (historyEnabled) {
+                setHistoryOpen((open) => !open);
+              }
+            }}
+            showHistoryToggle={historyEnabled}
           />
           <main className="relative flex-1 overflow-auto bg-slate-50/50 p-6">{children}</main>
         </div>

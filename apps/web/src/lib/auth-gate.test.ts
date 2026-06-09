@@ -2,15 +2,16 @@ import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  getLoginRequiredMessage,
   getLoggedOutRedirectPath,
+  getLoginRequiredMessage,
   isUserSessionRequiredError,
 } from './auth-gate';
 
-test('getLoggedOutRedirectPath keeps anonymous users on chat and redirects protected pages', () => {
-  assert.equal(getLoggedOutRedirectPath('/chat'), null);
-  assert.equal(getLoggedOutRedirectPath('/lesson/simulation'), '/chat');
-  assert.equal(getLoggedOutRedirectPath('/office/comment'), '/chat');
+test('getLoggedOutRedirectPath keeps anonymous users on root and redirects protected pages', () => {
+  assert.equal(getLoggedOutRedirectPath('/'), null);
+  assert.equal(getLoggedOutRedirectPath('/chat'), '/');
+  assert.equal(getLoggedOutRedirectPath('/lesson/simulation'), '/');
+  assert.equal(getLoggedOutRedirectPath('/office/comment'), '/');
 });
 
 test('isUserSessionRequiredError detects backend user session errors', () => {

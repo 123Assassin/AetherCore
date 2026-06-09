@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const lessonNavItems = [
-  { href: '/lesson/inspiration', label: '灵感课程' },
-  { href: '/lesson/simulation', label: '仿真实训' },
+  { href: '/lesson/inspiration', label: '知识精讲' },
+  { href: '/lesson/teaching', label: '题目变身' },
+  { href: '/lesson/simulation', label: '互动实验' },
 ] as const;
 
 function isActiveLessonRoute(pathname: string, href: string) {

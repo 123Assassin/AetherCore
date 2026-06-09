@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  agentSubjectOptions,
-  type CommentGender,
-  type CommentGrade,
-  type CommentTag,
-} from '@package/shared';
+import { type CommentGender, type CommentGrade, type CommentTag } from '@package/shared';
 import { Sparkles } from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
 
@@ -15,8 +10,7 @@ import { StudentTagSelector } from './student-tag-selector';
 export type SingleCommentFormValues = {
   nickname: string;
   gender: CommentGender | '';
-  grade: CommentGrade | '';
-  subject: string;
+  grade: CommentGrade;
   tags: CommentTag[];
   keywords: string;
   tone: string;
@@ -60,12 +54,6 @@ export function SingleCommentForm({
     updateField('grade', target.value);
   }
 
-  function handleSubjectChange(event: ChangeEvent<HTMLSelectElement>) {
-    const target = event.currentTarget as unknown as { value: string };
-
-    updateField('subject', target.value);
-  }
-
   function handleTextChange(field: 'nickname' | 'keywords' | 'tone') {
     return (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const target = event.currentTarget as unknown as { value: string };
@@ -89,7 +77,7 @@ export function SingleCommentForm({
   return (
     <form
       aria-label="单人评语生成表单"
-      className="h-fit space-y-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 md:p-6"
+      className="h-fit space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6"
       onSubmit={handleSubmit}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -117,28 +105,9 @@ export function SingleCommentForm({
             onChange={handleGradeChange}
             value={values.grade}
           >
-            <option value="">请选择</option>
             {commentGradeOptions.map((grade) => (
               <option key={grade} value={grade}>
                 {grade}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          <span className="mb-1.5 block text-xs font-bold text-slate-700">学科</span>
-          <select
-            aria-label="学科"
-            className="w-full rounded-xl border-0 bg-slate-50/50 px-4 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-emerald-500"
-            disabled={disabled}
-            onChange={handleSubjectChange}
-            value={values.subject}
-          >
-            <option value="">请选择</option>
-            {agentSubjectOptions.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
               </option>
             ))}
           </select>
@@ -165,7 +134,7 @@ export function SingleCommentForm({
         </div>
       </fieldset>
 
-      <label>
+      <label className="block">
         <span className="mb-1.5 block text-xs font-bold text-slate-700">评价语气</span>
         <input
           aria-label="语气"
@@ -194,7 +163,7 @@ export function SingleCommentForm({
         selectedTags={values.tags}
       />
 
-      <label>
+      <label className="block">
         <span className="mb-1.5 block text-xs font-bold text-slate-700">个性化细节补充</span>
         <textarea
           aria-label="关键词或细节"

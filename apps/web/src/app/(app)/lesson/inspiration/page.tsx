@@ -393,15 +393,20 @@ export default function InspirationPage() {
   );
 
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-[1400px] flex-col bg-white p-4 md:p-6">
+    <div className="flex h-full min-h-0 flex-col bg-white p-4 md:p-6">
       <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
-        <InspirationForm
-          disabled={loading}
-          error={formError}
-          onChange={handleFormChange}
-          onSubmit={generateInspiration}
-          values={formValues}
-        />
+        <section
+          aria-label="知识精讲输入"
+          className="custom-scrollbar h-full w-full shrink-0 overflow-y-auto pr-0 lg:w-[420px] lg:pr-2"
+        >
+          <InspirationForm
+            disabled={loading}
+            error={formError}
+            onChange={handleFormChange}
+            onSubmit={generateInspiration}
+            values={formValues}
+          />
+        </section>
 
         <InspirationChatPanel
           disabled={loading}

@@ -3,9 +3,11 @@
 import type { ChangeEvent } from 'react';
 
 import {
+  getDefaultTeachingSubjectForStage,
+  getTeachingSubjectOptions,
+  normalizeTeachingSubjectForStage,
   type TeachingFormValues,
   teachingStageOptions,
-  teachingSubjectOptions,
 } from './teaching.data';
 
 type TeachingContextFormProps = {
@@ -15,52 +17,64 @@ type TeachingContextFormProps = {
 };
 
 export function TeachingContextForm({ disabled, onChange, values }: TeachingContextFormProps) {
-  function updateField(field: 'subject' | 'stage', value: string) {
+  const subjectOptions = getTeachingSubjectOptions(values.stage);
+  const selectedSubject = normalizeTeachingSubjectForStage(values.stage, values.subject);
+
+  function updateField(field: 'subject', value: string) {
     onChange({
       ...values,
       [field]: value,
     });
   }
 
-  function handleSelectChange(field: 'subject' | 'stage') {
-    return (event: ChangeEvent<HTMLSelectElement>) => {
-      const target = event.currentTarget as unknown as { value: string };
+  function handleStageChange(event: ChangeEvent<HTMLSelectElement>) {
+    const target = event.currentTarget as unknown as { value: string };
 
-      updateField(field, target.value);
-    };
+    onChange({
+      ...values,
+      stage: target.value,
+      subject: getDefaultTeachingSubjectForStage(target.value),
+    });
+  }
+
+  function handleSubjectChange(event: ChangeEvent<HTMLSelectElement>) {
+    const target = event.currentTarget as unknown as { value: string };
+
+    updateField('subject', target.value);
   }
 
   return (
     <div className="grid grid-cols-2 gap-3">
       <label className="space-y-2">
-        <span className="ml-1 text-[10px] font-black text-slate-400 uppercase">学科选择</span>
+        <span className="ml-1 text-[10px] font-black text-slate-400 uppercase">年级</span>
         <select
-          aria-label="学科选择"
+          aria-label="年级"
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20"
           disabled={disabled}
-          onChange={handleSelectChange('subject')}
-          value={values.subject}
+          onChange={handleStageChange}
+          onInput={handleStageChange}
+          value={values.stage}
         >
-          {teachingSubjectOptions.map((subject) => (
-            <option key={subject} value={subject}>
-              {subject}
+          {teachingStageOptions.map((stage) => (
+            <option key={stage} value={stage}>
+              {stage}
             </option>
           ))}
         </select>
       </label>
 
       <label className="space-y-2">
-        <span className="ml-1 text-[10px] font-black text-slate-400 uppercase">学段选择</span>
+        <span className="ml-1 text-[10px] font-black text-slate-400 uppercase">学科</span>
         <select
-          aria-label="学段选择"
+          aria-label="学科"
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-blue-500/20"
           disabled={disabled}
-          onChange={handleSelectChange('stage')}
-          value={values.stage}
+          onChange={handleSubjectChange}
+          value={selectedSubject}
         >
-          {teachingStageOptions.map((stage) => (
-            <option key={stage} value={stage}>
-              {stage}
+          {subjectOptions.map((subject) => (
+            <option key={subject} value={subject}>
+              {subject}
             </option>
           ))}
         </select>

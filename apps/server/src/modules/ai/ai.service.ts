@@ -161,7 +161,7 @@ const TEACHING_KNOWLEDGE_LEVELS = ['foundation', 'application', 'expansion'] as 
 const WORKFLOW_ROUTES: Record<AiWorkflowName, string> = {
   comment: '/office/comment',
   inspiration: '/lesson/inspiration',
-  teaching: '/office/teaching',
+  teaching: '/lesson/teaching',
 };
 const AGENT_CLASSIFICATION_METADATA_KEY = 'agentClassification';
 

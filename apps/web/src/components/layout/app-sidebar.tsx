@@ -1,7 +1,7 @@
 'use client';
 
 import type { AuthUserSummary } from '@package/shared';
-import { BookOpen, Heart, LogIn, LogOut, MessageSquare, PenTool } from 'lucide-react';
+import { BookOpen, Box, Heart, LogIn, LogOut, PenTool } from 'lucide-react';
 import Link from 'next/link';
 
 import { useUserPreferences } from '../../contexts/user-preferences-context';
@@ -17,7 +17,7 @@ type AppSidebarProps = {
 };
 
 const navItems = [
-  { id: 'chat', label: 'AI 助手', href: '/chat', icon: MessageSquare },
+  { id: 'chat', label: '工作台首页', href: '/', icon: Box },
   { id: 'lesson', label: '知识库精讲', href: '/lesson/inspiration', icon: BookOpen },
   { id: 'office', label: '办公提效', href: '/office/comment', icon: PenTool },
 ] as const;
@@ -40,7 +40,7 @@ export function AppSidebar({
         <Link
           aria-label="红笔AI 首页"
           className="group relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-red-600 via-rose-500 to-orange-400 shadow-lg shadow-red-200/50 transition-all hover:scale-105 active:scale-95"
-          href="/chat"
+          href="/"
           prefetch={false}
         >
           <PenTool className="h-6 w-6 text-white" />
