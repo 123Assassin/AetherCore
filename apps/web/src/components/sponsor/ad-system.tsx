@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, ExternalLink, ShieldCheck, Sparkles, Timer, X } from 'lucide-react';
+import { Download, ShieldCheck, Sparkles, Timer, X } from 'lucide-react';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 
 import type { AiGenerationAdMode } from '../../hooks/use-ai-generation-ad-gate';
@@ -11,7 +11,6 @@ type AdConfig = {
   id: string;
   imageUrl: string;
   slogan: string;
-  targetUrl: string;
 };
 
 const sampleAds: AdConfig[] = [
@@ -20,14 +19,12 @@ const sampleAds: AdConfig[] = [
     id: '1',
     imageUrl: 'https://picsum.photos/seed/edu1/800/600',
     slogan: '全流程教务管理系统，助力学校数字化转型。',
-    targetUrl: 'https://example.com',
   },
   {
     brandName: '晨鸣纸业',
     id: '2',
     imageUrl: 'https://picsum.photos/seed/edu2/800/600',
     slogan: '高品质办公用纸，呵护师生视力环境。',
-    targetUrl: 'https://example.com',
   },
 ];
 
@@ -130,11 +127,9 @@ export function ExportAdModal({ duration = 15, isOpen, onClose, onConfirm }: Exp
             </p>
           </div>
 
-          <a
+          <div
+            aria-label="广告展示"
             className="group relative aspect-[16/9] w-full overflow-hidden rounded-3xl border-4 border-slate-50 shadow-inner"
-            href={ad.targetUrl}
-            rel="noopener noreferrer"
-            target="_blank"
           >
             <img
               alt="广告投放"
@@ -143,14 +138,12 @@ export function ExportAdModal({ duration = 15, isOpen, onClose, onConfirm }: Exp
               src={ad.imageUrl}
             />
             <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-transparent to-transparent p-6 opacity-0 transition-opacity group-hover:opacity-100">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                查看详情 <ExternalLink className="h-4 w-4" />
-              </div>
+              <div className="flex items-center gap-2 text-sm font-bold text-white">品牌展示</div>
             </div>
             <div className="absolute top-4 right-4 rounded bg-black/40 px-2 py-1 text-[10px] font-black tracking-tighter text-white/80 uppercase backdrop-blur">
               广告投放
             </div>
-          </a>
+          </div>
 
           <div className="mt-6 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <div className="flex min-w-0 items-center gap-4">
@@ -162,14 +155,9 @@ export function ExportAdModal({ duration = 15, isOpen, onClose, onConfirm }: Exp
                 <p className="truncate text-xs font-medium text-slate-500">{ad.slogan}</p>
               </div>
             </div>
-            <a
-              className="rounded-xl border border-slate-200 p-2 text-slate-400 transition-all hover:bg-white"
-              href={ad.targetUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
+            <span className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-400">
+              暂不跳转
+            </span>
           </div>
 
           <div className="mt-8 w-full">
@@ -284,11 +272,9 @@ export function GenerationAdOverlay({
         </div>
 
         <div className="p-6">
-          <a
+          <div
+            aria-label="广告展示"
             className="group relative block aspect-[16/9] overflow-hidden rounded-2xl bg-slate-100"
-            href={ad.targetUrl}
-            rel="noopener noreferrer"
-            target="_blank"
           >
             <img
               alt="广告投放"
@@ -303,7 +289,7 @@ export function GenerationAdOverlay({
             <div className="absolute top-4 right-4 rounded bg-black/50 px-2 py-1 text-[10px] font-black tracking-widest text-white/80 uppercase backdrop-blur">
               广告
             </div>
-          </a>
+          </div>
 
           <div className="mt-5 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -312,15 +298,7 @@ export function GenerationAdOverlay({
                 ? '额度不足，本次生成将在关闭广告后开始'
                 : '生成已开始，广告关闭后可继续查看结果'}
             </div>
-            <a
-              aria-label="查看广告详情"
-              className="rounded-xl p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
-              href={ad.targetUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
+            <span className="rounded-xl px-3 py-2 text-xs font-bold text-slate-400">暂不跳转</span>
           </div>
         </div>
       </div>

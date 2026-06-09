@@ -3,7 +3,13 @@
 import { Lightbulb, RefreshCw } from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
 
-import { gradeOptions, type InspirationFormValues, subjectOptions } from './inspiration.data';
+import {
+  getDefaultInspirationSubjectForGrade,
+  getInspirationSubjectOptions,
+  gradeOptions,
+  type InspirationFormValues,
+  normalizeInspirationSubjectForGrade,
+} from './inspiration.data';
 
 type InspirationFormProps = {
   disabled: boolean;
@@ -20,6 +26,9 @@ export function InspirationForm({
   onSubmit,
   values,
 }: InspirationFormProps) {
+  const subjectOptions = getInspirationSubjectOptions(values.grade);
+  const selectedSubject = normalizeInspirationSubjectForGrade(values.grade, values.subject);
+
   function updateField(field: keyof InspirationFormValues, value: string) {
     onChange({
       ...values,
@@ -33,6 +42,16 @@ export function InspirationForm({
 
       updateField(field, target.value);
     };
+  }
+
+  function handleGradeChange(event: ChangeEvent<HTMLSelectElement>) {
+    const target = event.currentTarget as unknown as { value: string };
+
+    onChange({
+      ...values,
+      grade: target.value,
+      subject: getDefaultInspirationSubjectForGrade(target.value),
+    });
   }
 
   function handleTextChange(field: keyof InspirationFormValues) {
@@ -51,18 +70,19 @@ export function InspirationForm({
   return (
     <form
       aria-label="灵感生成表单"
-      className="flex min-h-0 w-full shrink-0 flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 lg:h-full lg:w-[340px]"
+      className="flex flex-col rounded-[2rem] border border-slate-100 bg-slate-50/50 p-6"
       onSubmit={handleSubmit}
     >
       <div className="space-y-5">
         <div className="flex gap-3">
           <label className="min-w-0 flex-1">
-            <span className="mb-1.5 block text-xs font-bold text-slate-700">🎯 授课对象</span>
+            <span className="mb-1.5 block text-xs font-bold text-slate-700">🎯 年级</span>
             <select
-              aria-label="学段"
+              aria-label="年级"
               className="w-full rounded-xl border-0 bg-slate-50/50 px-3 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-violet-500"
               disabled={disabled}
-              onChange={handleSelectChange('grade')}
+              onChange={handleGradeChange}
+              onInput={handleGradeChange}
               value={values.grade}
             >
               {gradeOptions.map((grade) => (
@@ -80,7 +100,7 @@ export function InspirationForm({
               className="w-full rounded-xl border-0 bg-slate-50/50 px-3 py-2.5 text-sm ring-1 ring-slate-200 transition-all outline-none hover:bg-slate-50 focus:ring-2 focus:ring-violet-500"
               disabled={disabled}
               onChange={handleSelectChange('subject')}
-              value={values.subject}
+              value={selectedSubject}
             >
               {subjectOptions.map((subject) => (
                 <option key={subject} value={subject}>

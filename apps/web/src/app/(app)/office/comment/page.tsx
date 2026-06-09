@@ -59,8 +59,7 @@ type CommentHistoryState = {
 const initialFormValues: SingleCommentFormValues = {
   nickname: '',
   gender: '男',
-  grade: '五年级',
-  subject: '语文',
+  grade: '小学',
   tags: [],
   keywords: '',
   tone: defaultCommentTone,
@@ -253,7 +252,7 @@ function buildSingleGenerateInput(
   values: SingleCommentFormValues,
   sessionId: string | undefined
 ): CommentSingleGenerateInput | null {
-  if (!values.gender || !values.grade || !values.subject) {
+  if (!values.gender || !values.grade) {
     return null;
   }
 
@@ -266,7 +265,6 @@ function buildSingleGenerateInput(
     ...(nickname ? { nickname } : {}),
     gender: values.gender,
     grade: values.grade,
-    subject: values.subject,
     tags: values.tags,
     ...(keywords ? { keywords } : {}),
     tone,
@@ -417,7 +415,7 @@ export default function OfficeCommentPage() {
     (nextValues: SingleCommentFormValues) => {
       setFormValues(nextValues);
 
-      if (formError && nextValues.gender && nextValues.grade && nextValues.subject) {
+      if (formError && nextValues.gender && nextValues.grade) {
         setFormError(null);
       }
 
@@ -473,7 +471,7 @@ export default function OfficeCommentPage() {
       const input = buildSingleGenerateInput(values, sessionId);
 
       if (!input) {
-        setFormError('请选择性别、年级和学科。');
+        setFormError('请选择性别和年级。');
         return;
       }
 
@@ -754,7 +752,7 @@ export default function OfficeCommentPage() {
               </section>
             </div>
           ) : (
-            <section className="flex min-h-[600px] flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+            <section className="flex min-h-[600px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {batchRows.length === 0 ? (
                 <div className="flex flex-1 flex-col lg:flex-row">
                   <BatchImportGuide />

@@ -46,7 +46,7 @@ function WeChatCallbackContent() {
         setMessage('登录成功，正在进入系统。');
         setTimeout(() => {
           if (!cancelled) {
-            router.replace('/chat');
+            router.replace('/');
           }
         }, 600);
       } catch (error) {

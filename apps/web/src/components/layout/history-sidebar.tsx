@@ -21,26 +21,30 @@ type HistorySidebarProps = {
 };
 
 const tabNames: Record<ShellMainTab, string> = {
-  chat: 'AI 助手',
+  chat: '工作台首页',
   lesson: '知识库精讲',
   office: '办公提效',
 };
 
 const categoryRoutes: Record<ChatSessionCategory, string> = {
-  chat: '/chat',
+  chat: '/',
   comment: '/office/comment',
   inspiration: '/lesson/inspiration',
   simulation: '/lesson/simulation',
-  teaching: '/office/teaching',
+  teaching: '/lesson/teaching',
 };
 
 function sessionBelongsToTab(session: ChatSession, activeTab: ShellMainTab) {
   if (activeTab === 'lesson') {
-    return session.category === 'inspiration' || session.category === 'simulation';
+    return (
+      session.category === 'inspiration' ||
+      session.category === 'simulation' ||
+      session.category === 'teaching'
+    );
   }
 
   if (activeTab === 'office') {
-    return session.category === 'comment' || session.category === 'teaching';
+    return session.category === 'comment';
   }
 
   return session.category === 'chat';

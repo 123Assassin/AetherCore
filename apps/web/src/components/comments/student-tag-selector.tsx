@@ -15,7 +15,7 @@ function isSelected(values: CommentTag[], tag: CommentTag) {
 export function StudentTagSelector({ disabled, onToggle, selectedTags }: StudentTagSelectorProps) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-2 block text-xs font-bold text-slate-700">成长画像标签 (多选)</legend>
+      <legend className="mb-1.5 block text-xs font-bold text-slate-700">成长画像标签 (多选)</legend>
       <div className="space-y-3">
         {commentTagGroups.map((group) => (
           <div key={group.label}>

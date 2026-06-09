@@ -1,3 +1,11 @@
+import {
+  getDefaultWebSubjectForGrade,
+  getWebSubjectsForGrade,
+  normalizeWebSubjectForGrade,
+  webGradeOptions,
+  webSubjectsByGrade,
+} from '../../lib/web-grades';
+
 export const teachingModes = ['variant', 'knowledge'] as const;
 
 export const teachingVariantLevels = ['similar', 'challenge', 'creative'] as const;
@@ -51,9 +59,21 @@ export type TeachingExampleCard = {
   content: string;
 };
 
-export const teachingSubjectOptions = ['语文', '数学', '英语', '物理', '化学', '生物', '其他'];
+export const teachingSubjectOptions = Array.from(new Set(Object.values(webSubjectsByGrade).flat()));
 
-export const teachingStageOptions = ['小学', '初中', '高中'];
+export const teachingStageOptions = webGradeOptions;
+
+export function getTeachingSubjectOptions(stage: string) {
+  return getWebSubjectsForGrade(stage);
+}
+
+export function getDefaultTeachingSubjectForStage(stage: string) {
+  return getDefaultWebSubjectForGrade(stage);
+}
+
+export function normalizeTeachingSubjectForStage(stage: string, subject: string) {
+  return normalizeWebSubjectForGrade(stage, subject);
+}
 
 export const teachingModeOptions: Array<{
   mode: TeachingMode;

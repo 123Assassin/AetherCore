@@ -1,20 +1,7 @@
 export const COMMENT_GENDERS = ['男', '女'] as const;
 export type CommentGender = (typeof COMMENT_GENDERS)[number];
 
-export const COMMENT_GRADES = [
-  '一年级',
-  '二年级',
-  '三年级',
-  '四年级',
-  '五年级',
-  '六年级',
-  '七年级',
-  '八年级',
-  '九年级',
-  '小学',
-  '初中',
-  '高中',
-] as const;
+export const COMMENT_GRADES = ['小学', '初中'] as const;
 export type CommentGrade = (typeof COMMENT_GRADES)[number];
 
 export const COMMENT_TAGS = [

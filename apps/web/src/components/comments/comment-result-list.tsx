@@ -4,15 +4,11 @@ import { Check, Copy, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 
+import { copyTextToClipboard } from '../../lib/clipboard';
+
 type CommentResultListProps = {
   comments: string[];
   loading: boolean;
-};
-
-type ClipboardNavigator = Navigator & {
-  clipboard?: {
-    writeText: (text: string) => Promise<void>;
-  };
 };
 
 const copyFailureMessage = '复制失败，请手动选择文本复制。';
@@ -31,8 +27,6 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
   }, []);
 
   async function copyComment(comment: string, index: number) {
-    const clipboard = (navigator as ClipboardNavigator).clipboard;
-
     function clearCopiedState() {
       setCopiedIndex(null);
 
@@ -42,14 +36,7 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
       }
     }
 
-    if (!clipboard) {
-      clearCopiedState();
-      setCopyError(copyFailureMessage);
-      return;
-    }
-
-    try {
-      await clipboard.writeText(comment);
+    if (await copyTextToClipboard(comment)) {
       setCopyError(null);
       setCopiedIndex(index);
 
@@ -61,10 +48,11 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
         setCopiedIndex(null);
         clearCopyStateRef.current = null;
       }, 2000);
-    } catch {
-      clearCopiedState();
-      setCopyError(copyFailureMessage);
+      return;
     }
+
+    clearCopiedState();
+    setCopyError(copyFailureMessage);
   }
 
   return (
@@ -81,7 +69,7 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
 
       {loading && comments.length === 0 ? (
         <div className="flex flex-col gap-4">
-          <div className="animate-pulse rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/60">
+          <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-3">
               <div className="h-6 w-12 rounded-md bg-slate-100" />
               <div className="h-4 w-24 rounded-md bg-slate-50" />
@@ -96,7 +84,7 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
       ) : null}
 
       {!loading && comments.length === 0 ? (
-        <div className="flex min-h-[500px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-100 bg-white p-12 text-center text-slate-400 shadow-sm ring-1 ring-slate-200/60">
+        <div className="flex min-h-[500px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-400 shadow-sm">
           <div className="mb-6 flex h-20 w-20 rotate-3 items-center justify-center rounded-[2rem] bg-emerald-50">
             <Sparkles className="h-10 w-10 text-emerald-400" />
           </div>
@@ -120,7 +108,7 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
       {comments.map((comment, index) => (
         <article
           aria-label={`评语结果 ${index + 1}`}
-          className="group relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+          className="group relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
           key={index}
         >
           <div className="absolute top-6 right-6 opacity-0 transition-opacity group-hover:opacity-100">

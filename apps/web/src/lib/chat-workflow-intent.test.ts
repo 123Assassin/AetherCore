@@ -18,8 +18,8 @@ test('resolveChatWorkflowIntent routes lesson preparation requests locally', () 
 });
 
 test('resolveChatWorkflowIntent routes teaching transformation requests locally', () => {
-  assert.equal(resolveChatWorkflowIntent('做一个题目变身'), '/office/teaching');
-  assert.equal(resolveChatWorkflowIntent('帮我改编一道变式题'), '/office/teaching');
+  assert.equal(resolveChatWorkflowIntent('做一个题目变身'), '/lesson/teaching');
+  assert.equal(resolveChatWorkflowIntent('帮我改编一道变式题'), '/lesson/teaching');
 });
 
 test('resolveChatWorkflowIntent leaves general chat on the AI assistant', () => {

@@ -16,8 +16,8 @@ export function BatchImportGuide() {
           导入操作指南
         </h4>
         <ol className="space-y-4">
-          <li className="flex gap-3">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-600">
+          <li className="flex items-baseline gap-3">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-600">
               1
             </span>
             <p className="text-xs leading-relaxed text-slate-500">
@@ -25,8 +25,8 @@ export function BatchImportGuide() {
               后，系统会创建待生成队列并展示预览行。
             </p>
           </li>
-          <li className="flex gap-3">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-600">
+          <li className="flex items-baseline gap-3">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-600">
               2
             </span>
             <p className="text-xs leading-relaxed text-slate-500">
@@ -35,8 +35,8 @@ export function BatchImportGuide() {
               ，标签可参考单人模式。
             </p>
           </li>
-          <li className="flex gap-3">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-600">
+          <li className="flex items-baseline gap-3">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-600">
               3
             </span>
             <p className="text-xs leading-relaxed text-slate-500">
