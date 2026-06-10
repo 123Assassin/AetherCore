@@ -1,9 +1,13 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { adminSessionKey, hashPassword, verifyPassword } from '@package/auth';
+import { adminSessionKey, hashPassword, sessionKey, verifyPassword } from '@package/auth';
 import { initTRPC } from '@trpc/server';
 
 import { AuthService } from '../../modules/auth/auth.service.js';
+import type {
+  AdminAuditRequestInput,
+  AdminAuditService,
+} from '../../modules/admin-audit/admin-audit.service.js';
 import type {
   AuthRepository,
   AuthSessionRow,
@@ -208,6 +212,95 @@ test('AuthService userLogin authenticates a normal user by username and writes u
     assert.fail('Set-Cookie header was not set');
   }
   assert.match(setCookie, new RegExp(`^aether_session=${session.token};`));
+});
+
+test('AuthService login sessions use configured admin and web idle timeout values', async () => {
+  const repository = new FakeAuthRepository();
+  const sessionStore = new FakeSessionStore();
+  const service = createMockLoginService(repository, sessionStore);
+  repository.systemAuthConfig = {
+    adminIdleTimeoutMinutes: 15,
+    updatedAt: new Date('2026-05-20T00:00:00.000Z'),
+    updatedByAdminId: 'admin-user',
+    webIdleTimeoutMinutes: 45,
+  };
+  await repository.createUser({
+    email: 'teacher@example.com',
+    isActive: true,
+    name: 'Teacher User',
+    password: await hashTestPassword('teacher123'),
+    role: 'user',
+    username: 'teacher',
+  });
+  await repository.createUser({
+    email: 'admin@example.com',
+    isActive: true,
+    name: 'Admin User',
+    password: await hashTestPassword('admin123'),
+    role: 'admin',
+    username: 'admin',
+  });
+  const web = createContext();
+  const admin = createContext();
+
+  const webResult = await service.userLogin(
+    { user: 'teacher', password: 'teacher123' },
+    web.context
+  );
+  const adminResult = await service.adminLogin(
+    { user: 'admin', password: 'admin123' },
+    admin.context
+  );
+
+  assert.equal(webResult.success, true);
+  assert.equal(adminResult.success, true);
+  assert.equal(sessionStore.setCalls[0]?.ttl, 45 * 60);
+  assert.equal(sessionStore.setCalls[1]?.ttl, 15 * 60);
+  assert.match(String(web.responseHeaders['Set-Cookie']), /Max-Age=2700/);
+  assert.match(String(admin.responseHeaders['Set-Cookie']), /Max-Age=900/);
+});
+
+test('AuthService refreshes resolved user sessions with configured idle timeout', async () => {
+  await withNow(new Date('2026-05-20T00:00:00.000Z'), async () => {
+    const repository = new FakeAuthRepository();
+    const sessionStore = new FakeSessionStore();
+    const service = createMockLoginService(repository, sessionStore);
+    repository.systemAuthConfig = {
+      adminIdleTimeoutMinutes: 15,
+      updatedAt: new Date('2026-05-20T00:00:00.000Z'),
+      updatedByAdminId: 'admin-user',
+      webIdleTimeoutMinutes: 45,
+    };
+    const user = await repository.createUser({
+      email: 'teacher@example.com',
+      isActive: true,
+      name: 'Teacher User',
+      password: await hashTestPassword('teacher123'),
+      role: 'user',
+      username: 'teacher',
+    });
+    await repository.createSession({
+      ...createSessionRow(user.id, 'web-token'),
+      expiresAt: new Date('2026-12-31T00:00:00.000Z'),
+    });
+    await sessionStore.set(
+      sessionKey('web-token'),
+      JSON.stringify({ userId: user.id, role: 'user' }),
+      'EX',
+      604800
+    );
+    const { context, responseHeaders } = createContext({
+      headers: { cookie: 'aether_session=web-token' },
+    });
+
+    const session = await service.resolveUserSession(context);
+
+    assert.equal(session?.user.id, user.id);
+    assert.equal(repository.sessions[0]?.expiresAt.toISOString(), '2026-05-20T00:45:00.000Z');
+    assert.equal(sessionStore.setCalls.at(-1)?.ttl, 45 * 60);
+    assert.match(String(responseHeaders['Set-Cookie']), /^aether_session=web-token;/);
+    assert.match(String(responseHeaders['Set-Cookie']), /Max-Age=2700/);
+  });
 });
 
 test('AuthService userLogin rejects email login and admin accounts', async () => {
@@ -468,18 +561,7 @@ test('AuthService changeAdminPassword verifies current password and stores a new
   assert.ok(updatedAdmin);
   assert.equal(await verifyTestPassword('new-password', updatedAdmin.password), true);
   assert.equal(await verifyTestPassword('old-password', updatedAdmin.password), false);
-  assert.deepEqual(repository.auditLogs, [
-    {
-      actorType: 'admin',
-      actorId: admin.id,
-      action: 'admin.password.change',
-      resourceType: 'admin_user',
-      resourceId: admin.id,
-      ip: '10.0.0.8',
-      userAgent: 'password-change-test',
-      metadata: { email: admin.email },
-    },
-  ]);
+  assert.equal(repository.auditLogs.length, 0);
   assert.deepEqual(
     repository.sessions.map((session) => session.token),
     ['user-token']
@@ -637,6 +719,31 @@ test('adminAuth changePassword checks admin session before validating malformed 
   );
 });
 
+test('adminAuth changePassword writes unified admin API audit entry', async () => {
+  const authService = new FakeAuthenticatedAdminAuthService();
+  const auditService = new FakeAdminAuditService();
+  const { context } = createContext({ headers: { 'user-agent': 'node-test' }, ip: '127.0.0.1' });
+  const caller = createAdminAuthCaller(
+    authService.asAuthService(),
+    context,
+    auditService.asService()
+  );
+
+  await caller.changePassword({ currentPassword: 'old-password', newPassword: 'new-password' });
+
+  assert.equal(auditService.records.length, 1);
+  assert.deepEqual(auditService.records[0], {
+    actorId: 'admin-user',
+    actorAccount: 'admin_user',
+    input: { currentPassword: 'old-password', newPassword: 'new-password' },
+    ip: '127.0.0.1',
+    path: 'adminAuth.changePassword',
+    result: { data: { success: true }, success: true },
+    type: 'mutation',
+    userAgent: 'node-test',
+  });
+});
+
 class FakeAuthService {
   receivedContext: TRPCContext | null = null;
 
@@ -665,11 +772,52 @@ class FakeAuthService {
   }
 }
 
+class FakeAuthenticatedAdminAuthService {
+  asAuthService(): AuthService {
+    return this as unknown as AuthService;
+  }
+
+  async resolveAdminSession() {
+    return {
+      token: 'admin-token',
+      user: {
+        id: 'admin-user',
+        email: 'admin@example.com',
+        name: 'Admin',
+        username: 'admin_user',
+        role: 'admin',
+      },
+    };
+  }
+
+  async changeAdminPassword() {
+    return { success: true };
+  }
+}
+
+class FakeAdminAuditService {
+  records: AdminAuditRequestInput[] = [];
+
+  asService(): AdminAuditService {
+    return this as unknown as AdminAuditService;
+  }
+
+  async recordAdminApiRequest(input: AdminAuditRequestInput): Promise<void> {
+    this.records.push(input);
+  }
+}
+
 class FakeAuthRepository {
   readonly users: AuthUserRow[] = [];
   readonly sessions: Array<Omit<AuthSessionRow, 'id' | 'createdAt'>> = [];
   readonly auditLogs: SystemAuditLogSaveData[] = [];
   readonly weChatAccounts: WeChatAccountRow[] = [];
+  systemAuthConfig: {
+    adminIdleTimeoutMinutes: number;
+    updatedAt: Date;
+    updatedByAdminId: string | null;
+    webIdleTimeoutMinutes: number;
+  } | null = null;
 
   asRepository(): AuthRepository {
     return this as unknown as AuthRepository;
@@ -763,6 +911,32 @@ class FakeAuthRepository {
     this.sessions.push(input);
   }
 
+  async findSessionByToken(token: string): Promise<AuthSessionRow | null> {
+    const session = this.sessions.find((item) => item.token === token);
+
+    if (!session) {
+      return null;
+    }
+
+    return {
+      id: `session-${token}`,
+      createdAt: new Date('2026-05-20T00:00:00.000Z'),
+      ...session,
+    };
+  }
+
+  async updateSessionExpiration(token: string, expiresAt: Date): Promise<void> {
+    const session = this.sessions.find((item) => item.token === token);
+
+    if (session) {
+      session.expiresAt = expiresAt;
+    }
+  }
+
+  async getSystemAuthConfig() {
+    return this.systemAuthConfig;
+  }
+
   async listSessionTokensByUserId(userId: string): Promise<string[]> {
     return this.sessions
       .filter((session) => session.userId === userId)
@@ -848,8 +1022,13 @@ function createCaller(authService: AuthService, context: TRPCContext) {
   return router.createCaller(context);
 }
 
-function createAdminAuthCaller(authService: AuthService, context: TRPCContext) {
+function createAdminAuthCaller(
+  authService: AuthService,
+  context: TRPCContext,
+  adminAuditService?: AdminAuditService | undefined
+) {
   const router = createAdminAuthRouter(authService, {
+    adminAuditService,
     createTRPCRouter,
     publicProcedure,
   });
@@ -963,5 +1142,16 @@ async function withEnv(
         process.env[key] = value;
       }
     }
+  }
+}
+
+async function withNow(now: Date, callback: () => Promise<void>): Promise<void> {
+  const originalNow = Date.now;
+
+  try {
+    Date.now = () => now.getTime();
+    await callback();
+  } finally {
+    Date.now = originalNow;
   }
 }

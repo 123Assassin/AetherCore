@@ -3,33 +3,22 @@ import type { Database } from '@package/db';
 import { db } from '@package/db';
 import {
   sessions,
-  systemAuditLogs,
+  systemAuthConfig,
   userCreditAccounts,
   userPreferences,
   users,
   wechatAccounts,
-  type AuditActorType,
 } from '@package/db/schema';
 import { eq } from 'drizzle-orm';
 
 export type AuthUserRow = typeof users.$inferSelect;
 export type AuthUserInsert = typeof users.$inferInsert;
 export type AuthSessionRow = typeof sessions.$inferSelect;
+export type SystemAuthConfigRow = typeof systemAuthConfig.$inferSelect;
 export type UserPreferencesRow = typeof userPreferences.$inferSelect;
 export type UserCreditAccountRow = typeof userCreditAccounts.$inferSelect;
 export type WeChatAccountRow = typeof wechatAccounts.$inferSelect;
 export type WeChatAccountInsert = typeof wechatAccounts.$inferInsert;
-
-export type SystemAuditLogSaveData = {
-  actorType: AuditActorType;
-  actorId: string | null;
-  action: string;
-  resourceType?: string | null;
-  resourceId?: string | null;
-  ip?: string | null;
-  userAgent?: string | null;
-  metadata?: Record<string, unknown> | null;
-};
 
 @Injectable()
 export class AuthRepository {
@@ -149,6 +138,16 @@ export class AuthRepository {
     return session ?? null;
   }
 
+  async updateSessionExpiration(token: string, expiresAt: Date): Promise<void> {
+    await this.database.update(sessions).set({ expiresAt }).where(eq(sessions.token, token));
+  }
+
+  async getSystemAuthConfig(): Promise<SystemAuthConfigRow | null> {
+    const [config] = await this.database.select().from(systemAuthConfig).limit(1);
+
+    return config ?? null;
+  }
+
   async listSessionTokensByUserId(userId: string): Promise<string[]> {
     const rows = await this.database
       .select({ token: sessions.token })
@@ -164,10 +163,6 @@ export class AuthRepository {
 
   async deleteSessionsByUserId(userId: string): Promise<void> {
     await this.database.delete(sessions).where(eq(sessions.userId, userId));
-  }
-
-  async createSystemAuditLog(input: SystemAuditLogSaveData): Promise<void> {
-    await this.database.insert(systemAuditLogs).values(input);
   }
 
   async findUserPreferences(userId: string): Promise<UserPreferencesRow | null> {

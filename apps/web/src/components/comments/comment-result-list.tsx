@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 
 import { copyTextToClipboard } from '../../lib/clipboard';
+import { getCommentCopyText } from './comment-copy.data';
 
 type CommentResultListProps = {
   comments: string[];
@@ -36,7 +37,7 @@ export function CommentResultList({ comments, loading }: CommentResultListProps)
       }
     }
 
-    if (await copyTextToClipboard(comment)) {
+    if (await copyTextToClipboard(getCommentCopyText(comment))) {
       setCopyError(null);
       setCopiedIndex(index);
 

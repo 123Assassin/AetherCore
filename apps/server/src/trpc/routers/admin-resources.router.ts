@@ -13,15 +13,17 @@ import type {
   AdminSensitiveWordListUpdateInput,
 } from '../../modules/admin-resources/admin-resources.service.js';
 
-import { requireAdminSession } from '../../common/guards/admin-session.guard.js';
+import type { AdminAuditService } from '../../modules/admin-audit/admin-audit.service.js';
 import type { AuthService } from '../../modules/auth/auth.service.js';
 import {
   AdminResourcesServiceError,
   type AdminResourcesService,
 } from '../../modules/admin-resources/admin-resources.service.js';
+import { createAuditedAdminProcedure } from '../admin-audit-middleware.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
 
 type RouterTools = {
+  adminAuditService?: AdminAuditService | undefined;
   createTRPCRouter: typeof createTRPCRouter;
   publicProcedure: typeof publicProcedure;
 };
@@ -31,10 +33,10 @@ export function createAdminResourcesRouter(
   adminResourcesService: AdminResourcesService,
   tools: RouterTools
 ) {
-  const adminProcedure = tools.publicProcedure.use(async ({ ctx, next }) => {
-    await requireAdminSession(authService, ctx);
-
-    return next();
+  const adminProcedure = createAuditedAdminProcedure({
+    adminAuditService: tools.adminAuditService,
+    authService,
+    publicProcedure: tools.publicProcedure,
   });
 
   return tools.createTRPCRouter({

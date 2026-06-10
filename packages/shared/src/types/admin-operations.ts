@@ -53,7 +53,22 @@ export type AdminUserDeleteInput = {
 export type AdminUserInviteInput = {
   email: string;
   name?: string | null;
+  password?: string;
   totalQuota?: number;
+  username?: string | null;
+};
+
+export type AdminCreateAdminUserInput = {
+  email: string;
+  name?: string | null;
+  password: string;
+  username: string;
+};
+
+export type AdminUserQuotaInput = {
+  credits: number;
+  id: string;
+  totalQuota: number;
 };
 
 export type AdminUserActivityInput = {
@@ -146,23 +161,37 @@ export type AdminAlarmConfigUpdateInput = {
   email: string;
 };
 
+export type AdminSystemConfig = {
+  adminIdleTimeoutMinutes: number;
+  auditLogRetentionDays: number;
+  webIdleTimeoutMinutes: number;
+  updatedByAdminId: string | null;
+  updatedAt: string | null;
+};
+
+export type AdminSystemConfigUpdateInput = {
+  adminIdleTimeoutMinutes?: number;
+  auditLogRetentionDays?: number;
+  webIdleTimeoutMinutes?: number;
+};
+
+export type AdminAuditLevel = 0 | 1;
+
+export type AdminAuditLogType = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+
+export type AdminSystemAuditDetails = Record<string, unknown>;
+
 export type AdminSystemAuditItem = {
-  id: string;
-  actorType: 'admin' | 'user' | 'system';
-  actorId: string | null;
-  action: string;
-  resourceType: string | null;
-  resourceId: string | null;
-  ip: string | null;
-  userAgent: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
+  logId: string;
+  timestamp: number;
+  level: AdminAuditLevel;
+  details: AdminSystemAuditDetails;
+  logType: AdminAuditLogType;
 };
 
 export type AdminSystemAuditListInput = AdminOperationListInput & {
-  actorType?: 'admin' | 'user' | 'system';
-  actorId?: string;
-  action?: string;
+  level?: AdminAuditLevel;
+  logType?: AdminAuditLogType;
   startDate?: string;
   endDate?: string;
 };
@@ -176,6 +205,17 @@ export type AdminAuditExportResult = {
   filename: string;
   contentType: 'text/csv';
   content: string;
+};
+
+export type AdminSystemAuditCleanupRangeInput = {
+  startDate: string;
+  endDate: string;
+};
+
+export type AdminSystemAuditCleanupResult = {
+  deletedCount: number;
+  cutoffTimestamp?: number;
+  retentionDays?: number;
 };
 
 export type AdminContentAuditItem = {

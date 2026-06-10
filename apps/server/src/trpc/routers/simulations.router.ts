@@ -1,14 +1,16 @@
 import { TRPCError } from '@trpc/server';
 
-import { requireAdminSession } from '../../common/guards/admin-session.guard.js';
+import type { AdminAuditService } from '../../modules/admin-audit/admin-audit.service.js';
 import type { AuthService } from '../../modules/auth/auth.service.js';
 import {
   SimulationsServiceError,
   type SimulationsService,
 } from '../../modules/simulations/simulations.service.js';
+import { createAuditedAdminProcedure } from '../admin-audit-middleware.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
 
 type RouterTools = {
+  adminAuditService?: AdminAuditService | undefined;
   createTRPCRouter: typeof createTRPCRouter;
   publicProcedure: typeof publicProcedure;
 };
@@ -32,29 +34,24 @@ export function createAdminSimulationsRouter(
   simulationsService: SimulationsService,
   tools: RouterTools
 ) {
+  const adminProcedure = createAuditedAdminProcedure({
+    adminAuditService: tools.adminAuditService,
+    authService,
+    pathPrefix: 'adminSimulations',
+    publicProcedure: tools.publicProcedure,
+  });
+
   return tools.createTRPCRouter({
-    list: tools.publicProcedure
-      .input(parseAdminSimulationListInput)
-      .query(async ({ ctx, input }) => {
-        await requireAdminSession(authService, ctx);
-
-        return mapServiceError(() => simulationsService.listAdmin(input));
-      }),
-    filters: tools.publicProcedure.query(async ({ ctx }) => {
-      await requireAdminSession(authService, ctx);
-
+    list: adminProcedure.input(parseAdminSimulationListInput).query(async ({ input }) => {
+      return mapServiceError(() => simulationsService.listAdmin(input));
+    }),
+    filters: adminProcedure.query(async () => {
       return mapServiceError(() => simulationsService.filters({ enabledOnly: false }));
     }),
-    setEnabled: tools.publicProcedure
-      .input(parseSetEnabledInput)
-      .mutation(async ({ ctx, input }) => {
-        await requireAdminSession(authService, ctx);
-
-        return mapServiceError(() => simulationsService.setEnabled(input));
-      }),
-    update: tools.publicProcedure.input(parseUpdateInput).mutation(async ({ ctx, input }) => {
-      await requireAdminSession(authService, ctx);
-
+    setEnabled: adminProcedure.input(parseSetEnabledInput).mutation(async ({ input }) => {
+      return mapServiceError(() => simulationsService.setEnabled(input));
+    }),
+    update: adminProcedure.input(parseUpdateInput).mutation(async ({ input }) => {
       return mapServiceError(() => simulationsService.update(input));
     }),
   });

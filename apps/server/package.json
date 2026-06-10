@@ -3,11 +3,11 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "nest build",
-    "dev": "dotenv -e ../../.env -- nest start --watch",
+    "build": "pnpm --dir ../.. --filter @package/db build && nest build",
+    "dev": "pnpm --dir ../.. --filter @package/db build && dotenv -e ../../.env -- nest start --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "start": "dotenv -e ../../.env -- node dist/main.js",
+    "start": "pnpm --dir ../.. --filter @package/db build && dotenv -e ../../.env -- node dist/main.js",
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {

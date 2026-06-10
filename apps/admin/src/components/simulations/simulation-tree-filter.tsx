@@ -5,6 +5,8 @@ import { BookOpen, ChevronDown, ChevronRight, Filter, Search } from 'lucide-reac
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
+import { getAdminSimulationGradeOptions } from './simulations.data';
+
 export type SimulationStatusFilter = 'all' | 'enabled' | 'disabled';
 
 type SimulationTreeFilterProps = {
@@ -142,7 +144,7 @@ export function SimulationTreeFilter({
             label="年级筛选"
             onToggle={() => toggleNode('grades')}
           >
-            {filters.grades.map((grade) => (
+            {getAdminSimulationGradeOptions(filters.grades).map((grade) => (
               <FilterRow
                 active={selectedGrades.includes(grade)}
                 disabled={disabled}

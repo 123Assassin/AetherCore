@@ -13,13 +13,13 @@ import {
   inviteCodes,
   inviteRelations,
   sessions,
+  systemAuthConfig,
   systemAuditLogs,
   userCreditAccounts,
   users,
   type ActivityStatus,
-  type AuditActorType,
 } from '@package/db';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, max, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, max, sql } from 'drizzle-orm';
 
 export type AdminOperationsUserRow = typeof users.$inferSelect;
 export type ActivityRow = typeof activities.$inferSelect;
@@ -29,6 +29,7 @@ export type AiModelCallRow = typeof aiModelCalls.$inferSelect;
 export type SystemAuditLogRow = typeof systemAuditLogs.$inferSelect;
 export type FissionRewardConfigRow = typeof fissionRewardConfig.$inferSelect;
 export type AlarmConfigRow = typeof alarmConfig.$inferSelect;
+export type SystemAuthConfigRow = typeof systemAuthConfig.$inferSelect;
 export type UserCreditAccountRow = typeof userCreditAccounts.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type CreditTransactionRow = typeof creditTransactions.$inferSelect;
@@ -43,17 +44,6 @@ export type ActivitySaveData = {
 };
 
 export type ActivityUpdateData = Partial<Omit<ActivitySaveData, 'createdByAdminId'>>;
-
-export type SystemAuditLogSaveData = {
-  actorType: AuditActorType;
-  actorId: string | null;
-  action: string;
-  resourceType?: string | null;
-  resourceId?: string | null;
-  ip?: string | null;
-  userAgent?: string | null;
-  metadata?: Record<string, unknown> | null;
-};
 
 export type InviteRelationRow = typeof inviteRelations.$inferSelect;
 export type InviteCodeRow = typeof inviteCodes.$inferSelect;
@@ -112,11 +102,22 @@ export class AdminOperationsRepository {
     return user ?? null;
   }
 
+  async findUserByUsername(username: string): Promise<AdminOperationsUserRow | null> {
+    const [user] = await this.database
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+
+    return user ?? null;
+  }
+
   async createInvitedUser(input: {
     email: string;
     name: string | null;
     password: string;
     totalQuota: number;
+    username: string | null;
   }): Promise<AdminOperationsUserRow> {
     const user = await this.database.transaction(async (transaction) => {
       const [createdUser] = await transaction
@@ -126,6 +127,7 @@ export class AdminOperationsRepository {
           name: input.name,
           password: input.password,
           role: 'user',
+          username: input.username,
           isActive: true,
           isBlacklisted: false,
         })
@@ -147,6 +149,32 @@ export class AdminOperationsRepository {
     return user;
   }
 
+  async createAdminUser(input: {
+    email: string;
+    name: string | null;
+    password: string;
+    username: string;
+  }): Promise<AdminOperationsUserRow> {
+    const [user] = await this.database
+      .insert(users)
+      .values({
+        email: input.email,
+        name: input.name,
+        password: input.password,
+        role: 'admin',
+        username: input.username,
+        isActive: true,
+        isBlacklisted: false,
+      })
+      .returning();
+
+    if (!user) {
+      throw new Error('Failed to create admin user');
+    }
+
+    return user;
+  }
+
   async listUserCreditAccounts(userIds: string[]): Promise<UserCreditAccountRow[]> {
     if (userIds.length === 0) {
       return [];
@@ -156,6 +184,35 @@ export class AdminOperationsRepository {
       .select()
       .from(userCreditAccounts)
       .where(inArray(userCreditAccounts.userId, userIds));
+  }
+
+  async updateUserCreditAccount(input: {
+    balance: number;
+    cycleLimit: number;
+    userId: string;
+  }): Promise<UserCreditAccountRow> {
+    const [account] = await this.database
+      .insert(userCreditAccounts)
+      .values({
+        balance: input.balance,
+        cycleLimit: input.cycleLimit,
+        userId: input.userId,
+      })
+      .onConflictDoUpdate({
+        target: userCreditAccounts.userId,
+        set: {
+          balance: input.balance,
+          cycleLimit: input.cycleLimit,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
+    if (!account) {
+      throw new Error('Failed to update user credit account');
+    }
+
+    return account;
   }
 
   async listLastLogins(userIds: string[]): Promise<LastLoginRow[]> {
@@ -204,14 +261,6 @@ export class AdminOperationsRepository {
       .returning();
 
     return user ?? null;
-  }
-
-  async listUserAuditActivity(userId: string): Promise<SystemAuditLogRow[]> {
-    return this.database
-      .select()
-      .from(systemAuditLogs)
-      .where(or(eq(systemAuditLogs.actorId, userId), eq(systemAuditLogs.resourceId, userId)))
-      .orderBy(desc(systemAuditLogs.createdAt));
   }
 
   async listUserSessions(userId: string): Promise<SessionRow[]> {
@@ -348,12 +397,72 @@ export class AdminOperationsRepository {
     return config!;
   }
 
+  async getSystemConfig(): Promise<SystemAuthConfigRow | null> {
+    const [config] = await this.database.select().from(systemAuthConfig).limit(1);
+
+    return config ?? null;
+  }
+
+  async updateSystemConfig(input: {
+    adminIdleTimeoutMinutes: number;
+    auditLogRetentionDays: number;
+    webIdleTimeoutMinutes: number;
+    updatedByAdminId: string | null;
+  }): Promise<SystemAuthConfigRow> {
+    const [config] = await this.database
+      .insert(systemAuthConfig)
+      .values({ id: 'default', ...input })
+      .onConflictDoUpdate({
+        target: systemAuthConfig.id,
+        set: { ...input, updatedAt: new Date() },
+      })
+      .returning();
+
+    return config!;
+  }
+
   async listSystemAuditLogs(range: DateRangeInput = {}): Promise<SystemAuditLogRow[]> {
+    const startTimestamp =
+      range.startDate === undefined ? undefined : Math.floor(range.startDate.getTime() / 1000);
+    const endTimestamp =
+      range.endDate === undefined ? undefined : Math.floor(range.endDate.getTime() / 1000);
+
     return this.database
       .select()
       .from(systemAuditLogs)
-      .where(dateRangeWhere(systemAuditLogs.createdAt, range))
-      .orderBy(desc(systemAuditLogs.createdAt));
+      .where(
+        and(
+          startTimestamp === undefined ? undefined : gte(systemAuditLogs.timestamp, startTimestamp),
+          endTimestamp === undefined ? undefined : lte(systemAuditLogs.timestamp, endTimestamp)
+        )
+      )
+      .orderBy(desc(systemAuditLogs.timestamp));
+  }
+
+  async deleteSystemAuditLogsByTimestampRange(input: {
+    endTimestamp: number;
+    startTimestamp: number;
+  }): Promise<number> {
+    const rows = await this.database
+      .delete(systemAuditLogs)
+      .where(
+        and(
+          gte(systemAuditLogs.timestamp, input.startTimestamp),
+          lte(systemAuditLogs.timestamp, input.endTimestamp)
+        )
+      )
+      .returning({ logId: systemAuditLogs.logId });
+
+    return rows.length;
+  }
+
+  async deleteSystemAuditLogsBefore(timestamp: number): Promise<number> {
+    const rows = await this.database
+      .delete(systemAuditLogs)
+      .where(lte(systemAuditLogs.timestamp, timestamp))
+      .returning({ logId: systemAuditLogs.logId });
+
+    return rows.length;
   }
 
   async listContentAuditSessions(range: DateRangeInput = {}): Promise<ContentAuditSessionRow[]> {
@@ -420,10 +529,6 @@ export class AdminOperationsRepository {
       .where(dateRangeWhere(aiModelCalls.createdAt, range))
       .groupBy(aiModelCalls.engineId, aiModelCalls.modelName, aiModelCalls.currency)
       .orderBy(sql`coalesce(sum(${aiModelCalls.totalTokens}), 0) desc`);
-  }
-
-  async createSystemAuditLog(input: SystemAuditLogSaveData): Promise<void> {
-    await this.database.insert(systemAuditLogs).values(input);
   }
 }
 

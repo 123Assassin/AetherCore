@@ -126,3 +126,23 @@ export const alarmConfig = pgTable(
     check('alarm_config_cost_threshold_amount_check', sql`${table.costThresholdAmount} >= 0`),
   ]
 );
+
+export const systemAuthConfig = pgTable(
+  'system_auth_config',
+  {
+    id: varchar('id', { length: 20 }).notNull().default('default').primaryKey(),
+    adminIdleTimeoutMinutes: integer('admin_idle_timeout_minutes').notNull(),
+    auditLogRetentionDays: integer('audit_log_retention_days').notNull().default(180),
+    webIdleTimeoutMinutes: integer('web_idle_timeout_minutes').notNull(),
+    updatedByAdminId: uuid('updated_by_admin_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('system_auth_config_singleton_check', sql`${table.id} = 'default'`),
+    check('system_auth_config_admin_idle_timeout_check', sql`${table.adminIdleTimeoutMinutes} > 0`),
+    check('system_auth_config_audit_log_retention_check', sql`${table.auditLogRetentionDays} > 0`),
+    check('system_auth_config_web_idle_timeout_check', sql`${table.webIdleTimeoutMinutes} > 0`),
+  ]
+);

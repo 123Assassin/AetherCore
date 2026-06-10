@@ -1,13 +1,20 @@
 import { TRPCError } from '@trpc/server';
 
-import {
-  requireAdminSession,
-  resolveAdminSession,
-} from '../../common/guards/admin-session.guard.js';
+import { resolveAdminSession } from '../../common/guards/admin-session.guard.js';
+import type { AdminAuditService } from '../../modules/admin-audit/admin-audit.service.js';
 import { AuthServiceError, type AuthService } from '../../modules/auth/auth.service.js';
+import {
+  createAuditedAdminProcedure,
+  getHeader,
+  getAdminSessionAccount,
+  getRequestIp,
+  toSuccessAuditResult,
+  writeAdminApiAudit,
+} from '../admin-audit-middleware.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
 
 type RouterTools = {
+  adminAuditService?: AdminAuditService | undefined;
   createTRPCRouter: typeof createTRPCRouter;
   publicProcedure: typeof publicProcedure;
 };
@@ -47,15 +54,11 @@ export function createAuthRouter(authService: AuthService, tools: RouterTools) {
 }
 
 export function createAdminAuthRouter(authService: AuthService, tools: RouterTools) {
-  const adminProcedure = tools.publicProcedure.use(async ({ ctx, next }) => {
-    const adminSession = await requireAdminSession(authService, ctx);
-
-    return next({
-      ctx: {
-        ...ctx,
-        adminSession,
-      },
-    });
+  const adminProcedure = createAuditedAdminProcedure({
+    adminAuditService: tools.adminAuditService,
+    authService,
+    pathPrefix: 'adminAuth',
+    publicProcedure: tools.publicProcedure,
   });
 
   return tools.createTRPCRouter({
@@ -69,7 +72,25 @@ export function createAdminAuthRouter(authService: AuthService, tools: RouterToo
     login: tools.publicProcedure
       .input(parseLoginInput)
       .mutation(({ ctx, input }) => authService.adminLogin(input, ctx)),
-    logout: tools.publicProcedure.mutation(({ ctx }) => authService.adminLogout(ctx)),
+    logout: tools.publicProcedure.mutation(async ({ ctx }) => {
+      const session = await resolveAdminSession(authService, ctx);
+      const result = await authService.adminLogout(ctx);
+
+      if (session) {
+        await writeAdminApiAudit(tools.adminAuditService, {
+          actorAccount: getAdminSessionAccount(session.user),
+          actorId: session.user.id,
+          input: undefined,
+          ip: getRequestIp(ctx),
+          path: 'adminAuth.logout',
+          result: toSuccessAuditResult(result),
+          type: 'mutation',
+          userAgent: getHeader(ctx, 'user-agent'),
+        });
+      }
+
+      return result;
+    }),
     session: tools.publicProcedure.query(async ({ ctx }) => {
       const session = await resolveAdminSession(authService, ctx);
 
@@ -77,7 +98,20 @@ export function createAdminAuthRouter(authService: AuthService, tools: RouterToo
         return { authenticated: false };
       }
 
-      return authService.getAdminSession(ctx);
+      const result = await authService.getAdminSession(ctx);
+
+      await writeAdminApiAudit(tools.adminAuditService, {
+        actorAccount: getAdminSessionAccount(session.user),
+        actorId: session.user.id,
+        input: undefined,
+        ip: getRequestIp(ctx),
+        path: 'adminAuth.session',
+        result: toSuccessAuditResult(result),
+        type: 'query',
+        userAgent: getHeader(ctx, 'user-agent'),
+      });
+
+      return result;
     }),
   });
 }

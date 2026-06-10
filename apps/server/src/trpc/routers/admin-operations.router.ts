@@ -1,11 +1,12 @@
 import { TRPCError } from '@trpc/server';
-import { requireAdminSession } from '../../common/guards/admin-session.guard.js';
+import type { AdminAuditService } from '../../modules/admin-audit/admin-audit.service.js';
 import type { AdminSession, AuthService } from '../../modules/auth/auth.service.js';
 import {
   AdminOperationsServiceError,
   type AdminActivityCreateInput,
   type AdminActivityListInput,
   type AdminActivityUpdateInput,
+  type AdminCreateAdminUserInput,
   type AdminAlarmConfigUpdateInput,
   type AdminAuditExportInput,
   type AdminContentAuditListInput,
@@ -13,6 +14,8 @@ import {
   type AdminFissionRewardConfigUpdateInput,
   type AdminOperationsAuditContext,
   type AdminOperationsService,
+  type AdminSystemConfigUpdateInput,
+  type AdminSystemAuditCleanupRangeInput,
   type AdminSystemAuditListInput,
   type AdminTrafficStatsInput,
   type AdminUserActivityInput,
@@ -20,13 +23,16 @@ import {
   type AdminUserInviteInput,
   type AdminUserListInput,
   type AdminMutableUserStatus,
+  type AdminUserQuotaInput,
   type AdminUserStatus,
   type AdminUserStatusInput,
 } from '../../modules/admin-operations/admin-operations.service.js';
 import type { TRPCContext } from '../context.js';
 import type { createTRPCRouter, publicProcedure } from '../router.js';
+import { createAuditedAdminProcedure, getHeader, getRequestIp } from '../admin-audit-middleware.js';
 
 type RouterTools = {
+  adminAuditService?: AdminAuditService | undefined;
   createTRPCRouter: typeof createTRPCRouter;
   publicProcedure: typeof publicProcedure;
 };
@@ -40,15 +46,10 @@ export function createAdminOperationsRouter(
   adminOperationsService: AdminOperationsService,
   tools: RouterTools
 ) {
-  const adminProcedure = tools.publicProcedure.use(async ({ ctx, next }) => {
-    const adminSession = await requireAdminSession(authService, ctx);
-
-    return next({
-      ctx: {
-        ...ctx,
-        adminSession,
-      },
-    });
+  const adminProcedure = createAuditedAdminProcedure({
+    adminAuditService: tools.adminAuditService,
+    authService,
+    publicProcedure: tools.publicProcedure,
   });
 
   return tools.createTRPCRouter({
@@ -74,6 +75,18 @@ export function createAdminOperationsRouter(
       invite: adminProcedure.input(parseUserInviteInput).mutation(async ({ input, ctx }) => {
         return mapServiceError(() =>
           adminOperationsService.inviteUser(input, getAuditContext(ctx))
+        );
+      }),
+      createAdmin: adminProcedure
+        .input(parseCreateAdminUserInput)
+        .mutation(async ({ input, ctx }) => {
+          return mapServiceError(() =>
+            adminOperationsService.createAdminUser(input, getAuditContext(ctx))
+          );
+        }),
+      quota: adminProcedure.input(parseUserQuotaInput).mutation(async ({ input, ctx }) => {
+        return mapServiceError(() =>
+          adminOperationsService.updateUserQuota(input, getAuditContext(ctx))
         );
       }),
       activity: adminProcedure.input(parseUserActivityInput).query(async ({ input }) => {
@@ -127,9 +140,33 @@ export function createAdminOperationsRouter(
         );
       }),
     }),
+    systemConfig: tools.createTRPCRouter({
+      get: adminProcedure.query(async () => {
+        return mapServiceError(() => adminOperationsService.getSystemConfig());
+      }),
+      update: adminProcedure
+        .input(parseSystemConfigUpdateInput)
+        .mutation(async ({ input, ctx }) => {
+          return mapServiceError(() =>
+            adminOperationsService.updateSystemConfig(input, getAuditContext(ctx))
+          );
+        }),
+    }),
     systemAudit: tools.createTRPCRouter({
       list: adminProcedure.input(parseSystemAuditListInput).query(async ({ input }) => {
         return mapServiceError(() => adminOperationsService.listSystemAuditLogs(input));
+      }),
+      cleanupManual: adminProcedure
+        .input(parseSystemAuditCleanupRangeInput)
+        .mutation(async ({ input, ctx }) => {
+          return mapServiceError(() =>
+            adminOperationsService.cleanupSystemAuditLogsByDateRange(input, getAuditContext(ctx))
+          );
+        }),
+      cleanupAuto: adminProcedure.mutation(async ({ ctx }) => {
+        return mapServiceError(() =>
+          adminOperationsService.cleanupSystemAuditLogsByRetention(getAuditContext(ctx))
+        );
       }),
       export: adminProcedure.input(parseAuditExportInput).mutation(async ({ input, ctx }) => {
         return mapServiceError(() =>
@@ -227,7 +264,30 @@ function parseUserInviteInput(input: unknown): AdminUserInviteInput {
   return {
     email: parseRequiredString(value.email, 'Admin user invite requires email'),
     ...parseOptionalNullableStringProperty(value, 'name'),
+    ...parseOptionalStringProperty(value, 'password'),
     ...parseOptionalNumberProperty(value, 'totalQuota'),
+    ...parseOptionalNullableStringProperty(value, 'username'),
+  };
+}
+
+function parseCreateAdminUserInput(input: unknown): AdminCreateAdminUserInput {
+  const value = parseRequiredObject(input, 'Admin user create input must be an object');
+
+  return {
+    email: parseRequiredString(value.email, 'Admin user create requires email'),
+    name: typeof value.name === 'string' || value.name === null ? value.name : null,
+    password: parseRequiredString(value.password, 'Admin user create requires password'),
+    username: parseRequiredString(value.username, 'Admin user create requires username'),
+  };
+}
+
+function parseUserQuotaInput(input: unknown): AdminUserQuotaInput {
+  const value = parseRequiredObject(input, 'Admin user quota input must be an object');
+
+  return {
+    credits: parseRequiredNumber(value.credits, 'Admin user quota requires credits'),
+    id: parseRequiredString(value.id, 'Admin user quota requires id'),
+    totalQuota: parseRequiredNumber(value.totalQuota, 'Admin user quota requires totalQuota'),
   };
 }
 
@@ -307,14 +367,35 @@ function parseAlarmConfigUpdateInput(input: unknown): AdminAlarmConfigUpdateInpu
   };
 }
 
+function parseSystemConfigUpdateInput(input: unknown): AdminSystemConfigUpdateInput {
+  const value = parseRequiredObject(input, 'Admin system config input must be an object');
+
+  return {
+    ...parseOptionalNumberProperty(value, 'adminIdleTimeoutMinutes'),
+    ...parseOptionalNumberProperty(value, 'auditLogRetentionDays'),
+    ...parseOptionalNumberProperty(value, 'webIdleTimeoutMinutes'),
+  };
+}
+
+function parseSystemAuditCleanupRangeInput(input: unknown): AdminSystemAuditCleanupRangeInput {
+  const value = parseRequiredObject(input, 'Admin system audit cleanup input must be an object');
+
+  return {
+    startDate: parseRequiredString(
+      value.startDate,
+      'Admin system audit cleanup requires startDate'
+    ),
+    endDate: parseRequiredString(value.endDate, 'Admin system audit cleanup requires endDate'),
+  };
+}
+
 function parseSystemAuditListInput(input: unknown): AdminSystemAuditListInput {
   const value = parseOptionalObject(input, 'Admin system audit list input must be an object');
 
   return {
     ...parseOptionalStringProperty(value, 'q'),
-    ...parseOptionalStringProperty(value, 'actorType'),
-    ...parseOptionalStringProperty(value, 'actorId'),
-    ...parseOptionalStringProperty(value, 'action'),
+    ...parseOptionalNumberProperty(value, 'level'),
+    ...parseOptionalNumberProperty(value, 'logType'),
     ...parseOptionalStringProperty(value, 'startDate'),
     ...parseOptionalStringProperty(value, 'endDate'),
     ...parseOptionalNumberProperty(value, 'page'),
@@ -494,27 +575,6 @@ function parseUserStatus(value: unknown, message: string): AdminUserStatus {
   }
 
   return value;
-}
-
-function getRequestIp(ctx: TRPCContext): string | null {
-  return getHeader(ctx, 'x-forwarded-for')?.split(',')[0]?.trim() || getRequestProperty(ctx, 'ip');
-}
-
-function getHeader(ctx: TRPCContext, name: string): string | null {
-  const req = ctx.req as { headers?: Record<string, string | string[] | undefined> };
-  const value = req.headers?.[name];
-
-  if (Array.isArray(value)) {
-    return value[0] ?? null;
-  }
-
-  return value ?? null;
-}
-
-function getRequestProperty(ctx: TRPCContext, name: 'ip'): string | null {
-  const req = ctx.req as { ip?: string };
-
-  return req[name] ?? null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

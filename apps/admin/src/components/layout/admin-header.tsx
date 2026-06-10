@@ -16,6 +16,7 @@ const titleMap: Record<string, string> = {
   '/security/traffic-monitor': '流量监控',
   '/alarm': '消息告警中心',
   '/users': '用户管理控制台',
+  '/system-admins': '系统管理员',
   '/settings': '系统设置',
 };
 

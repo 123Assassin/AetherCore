@@ -21,6 +21,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  ShieldUser,
   TerminalSquare,
   Users as UsersIcon,
 } from 'lucide-react';
@@ -83,6 +84,7 @@ const navItems: NavItem[] = [
     ],
   },
   { name: '消息告警中心', path: '/alarm', icon: BellRing },
+  { name: '系统管理员', path: '/system-admins', icon: ShieldUser },
   { name: '系统设置', path: '/settings', icon: SettingsIcon },
 ];
 

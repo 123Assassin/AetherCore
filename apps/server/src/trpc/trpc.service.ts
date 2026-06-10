@@ -3,6 +3,7 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from '@trpc/server/adapters/fastify';
 
 import { AdminOperationsService } from '../modules/admin-operations/admin-operations.service.js';
+import { AdminAuditService } from '../modules/admin-audit/admin-audit.service.js';
 import { AdminResourcesService } from '../modules/admin-resources/admin-resources.service.js';
 import { AiService } from '../modules/ai/ai.service.js';
 import { AuthService } from '../modules/auth/auth.service.js';
@@ -19,7 +20,8 @@ export class TrpcService {
     private readonly simulationsService: SimulationsService,
     private readonly commentsService: CommentsService,
     private readonly adminResourcesService: AdminResourcesService,
-    private readonly adminOperationsService: AdminOperationsService
+    private readonly adminOperationsService: AdminOperationsService,
+    private readonly adminAuditService: AdminAuditService
   ) {}
 
   registerTrpcPlugin(app: NestFastifyApplication): void {
@@ -35,7 +37,8 @@ export class TrpcService {
           this.simulationsService,
           this.commentsService,
           this.adminResourcesService,
-          this.adminOperationsService
+          this.adminOperationsService,
+          this.adminAuditService
         ),
         createContext: createTRPCContext,
       } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],

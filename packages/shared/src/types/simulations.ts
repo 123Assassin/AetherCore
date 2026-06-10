@@ -14,6 +14,11 @@ export type SimulationFilterCategoryOption = {
   subject: string;
 };
 
+export type SimulationSubjectAssignment = {
+  subject: string;
+  category: SimulationCategoryOption;
+};
+
 export type SimulationFilters = {
   subjects: SimulationSubjectOption[];
   categories: SimulationFilterCategoryOption[];
@@ -24,6 +29,7 @@ export type SimulationItem = {
   id: string;
   name: string;
   subject: string;
+  subjects: SimulationSubjectAssignment[];
   category: SimulationCategoryOption;
   grades: string[];
   thumbnail: string | null;

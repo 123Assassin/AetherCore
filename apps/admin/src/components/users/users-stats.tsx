@@ -1,5 +1,5 @@
 import type { AdminUserItem } from '@package/shared';
-import { Activity, BadgeCheck, ShieldBan, Users as UsersIcon } from 'lucide-react';
+import { BadgeCheck, Ban, ShieldBan, Users as UsersIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 type UsersStatsProps = {
@@ -12,11 +12,11 @@ export function UsersStats({ loading, total, users }: UsersStatsProps) {
   const activeCount = users.filter(
     (user) => user.status === 'active' && !user.isBlacklisted
   ).length;
+  const disabledCount = users.filter((user) => user.status === 'disabled').length;
   const blacklistedCount = users.filter((user) => user.isBlacklisted).length;
-  const creditsTotal = users.reduce((sum, user) => sum + Math.max(0, user.credits), 0);
 
   return (
-    <section aria-label="用户统计" className="grid grid-cols-1 gap-8 md:grid-cols-3">
+    <section aria-label="用户统计" className="grid grid-cols-1 gap-8 md:grid-cols-4">
       <StatItem
         icon={<UsersIcon size={28} />}
         label="总用户数"
@@ -32,11 +32,18 @@ export function UsersStats({ loading, total, users }: UsersStatsProps) {
         value={activeCount}
       />
       <StatItem
-        icon={blacklistedCount > 0 ? <ShieldBan size={28} /> : <Activity size={28} />}
-        label={blacklistedCount > 0 ? '黑名单用户' : '剩余额度'}
+        icon={<Ban size={28} />}
+        label="限制用户"
         loading={loading}
-        tone={blacklistedCount > 0 ? 'red' : 'amber'}
-        value={blacklistedCount > 0 ? blacklistedCount : creditsTotal}
+        tone="amber"
+        value={disabledCount}
+      />
+      <StatItem
+        icon={<ShieldBan size={28} />}
+        label="黑名单"
+        loading={loading}
+        tone="red"
+        value={blacklistedCount}
       />
     </section>
   );

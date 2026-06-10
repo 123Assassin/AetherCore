@@ -12,12 +12,17 @@ import {
 type SimulationDataItem = {
   id: string;
   name: string;
-  children?: SimulationDataItem[];
   src?: string;
   thumbnail?: string;
   isable?: boolean;
   topics?: unknown[];
   sample_learning_goals?: unknown[];
+  subjects?: SimulationSourceSubject[];
+};
+
+type SimulationSourceSubject = {
+  subject: string;
+  category: string;
 };
 
 type GradeJson = {
@@ -25,7 +30,7 @@ type GradeJson = {
 };
 
 type SeedSource = {
-  subjects: SimulationDataItem[];
+  gradeGroups: Record<string, SimulationDataItem[]>;
   grades: Record<string, string[]>;
 };
 
@@ -52,74 +57,156 @@ export async function loadSeedSource(dataPath = process.cwd()): Promise<SeedSour
   ]);
 
   return {
-    subjects: JSON.parse(dataContent) as SimulationDataItem[],
+    gradeGroups: JSON.parse(dataContent) as Record<string, SimulationDataItem[]>,
     grades: (JSON.parse(gradeContent) as GradeJson).年级,
   };
 }
 
 export function buildSeedRows(source: SeedSource): SimulationSeedRows {
-  const categories: CategoryInsert[] = [];
-  const apps: AppInsert[] = [];
+  const categoriesById = new Map<string, CategoryInsert>();
+  const appsById = new Map<string, AppInsert>();
+  const appIds: string[] = [];
   const gradesRows = Object.keys(source.grades).map((name) => ({ name }));
-  const appNameToIds = new Map<string, string[]>();
+  const categorySortOrderById = new Map<string, number>();
 
-  for (const subject of source.subjects) {
-    categories.push({
-      id: subject.name,
-      name: subject.name,
-      parentId: null,
-      sortOrder: 0,
-    });
+  for (const apps of Object.values(source.gradeGroups)) {
+    for (const app of apps) {
+      const appSubjects = normalizeSourceSubjects(app.subjects);
 
-    for (const category of subject.children ?? []) {
-      const categoryId = `${subject.name}-${category.id}`;
-
-      categories.push({
-        id: categoryId,
-        name: category.name || category.id,
-        parentId: subject.name,
-        sortOrder: 0,
-      });
-
-      for (const app of category.children ?? []) {
-        const appId = `${categoryId}-${app.id}`;
-
-        apps.push({
-          id: appId,
-          name: app.name,
-          categoryId,
-          src: app.src ?? null,
-          thumbnail: app.thumbnail ?? null,
-          isable: app.isable ?? true,
-          topics: app.topics ?? null,
-          sampleLearningGoals: app.sample_learning_goals ?? null,
+      for (const subject of appSubjects) {
+        ensureCategory(categoriesById, categorySortOrderById, {
+          id: subject.subject,
+          name: subject.subject,
+          parentId: null,
         });
-
-        const ids = appNameToIds.get(app.name) ?? [];
-        ids.push(appId);
-        appNameToIds.set(app.name, ids);
+        ensureCategory(categoriesById, categorySortOrderById, {
+          id: toCategoryId(subject),
+          name: subject.category,
+          parentId: subject.subject,
+        });
       }
+
+      const primarySubject = appSubjects[0];
+
+      if (!primarySubject) {
+        continue;
+      }
+
+      const existingApp = appsById.get(app.id);
+
+      if (existingApp) {
+        existingApp.subjects = mergeSourceSubjects(existingApp.subjects, appSubjects);
+        continue;
+      }
+
+      appsById.set(app.id, {
+        id: app.id,
+        name: app.name,
+        categoryId: toCategoryId(primarySubject),
+        src: app.src ?? null,
+        thumbnail: app.thumbnail ?? null,
+        isable: app.isable ?? true,
+        topics: app.topics ?? null,
+        subjects: appSubjects,
+        sampleLearningGoals: app.sample_learning_goals ?? null,
+      });
+      appIds.push(app.id);
     }
   }
 
+  const apps = appIds.map((id) => appsById.get(id)).filter((app): app is AppInsert => Boolean(app));
+  const appNameToIds = new Map<string, string[]>();
+
+  for (const app of apps) {
+    const ids = appNameToIds.get(app.name) ?? [];
+
+    if (!ids.includes(app.id)) {
+      ids.push(app.id);
+    }
+
+    appNameToIds.set(app.name, ids);
+  }
+
   const gradeSimulationAppRows: GradeSimulationAppSeed[] = [];
+  const gradeSimulationAppKeys = new Set<string>();
 
   for (const [gradeName, appNames] of Object.entries(source.grades)) {
     for (const appName of appNames) {
       const simulationAppIds = appNameToIds.get(appName) ?? [];
 
       for (const simulationAppId of simulationAppIds) {
+        const key = `${gradeName}\0${simulationAppId}`;
+
+        if (gradeSimulationAppKeys.has(key)) {
+          continue;
+        }
+
+        gradeSimulationAppKeys.add(key);
         gradeSimulationAppRows.push({ gradeName, simulationAppId });
       }
     }
   }
 
   return {
-    categories,
+    categories: [...categoriesById.values()],
     apps,
     grades: gradesRows,
     gradeSimulationApps: gradeSimulationAppRows,
   };
+}
+
+function ensureCategory(
+  categoriesById: Map<string, CategoryInsert>,
+  categorySortOrderById: Map<string, number>,
+  input: Pick<CategoryInsert, 'id' | 'name' | 'parentId'>
+) {
+  if (categoriesById.has(input.id)) {
+    return;
+  }
+
+  categorySortOrderById.set(input.id, categorySortOrderById.size);
+  categoriesById.set(input.id, {
+    ...input,
+    sortOrder: categorySortOrderById.get(input.id) ?? 0,
+  });
+}
+
+function normalizeSourceSubjects(
+  subjects: SimulationSourceSubject[] | undefined
+): SimulationSourceSubject[] {
+  const seen = new Set<string>();
+  const normalized: SimulationSourceSubject[] = [];
+
+  for (const subject of subjects ?? []) {
+    const subjectName = subject.subject.trim();
+    const categoryName = subject.category.trim();
+
+    if (!subjectName || !categoryName) {
+      continue;
+    }
+
+    const key = `${subjectName}\0${categoryName}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    normalized.push({ subject: subjectName, category: categoryName });
+  }
+
+  return normalized;
+}
+
+function mergeSourceSubjects(
+  current: { subject: string; category: string }[] | null | undefined,
+  next: SimulationSourceSubject[]
+): SimulationSourceSubject[] {
+  return normalizeSourceSubjects([...(current ?? []), ...next]);
+}
+
+function toCategoryId(subject: SimulationSourceSubject): string {
+  return `${subject.subject}-${subject.category}`;
 }
 
 export async function seedData(db: Database) {

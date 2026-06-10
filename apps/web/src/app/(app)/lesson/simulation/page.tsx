@@ -1,19 +1,26 @@
 'use client';
 
-import type { SimulationFilters, SimulationListInput, SimulationListResult } from '@package/shared';
+import type {
+  SimulationFilters,
+  SimulationListInput,
+  SimulationListResult,
+  SimulationSubjectOption,
+} from '@package/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { SimulationCard } from '../../../../components/simulations/simulation-card';
 import { SimulationEmptyState } from '../../../../components/simulations/simulation-empty-state';
 import { SimulationFiltersPanel } from '../../../../components/simulations/simulation-filters';
 import {
+  getNextCategoryFilterSelection,
+  getNextSubjectFilterSelection,
+  type SimulationSubjectFilterSelection,
+} from '../../../../components/simulations/simulation-filters.data';
+import {
   type ActiveSimulationFilter,
   SimulationResultsHeader,
 } from '../../../../components/simulations/simulation-results-header';
-import {
-  getSimulationDescription,
-  simulationPageSize,
-} from '../../../../components/simulations/simulations.data';
+import { simulationPageSize } from '../../../../components/simulations/simulations.data';
 import { expandWebGradeFilters, normalizeWebGradeOptions } from '../../../../lib/web-grades';
 import type { TrpcClient } from '../../../../trpc/client';
 import { useTrpcClient } from '../../../../trpc/provider';
@@ -29,6 +36,11 @@ const emptyListResult: SimulationListResult = {
   page: 1,
   pageSize: simulationPageSize,
   total: 0,
+};
+
+const emptySubjectFilterSelection: SimulationSubjectFilterSelection = {
+  selectedCategoryIds: [],
+  selectedSubjects: [],
 };
 
 function getErrorMessage(error: unknown) {
@@ -109,8 +121,8 @@ export default function SimulationPage() {
   const client = useTrpcClient();
   const [filters, setFilters] = useState<SimulationFilters>(emptyFilters);
   const [result, setResult] = useState<SimulationListResult>(emptyListResult);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [subjectFilterSelection, setSubjectFilterSelection] =
+    useState<SimulationSubjectFilterSelection>(emptySubjectFilterSelection);
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -118,6 +130,8 @@ export default function SimulationPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [filtersError, setFiltersError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  const selectedSubjects = subjectFilterSelection.selectedSubjects;
+  const selectedCategoryIds = subjectFilterSelection.selectedCategoryIds;
 
   useEffect(() => {
     const timeoutId = setTimeout(() => setDebouncedSearch(search), 220);
@@ -193,8 +207,7 @@ export default function SimulationPage() {
   }, [client, debouncedSearch, selectedCategoryIds, selectedGrades, selectedSubjects]);
 
   const resetFilters = useCallback(() => {
-    setSelectedSubjects([]);
-    setSelectedCategoryIds([]);
+    setSubjectFilterSelection(emptySubjectFilterSelection);
     setSelectedGrades([]);
     setSearch('');
     setDebouncedSearch('');
@@ -204,12 +217,47 @@ export default function SimulationPage() {
     setSearch(value);
   }, []);
 
-  const handleSubjectToggle = useCallback((subject: string) => {
-    setSelectedSubjects((current) => toggleValue(current, subject));
+  const handleSubjectToggle = useCallback((subject: SimulationSubjectOption) => {
+    setSubjectFilterSelection((current) => getNextSubjectFilterSelection(subject, current));
   }, []);
 
-  const handleCategoryToggle = useCallback((categoryId: string) => {
-    setSelectedCategoryIds((current) => toggleValue(current, categoryId));
+  const handleCategoryToggle = useCallback(
+    (subject: SimulationSubjectOption, categoryId: string) => {
+      setSubjectFilterSelection((current) =>
+        getNextCategoryFilterSelection(subject, categoryId, current)
+      );
+    },
+    []
+  );
+
+  const subjectOptionsByName = useMemo(
+    () => new Map(filters.subjects.map((subject) => [subject.name, subject])),
+    [filters.subjects]
+  );
+
+  const subjectOptionsByCategoryId = useMemo(() => {
+    const optionsByCategoryId = new Map<string, SimulationSubjectOption>();
+
+    for (const subject of filters.subjects) {
+      for (const category of subject.categories) {
+        optionsByCategoryId.set(category.id, subject);
+      }
+    }
+
+    return optionsByCategoryId;
+  }, [filters.subjects]);
+
+  const clearSubjectFilter = useCallback((subject: SimulationSubjectOption) => {
+    setSubjectFilterSelection((current) => {
+      const selectedCategoryIds = current.selectedCategoryIds.filter(
+        (categoryId) => !subject.categories.some((category) => category.id === categoryId)
+      );
+
+      return {
+        selectedCategoryIds,
+        selectedSubjects: current.selectedSubjects.filter((item) => item !== subject.name),
+      };
+    });
   }, []);
 
   const handleGradeToggle = useCallback((grade: string) => {
@@ -226,14 +274,24 @@ export default function SimulationPage() {
       id: `subject-${subject}`,
       label: subject,
       onRemove: () => {
-        setSelectedSubjects((current) => current.filter((item) => item !== subject));
+        const subjectOption = subjectOptionsByName.get(subject);
+
+        if (subjectOption) {
+          clearSubjectFilter(subjectOption);
+        }
       },
     }));
     const categoryFilters = selectedCategoryIds.map((categoryId) => ({
       id: `category-${categoryId}`,
       label: categoryLabels.get(categoryId) ?? categoryId,
       onRemove: () => {
-        setSelectedCategoryIds((current) => current.filter((item) => item !== categoryId));
+        const subject = subjectOptionsByCategoryId.get(categoryId);
+
+        if (subject) {
+          setSubjectFilterSelection((current) =>
+            getNextCategoryFilterSelection(subject, categoryId, current)
+          );
+        }
       },
     }));
     const gradeFilters = selectedGrades.map((grade) => ({
@@ -256,7 +314,16 @@ export default function SimulationPage() {
       : [];
 
     return [...subjectFilters, ...categoryFilters, ...gradeFilters, ...searchFilter];
-  }, [categoryLabels, search, selectedCategoryIds, selectedGrades, selectedSubjects]);
+  }, [
+    categoryLabels,
+    clearSubjectFilter,
+    search,
+    selectedCategoryIds,
+    selectedGrades,
+    selectedSubjects,
+    subjectOptionsByCategoryId,
+    subjectOptionsByName,
+  ]);
 
   const listLoading = loadingFilters || loadingList;
   const combinedError = filtersError ?? listError;
@@ -300,11 +367,7 @@ export default function SimulationPage() {
               className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3"
             >
               {result.items.map((item) => (
-                <SimulationCard
-                  description={getSimulationDescription(item)}
-                  item={item}
-                  key={item.id}
-                />
+                <SimulationCard item={item} key={item.id} />
               ))}
             </section>
           ) : listLoading ? (
