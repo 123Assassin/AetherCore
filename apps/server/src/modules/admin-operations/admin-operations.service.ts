@@ -12,8 +12,8 @@ import {
   type CreditTransactionRow,
   type FissionRewardConfigRow,
   type SessionRow,
+  type SystemAuthConfigRow,
   type SystemAuditLogRow,
-  type SystemAuditLogSaveData,
   type AdminOperationsUserRow,
   type UserCreditAccountRow,
   type UserConversationRow,
@@ -74,7 +74,22 @@ export type AdminUserDeleteInput = {
 export type AdminUserInviteInput = {
   email: string;
   name?: string | null;
+  password?: string;
   totalQuota?: number;
+  username?: string | null;
+};
+
+export type AdminCreateAdminUserInput = {
+  email: string;
+  name?: string | null;
+  password: string;
+  username: string;
+};
+
+export type AdminUserQuotaInput = {
+  credits: number;
+  id: string;
+  totalQuota: number;
 };
 
 export type AdminUserActivityInput = {
@@ -167,23 +182,46 @@ export type AdminAlarmConfigUpdateInput = {
   email: string;
 };
 
+export type AdminSystemConfig = {
+  adminIdleTimeoutMinutes: number;
+  auditLogRetentionDays: number;
+  webIdleTimeoutMinutes: number;
+  updatedByAdminId: string | null;
+  updatedAt: string | null;
+};
+
+export type AdminSystemConfigUpdateInput = {
+  adminIdleTimeoutMinutes?: number;
+  auditLogRetentionDays?: number;
+  webIdleTimeoutMinutes?: number;
+};
+
+export type AdminSystemAuditCleanupRangeInput = {
+  endDate: string;
+  startDate: string;
+};
+
+export type AdminSystemAuditCleanupResult = {
+  cutoffTimestamp?: number;
+  deletedCount: number;
+  retentionDays?: number;
+};
+
+export type AdminAuditLevel = 0 | 1;
+
+export type AdminAuditLogType = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+
 export type AdminSystemAuditItem = {
-  id: string;
-  actorType: 'admin' | 'user' | 'system';
-  actorId: string | null;
-  action: string;
-  resourceType: string | null;
-  resourceId: string | null;
-  ip: string | null;
-  userAgent: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
+  logId: string;
+  timestamp: number;
+  level: AdminAuditLevel;
+  details: Record<string, unknown>;
+  logType: AdminAuditLogType;
 };
 
 export type AdminSystemAuditListInput = AdminOperationListInput & {
-  actorType?: 'admin' | 'user' | 'system';
-  actorId?: string;
-  action?: string;
+  level?: AdminAuditLevel;
+  logType?: AdminAuditLogType;
   startDate?: string;
   endDate?: string;
 };
@@ -262,6 +300,7 @@ export type AdminOperationsErrorCode = 'BAD_REQUEST' | 'NOT_FOUND' | 'CONFLICT';
 export type AdminOperationsDomainErrorCode =
   | AdminOperationsErrorCode
   | 'DUPLICATE_USER_EMAIL'
+  | 'DUPLICATE_USER_USERNAME'
   | 'RESOURCE_ALREADY_DELETED';
 
 const ADMIN_OPERATIONS_DOMAIN_ERROR_CODES = [
@@ -269,6 +308,7 @@ const ADMIN_OPERATIONS_DOMAIN_ERROR_CODES = [
   'NOT_FOUND',
   'CONFLICT',
   'DUPLICATE_USER_EMAIL',
+  'DUPLICATE_USER_USERNAME',
   'RESOURCE_ALREADY_DELETED',
 ] as const satisfies readonly AdminOperationsDomainErrorCode[];
 
@@ -278,9 +318,11 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
 const ACTIVITY_STATUSES = ['draft', 'published'] as const;
-const ACTOR_TYPES = ['admin', 'user', 'system'] as const;
 const CONTENT_CATEGORIES = ['chat', 'inspiration', 'comment', 'teaching'] as const;
+const DEFAULT_ADMIN_IDLE_TIMEOUT_MINUTES = 120;
+const DEFAULT_AUDIT_LOG_RETENTION_DAYS = 180;
 const DEFAULT_INVITE_TOTAL_QUOTA = 100;
+const DEFAULT_WEB_IDLE_TIMEOUT_MINUTES = 10080;
 
 export class AdminOperationsServiceError extends Error {
   constructor(
@@ -301,7 +343,7 @@ export class AdminOperationsService {
   ): Promise<AdminOperationListResult<AdminUserItem>> {
     const pageInput = normalizePageInput(input);
     const q = trimOptional(input.q)?.toLowerCase();
-    const role = trimOptional(input.role);
+    const role = trimOptional(input.role) ?? 'user';
     const status = normalizeOptionalUserStatus(input.status);
     let rows = await this.adminOperationsRepository.listUsers({
       includeDeleted: status === 'deleted',
@@ -333,8 +375,10 @@ export class AdminOperationsService {
 
   async updateUserStatus(
     input: AdminUserStatusInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminUserItem> {
+    void _auditContext;
+
     const id = requireId(input.id, 'User id is required');
     const status = normalizeMutableUserStatus(input.status);
     const isActive = status === 'active';
@@ -344,20 +388,15 @@ export class AdminOperationsService {
       throw new AdminOperationsServiceError('NOT_FOUND', 'User not found');
     }
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.user.status.update',
-      resourceType: 'user',
-      resourceId: id,
-      metadata: { status },
-    });
-
     return toUserItem(user);
   }
 
   async updateUserBlacklist(
     input: AdminUserBlacklistInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminUserItem> {
+    void _auditContext;
+
     const id = requireId(input.id, 'User id is required');
     const isBlacklisted = requireBoolean(
       input.isBlacklisted,
@@ -369,20 +408,15 @@ export class AdminOperationsService {
       throw new AdminOperationsServiceError('NOT_FOUND', 'User not found');
     }
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.user.blacklist.update',
-      resourceType: 'user',
-      resourceId: id,
-      metadata: { isBlacklisted },
-    });
-
     return toUserItem(user);
   }
 
   async deleteUser(
     input: AdminUserDeleteInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminUserItem> {
+    void _auditContext;
+
     const id = requireId(input.id, 'User id is required');
     const user = await this.adminOperationsRepository.softDeleteUser(id);
 
@@ -390,50 +424,124 @@ export class AdminOperationsService {
       throw new AdminOperationsServiceError('NOT_FOUND', 'User not found');
     }
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.user.delete',
-      resourceType: 'user',
-      resourceId: id,
-    });
-
     return toUserItem(user);
   }
 
   async inviteUser(
     input: AdminUserInviteInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminUserItem> {
+    void _auditContext;
+
     const email = requireEmail(input.email, 'Invite email is required');
     const name = normalizeNullableText(input.name, 'Invite name', 100);
+    const username = normalizeNullableText(input.username, 'Invite username', 64);
+    const password =
+      input.password === undefined
+        ? `invited:${randomUUID()}`
+        : requirePassword(input.password, 'Invite password is required');
     const totalQuota =
       input.totalQuota === undefined
         ? DEFAULT_INVITE_TOTAL_QUOTA
         : requireNonNegativeInteger(input.totalQuota, 'Invite totalQuota is invalid');
-    const existing = await this.adminOperationsRepository.findUserByEmail(email);
+    const [existingEmail, existingUsername] = await Promise.all([
+      this.adminOperationsRepository.findUserByEmail(email),
+      username ? this.adminOperationsRepository.findUserByUsername(username) : null,
+    ]);
 
-    if (existing) {
+    if (existingEmail) {
       throw new AdminOperationsServiceError(
         'CONFLICT',
         'User email already exists',
         'DUPLICATE_USER_EMAIL'
       );
     }
+    if (existingUsername) {
+      throw new AdminOperationsServiceError(
+        'CONFLICT',
+        'Username already exists',
+        'DUPLICATE_USER_USERNAME'
+      );
+    }
 
     const user = await this.adminOperationsRepository.createInvitedUser({
       email,
       name,
-      password: await hashPassword(`invited:${randomUUID()}`),
+      password: await hashPassword(password),
       totalQuota,
-    });
-
-    await this.writeAudit(auditContext, {
-      action: 'admin.user.invite',
-      resourceType: 'user',
-      resourceId: user.id,
-      metadata: { email, totalQuota },
+      username,
     });
 
     return toUserItem(user, { balance: totalQuota, cycleLimit: totalQuota });
+  }
+
+  async createAdminUser(
+    input: AdminCreateAdminUserInput,
+    _auditContext: AdminOperationsAuditContext
+  ): Promise<AdminUserItem> {
+    void _auditContext;
+
+    const username = requireUsername(input.username, 'Admin username is required');
+    const email = requireEmail(input.email, 'Admin email is required');
+    const name = normalizeNullableText(input.name, 'Admin name', 100);
+    const password = requirePassword(input.password, 'Admin password is required');
+    const [existingEmail, existingUsername] = await Promise.all([
+      this.adminOperationsRepository.findUserByEmail(email),
+      this.adminOperationsRepository.findUserByUsername(username),
+    ]);
+
+    if (existingEmail) {
+      throw new AdminOperationsServiceError(
+        'CONFLICT',
+        'User email already exists',
+        'DUPLICATE_USER_EMAIL'
+      );
+    }
+    if (existingUsername) {
+      throw new AdminOperationsServiceError(
+        'CONFLICT',
+        'Username already exists',
+        'DUPLICATE_USER_USERNAME'
+      );
+    }
+
+    const user = await this.adminOperationsRepository.createAdminUser({
+      email,
+      name,
+      password: await hashPassword(password),
+      username,
+    });
+
+    return toUserItem(user);
+  }
+
+  async updateUserQuota(
+    input: AdminUserQuotaInput,
+    _auditContext: AdminOperationsAuditContext
+  ): Promise<AdminUserItem> {
+    void _auditContext;
+
+    const id = requireId(input.id, 'User id is required');
+    const credits = requireNonNegativeInteger(input.credits, 'User credits is invalid');
+    const totalQuota = requireNonNegativeInteger(input.totalQuota, 'User totalQuota is invalid');
+
+    if (credits > totalQuota) {
+      throw new AdminOperationsServiceError('BAD_REQUEST', 'User credits cannot exceed totalQuota');
+    }
+
+    const user = await this.adminOperationsRepository.findUserById(id);
+
+    if (!user) {
+      throw new AdminOperationsServiceError('NOT_FOUND', 'User not found');
+    }
+
+    const creditAccount = await this.adminOperationsRepository.updateUserCreditAccount({
+      balance: credits,
+      cycleLimit: totalQuota,
+      userId: id,
+    });
+
+    return toUserItem(user, creditAccount);
   }
 
   async listUserActivity(
@@ -488,20 +596,15 @@ export class AdminOperationsService {
       createdByAdminId: auditContext.actorId,
     });
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.activity.create',
-      resourceType: 'activity',
-      resourceId: activity.id,
-      metadata: { status },
-    });
-
     return toActivityItem(activity);
   }
 
   async updateActivity(
     input: AdminActivityUpdateInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminActivityItem> {
+    void _auditContext;
+
     const id = requireId(input.id, 'Activity id is required');
     const existing = await this.adminOperationsRepository.findActivityById(id);
 
@@ -539,32 +642,21 @@ export class AdminOperationsService {
       throw new AdminOperationsServiceError('NOT_FOUND', 'Activity not found');
     }
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.activity.update',
-      resourceType: 'activity',
-      resourceId: id,
-      metadata: update,
-    });
-
     return toActivityItem(activity);
   }
 
   async deleteActivity(
     input: AdminEntityIdInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminActivityItem> {
+    void _auditContext;
+
     const id = requireId(input.id, 'Activity id is required');
     const activity = await this.adminOperationsRepository.softDeleteActivity(id);
 
     if (!activity) {
       throw new AdminOperationsServiceError('NOT_FOUND', 'Activity not found');
     }
-
-    await this.writeAudit(auditContext, {
-      action: 'admin.activity.delete',
-      resourceType: 'activity',
-      resourceId: id,
-    });
 
     return toActivityItem(activity);
   }
@@ -628,13 +720,6 @@ export class AdminOperationsService {
       updatedByAdminId: auditContext.actorId,
     });
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.fissionRewardConfig.update',
-      resourceType: 'fission_reward_config',
-      resourceId: null,
-      metadata: input,
-    });
-
     return toFissionRewardConfig(config);
   }
 
@@ -653,18 +738,70 @@ export class AdminOperationsService {
       updatedByAdminId: auditContext.actorId,
     });
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.alarmConfig.update',
-      resourceType: 'alarm_config',
-      resourceId: null,
-      metadata: {
-        threshold: config.costThresholdAmount,
-        currency: config.currency,
-        email: config.email,
-      },
+    return toAlarmConfig(config);
+  }
+
+  async getSystemConfig(): Promise<AdminSystemConfig> {
+    return toSystemConfig(await this.adminOperationsRepository.getSystemConfig());
+  }
+
+  async updateSystemConfig(
+    input: AdminSystemConfigUpdateInput,
+    auditContext: AdminOperationsAuditContext
+  ): Promise<AdminSystemConfig> {
+    const current = toSystemConfig(await this.adminOperationsRepository.getSystemConfig());
+    const config = await this.adminOperationsRepository.updateSystemConfig({
+      adminIdleTimeoutMinutes: requirePositiveInteger(
+        input.adminIdleTimeoutMinutes ?? current.adminIdleTimeoutMinutes,
+        'Admin idle timeout is invalid'
+      ),
+      auditLogRetentionDays: requirePositiveInteger(
+        input.auditLogRetentionDays ?? current.auditLogRetentionDays,
+        'Audit log retention days is invalid'
+      ),
+      webIdleTimeoutMinutes: requirePositiveInteger(
+        input.webIdleTimeoutMinutes ?? current.webIdleTimeoutMinutes,
+        'Web idle timeout is invalid'
+      ),
+      updatedByAdminId: auditContext.actorId,
     });
 
-    return toAlarmConfig(config);
+    return toSystemConfig(config);
+  }
+
+  async cleanupSystemAuditLogsByDateRange(
+    input: AdminSystemAuditCleanupRangeInput,
+    _auditContext: AdminOperationsAuditContext
+  ): Promise<AdminSystemAuditCleanupResult> {
+    void _auditContext;
+
+    const range = normalizeRequiredDateRange(input);
+    const deletedCount = await this.adminOperationsRepository.deleteSystemAuditLogsByTimestampRange(
+      {
+        startTimestamp: toUnixTimestamp(range.startDate),
+        endTimestamp: toUnixTimestamp(range.endDate),
+      }
+    );
+
+    return { deletedCount };
+  }
+
+  async cleanupSystemAuditLogsByRetention(
+    _auditContext: AdminOperationsAuditContext
+  ): Promise<AdminSystemAuditCleanupResult> {
+    void _auditContext;
+
+    const config = toSystemConfig(await this.adminOperationsRepository.getSystemConfig());
+    const cutoffTimestamp =
+      Math.floor(Date.now() / 1000) - config.auditLogRetentionDays * 24 * 60 * 60;
+    const deletedCount =
+      await this.adminOperationsRepository.deleteSystemAuditLogsBefore(cutoffTimestamp);
+
+    return {
+      cutoffTimestamp,
+      deletedCount,
+      retentionDays: config.auditLogRetentionDays,
+    };
   }
 
   async listSystemAuditLogs(
@@ -672,25 +809,19 @@ export class AdminOperationsService {
   ): Promise<AdminOperationListResult<AdminSystemAuditItem>> {
     const pageInput = normalizePageInput(input);
     const range = normalizeDateRange(input);
-    const action = trimOptional(input.action);
-    const actorId = trimOptional(input.actorId);
-    const actorType = normalizeOptionalActorType(input.actorType);
+    const level = normalizeOptionalAuditLevel(input.level);
+    const logType = normalizeOptionalAuditLogType(input.logType);
     let rows = await this.adminOperationsRepository.listSystemAuditLogs(range);
 
-    if (action) {
-      rows = rows.filter((row) => row.action === action);
+    if (level !== undefined) {
+      rows = rows.filter((row) => row.level === level);
     }
-    if (actorType) {
-      rows = rows.filter((row) => row.actorType === actorType);
-    }
-    if (actorId) {
-      rows = rows.filter((row) => row.actorId === actorId);
+    if (logType !== undefined) {
+      rows = rows.filter((row) => row.logType === logType);
     }
     if (input.q) {
       const q = input.q.toLowerCase();
-      rows = rows.filter((row) =>
-        `${row.action} ${row.resourceType ?? ''} ${row.resourceId ?? ''}`.toLowerCase().includes(q)
-      );
+      rows = rows.filter((row) => JSON.stringify(row.details).toLowerCase().includes(q));
     }
 
     return toListResult(rows, pageInput, toSystemAuditItem);
@@ -698,30 +829,24 @@ export class AdminOperationsService {
 
   async exportSystemAuditLogs(
     input: AdminAuditExportInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminAuditExportResult> {
+    void _auditContext;
+
     const range = normalizeDateRange(input);
     const rows = await this.adminOperationsRepository.listSystemAuditLogs(range);
-
-    await this.writeAudit(auditContext, {
-      action: 'admin.systemAudit.export',
-      resourceType: 'system_audit_log',
-      metadata: toRangeMetadata(input, rows.length),
-    });
 
     return {
       filename: `system-audit-${dateStamp()}.csv`,
       contentType: 'text/csv',
       content: toCsv(
-        ['id', 'actorType', 'actorId', 'action', 'resourceType', 'resourceId', 'createdAt'],
+        ['logId', 'timestamp', 'level', 'logType', 'details'],
         rows.map((row) => [
-          row.id,
-          row.actorType,
-          row.actorId,
-          row.action,
-          row.resourceType,
-          row.resourceId,
-          row.createdAt.toISOString(),
+          row.logId,
+          row.timestamp,
+          row.level,
+          row.logType,
+          JSON.stringify(row.details),
         ])
       ),
     };
@@ -773,8 +898,10 @@ export class AdminOperationsService {
 
   async deleteContentAuditSession(
     input: AdminEntityIdInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminContentAuditItem> {
+    void _auditContext;
+
     const id = requireId(input.id, 'Content audit session id is required');
     const existing = await this.adminOperationsRepository.findContentAuditSessionById(id);
 
@@ -805,28 +932,17 @@ export class AdminOperationsService {
       throw new AdminOperationsServiceError('NOT_FOUND', 'Content audit session not found');
     }
 
-    await this.writeAudit(auditContext, {
-      action: 'admin.contentAudit.delete',
-      resourceType: 'content_audit_session',
-      resourceId: id,
-      metadata: { conversationId: session.conversationId },
-    });
-
     return toContentAuditItem(session);
   }
 
   async exportContentAuditSessions(
     input: AdminAuditExportInput,
-    auditContext: AdminOperationsAuditContext
+    _auditContext: AdminOperationsAuditContext
   ): Promise<AdminAuditExportResult> {
+    void _auditContext;
+
     const range = normalizeDateRange(input);
     const rows = await this.adminOperationsRepository.listContentAuditSessions(range);
-
-    await this.writeAudit(auditContext, {
-      action: 'admin.contentAudit.export',
-      resourceType: 'content_audit_session',
-      metadata: toRangeMetadata(input, rows.length),
-    });
 
     return {
       filename: `content-audit-${dateStamp()}.csv`,
@@ -861,24 +977,6 @@ export class AdminOperationsService {
       successCalls: Number(row.successCalls),
       failedCalls: Number(row.failedCalls),
     }));
-  }
-
-  private async writeAudit(
-    auditContext: AdminOperationsAuditContext,
-    input: Omit<SystemAuditLogSaveData, 'actorType' | 'actorId' | 'ip' | 'userAgent'>
-  ): Promise<void> {
-    try {
-      await this.adminOperationsRepository.createSystemAuditLog({
-        actorType: 'admin',
-        actorId: auditContext.actorId,
-        ip: auditContext.ip ?? null,
-        userAgent: auditContext.userAgent ?? null,
-        ...input,
-      });
-    } catch {
-      // Audit writes are best-effort so a post-commit audit failure does not make a
-      // completed admin mutation look failed to the caller.
-    }
   }
 }
 
@@ -1006,16 +1104,11 @@ function toActivityItem(row: ActivityRow): AdminActivityItem {
 
 function toSystemAuditItem(row: SystemAuditLogRow): AdminSystemAuditItem {
   return {
-    id: row.id,
-    actorType: row.actorType,
-    actorId: row.actorId,
-    action: row.action,
-    resourceType: row.resourceType,
-    resourceId: row.resourceId,
-    ip: row.ip,
-    userAgent: row.userAgent,
-    metadata: row.metadata,
-    createdAt: row.createdAt.toISOString(),
+    logId: row.logId,
+    timestamp: row.timestamp,
+    level: row.level,
+    details: row.details,
+    logType: row.logType,
   };
 }
 
@@ -1064,6 +1157,16 @@ function toAlarmConfig(row: AlarmConfigRow | null): AdminAlarmConfig {
     email: row?.email ?? '',
     updatedByAdminId: row?.updatedByAdminId ?? null,
     updatedAt: (row?.updatedAt ?? new Date(0)).toISOString(),
+  };
+}
+
+function toSystemConfig(row: SystemAuthConfigRow | null): AdminSystemConfig {
+  return {
+    adminIdleTimeoutMinutes: row?.adminIdleTimeoutMinutes ?? DEFAULT_ADMIN_IDLE_TIMEOUT_MINUTES,
+    auditLogRetentionDays: row?.auditLogRetentionDays ?? DEFAULT_AUDIT_LOG_RETENTION_DAYS,
+    webIdleTimeoutMinutes: row?.webIdleTimeoutMinutes ?? DEFAULT_WEB_IDLE_TIMEOUT_MINUTES,
+    updatedByAdminId: row?.updatedByAdminId ?? null,
+    updatedAt: row?.updatedAt.toISOString() ?? null,
   };
 }
 
@@ -1119,12 +1222,28 @@ function normalizeDateRange(input: { startDate?: string; endDate?: string }): {
   };
 }
 
-function toRangeMetadata(input: AdminAuditExportInput, rowCount: number): Record<string, unknown> {
+function normalizeRequiredDateRange(input: { startDate?: string; endDate?: string }): {
+  endDate: Date;
+  startDate: Date;
+} {
+  if (!input.startDate || !input.endDate) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', 'Audit cleanup date range is required');
+  }
+
+  const range = normalizeDateRange(input);
+
+  if (!range.startDate || !range.endDate) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', 'Audit cleanup date range is required');
+  }
+
   return {
-    startDate: input.startDate ?? null,
-    endDate: input.endDate ?? null,
-    rowCount,
+    startDate: range.startDate,
+    endDate: range.endDate,
   };
+}
+
+function toUnixTimestamp(date: Date): number {
+  return Math.floor(date.getTime() / 1000);
 }
 
 function dateStamp(date = new Date()): string {
@@ -1176,15 +1295,26 @@ function normalizeMutableUserStatus(value: unknown): AdminMutableUserStatus {
   return value;
 }
 
-function normalizeOptionalActorType(value: unknown): SystemAuditLogRow['actorType'] | undefined {
+function normalizeOptionalAuditLevel(value: unknown): AdminAuditLevel | undefined {
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== 'string' || !ACTOR_TYPES.includes(value as SystemAuditLogRow['actorType'])) {
-    throw new AdminOperationsServiceError('BAD_REQUEST', 'Audit actor type is invalid');
+  if (value !== 0 && value !== 1) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', 'Audit level is invalid');
   }
 
-  return value as SystemAuditLogRow['actorType'];
+  return value;
+}
+
+function normalizeOptionalAuditLogType(value: unknown): AdminAuditLogType | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 13) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', 'Audit log type is invalid');
+  }
+
+  return value as AdminAuditLogType;
 }
 
 function normalizeOptionalContentCategory(
@@ -1215,6 +1345,26 @@ function requireEmail(value: unknown, message: string): string {
   }
 
   return email;
+}
+
+function requireUsername(value: unknown, message: string): string {
+  const username = requireText(value, message, 64);
+
+  if (!/^[A-Za-z0-9_.-]+$/.test(username)) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', 'Username is invalid');
+  }
+
+  return username;
+}
+
+function requirePassword(value: unknown, message: string): string {
+  const password = requireText(value, message, 200);
+
+  if (password.length < 8) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', 'Password must be at least 8 characters');
+  }
+
+  return password;
 }
 
 function requireText(value: unknown, message: string, maxLength: number): string {
@@ -1265,6 +1415,14 @@ function requireBoolean(value: unknown, message: string): boolean {
 
 function requireNonNegativeInteger(value: unknown, message: string): number {
   if (!Number.isInteger(value) || Number(value) < 0) {
+    throw new AdminOperationsServiceError('BAD_REQUEST', message);
+  }
+
+  return Number(value);
+}
+
+function requirePositiveInteger(value: unknown, message: string): number {
+  if (!Number.isInteger(value) || Number(value) <= 0) {
     throw new AdminOperationsServiceError('BAD_REQUEST', message);
   }
 

@@ -20,6 +20,7 @@ export type SimulationRepositoryRow = {
   thumbnail: string | null;
   isable: boolean;
   topics: unknown[] | null;
+  subjects: { subject: string; category: string }[] | null;
   sampleLearningGoals: unknown[] | null;
   grades: string[];
   createdAt: Date;
@@ -89,6 +90,7 @@ export class SimulationsRepository {
         thumbnail: app.thumbnail,
         isable: app.isable,
         topics: app.topics ?? null,
+        subjects: app.subjects ?? null,
         sampleLearningGoals: app.sampleLearningGoals ?? null,
         grades: gradesBySimulationId.get(app.id) ?? [],
         createdAt: app.createdAt,

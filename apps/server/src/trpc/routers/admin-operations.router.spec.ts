@@ -3,6 +3,10 @@ import { test } from 'node:test';
 import { initTRPC, type TRPCDefaultErrorShape } from '@trpc/server';
 
 import type { AuthService } from '../../modules/auth/auth.service.js';
+import type {
+  AdminAuditRequestInput,
+  AdminAuditService,
+} from '../../modules/admin-audit/admin-audit.service.js';
 import {
   AdminOperationsServiceError,
   type AdminOperationsService,
@@ -54,6 +58,79 @@ test('adminOperations content audit delete maps service conflicts to tRPC confli
   );
 });
 
+test('adminOperations users quota forwards parsed quota input', async () => {
+  const authService = new FakeAuthService(true).asAuthService();
+  const service = new FakeAdminOperationsService(null);
+  const caller = createCaller(authService, service.asService());
+
+  await caller.users.quota({ credits: 12, id: 'user-1', totalQuota: 40 });
+
+  assert.deepEqual(service.lastQuotaInput, { credits: 12, id: 'user-1', totalQuota: 40 });
+});
+
+test('adminOperations system config update forwards parsed login idle timeout input', async () => {
+  const authService = new FakeAuthService(true).asAuthService();
+  const service = new FakeAdminOperationsService(null);
+  const caller = createCaller(authService, service.asService());
+
+  await caller.systemConfig.update({
+    adminIdleTimeoutMinutes: 30,
+    webIdleTimeoutMinutes: 1440,
+  });
+
+  assert.deepEqual(service.lastSystemConfigInput, {
+    adminIdleTimeoutMinutes: 30,
+    webIdleTimeoutMinutes: 1440,
+  });
+});
+
+test('adminOperations system audit manual cleanup forwards parsed date range input', async () => {
+  const authService = new FakeAuthService(true).asAuthService();
+  const service = new FakeAdminOperationsService(null);
+  const caller = createCaller(authService, service.asService());
+
+  await caller.systemAudit.cleanupManual({
+    startDate: '2026-05-01T00:00:00.000Z',
+    endDate: '2026-05-31T23:59:59.000Z',
+  });
+
+  assert.deepEqual(service.lastCleanupRangeInput, {
+    startDate: '2026-05-01T00:00:00.000Z',
+    endDate: '2026-05-31T23:59:59.000Z',
+  });
+});
+
+test('adminOperations system audit auto cleanup calls retention cleanup service', async () => {
+  const authService = new FakeAuthService(true).asAuthService();
+  const service = new FakeAdminOperationsService(null);
+  const caller = createCaller(authService, service.asService());
+
+  await caller.systemAudit.cleanupAuto();
+
+  assert.equal(service.cleanupAutoCalls, 1);
+});
+
+test('adminOperations writes unified admin API audit entries', async () => {
+  const authService = new FakeAuthService(true).asAuthService();
+  const service = new FakeAdminOperationsService(null);
+  const auditService = new FakeAdminAuditService();
+  const caller = createCaller(authService, service.asService(), auditService.asService());
+
+  await caller.users.quota({ credits: 12, id: 'user-1', totalQuota: 40 });
+
+  assert.equal(auditService.records.length, 1);
+  assert.deepEqual(auditService.records[0], {
+    actorId: 'admin-user',
+    actorAccount: 'admin_user',
+    input: { credits: 12, id: 'user-1', totalQuota: 40 },
+    ip: null,
+    path: 'users.quota',
+    result: { data: null, success: true },
+    type: 'mutation',
+    userAgent: null,
+  });
+});
+
 test('admin operations domain codes are copied to serialized tRPC error data', () => {
   const shape = {
     message: 'Content audit session already deleted',
@@ -88,6 +165,7 @@ class FakeAuthService {
         id: 'admin-user',
         email: 'admin@example.com',
         name: 'Admin',
+        username: 'admin_user',
         avatar: null,
         role: 'admin',
       },
@@ -96,6 +174,11 @@ class FakeAuthService {
 }
 
 class FakeAdminOperationsService {
+  cleanupAutoCalls = 0;
+  lastCleanupRangeInput: unknown = null;
+  lastQuotaInput: unknown = null;
+  lastSystemConfigInput: unknown = null;
+
   constructor(private readonly error: Error | null) {}
 
   asService(): AdminOperationsService {
@@ -117,12 +200,53 @@ class FakeAdminOperationsService {
 
     return null;
   }
+
+  async updateUserQuota(input: unknown) {
+    this.lastQuotaInput = input;
+
+    return null;
+  }
+
+  async updateSystemConfig(input: unknown) {
+    this.lastSystemConfigInput = input;
+
+    return null;
+  }
+
+  async cleanupSystemAuditLogsByDateRange(input: unknown) {
+    this.lastCleanupRangeInput = input;
+
+    return { deletedCount: 0 };
+  }
+
+  async cleanupSystemAuditLogsByRetention() {
+    this.cleanupAutoCalls += 1;
+
+    return { deletedCount: 0, retentionDays: 180 };
+  }
 }
 
-function createCaller(authService: AuthService, service: AdminOperationsService) {
+class FakeAdminAuditService {
+  records: AdminAuditRequestInput[] = [];
+
+  asService(): AdminAuditService {
+    return this as unknown as AdminAuditService;
+  }
+
+  async recordAdminApiRequest(input: AdminAuditRequestInput): Promise<void> {
+    this.records.push(input);
+  }
+}
+
+function createCaller(
+  authService: AuthService,
+  service: AdminOperationsService,
+  auditService?: AdminAuditService | undefined
+) {
   const router = createAdminOperationsRouter(authService, service, {
     createTRPCRouter,
     publicProcedure,
+    adminAuditService: auditService,
   });
 
   return router.createCaller({ req: {}, res: {} } as never);

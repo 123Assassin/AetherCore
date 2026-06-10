@@ -1,5 +1,5 @@
 import type { AdminMutableUserStatus, AdminUserItem } from '@package/shared';
-import { Ban, Shield, ShieldBan, Trash2 } from 'lucide-react';
+import { Ban, Settings2, Shield, ShieldBan, Trash2 } from 'lucide-react';
 
 import { QuotaBadge } from './quota-badge';
 
@@ -8,8 +8,14 @@ type UsersTableProps = {
   items: AdminUserItem[];
   onBlacklistChange: (item: AdminUserItem, isBlacklisted: boolean) => void;
   onDelete: (item: AdminUserItem) => void;
+  onQuotaConfig?: (item: AdminUserItem) => void;
   onStatusChange: (item: AdminUserItem, status: AdminMutableUserStatus) => void;
+  showAccessControls?: boolean;
+  showBlacklistControls?: boolean;
+  showQuotaColumn?: boolean;
+  showQuotaConfig?: boolean;
   updatingBlacklistIds: ReadonlySet<string>;
+  updatingQuotaIds?: ReadonlySet<string>;
   updatingStatusIds: ReadonlySet<string>;
 };
 
@@ -18,14 +24,20 @@ export function UsersTable({
   items,
   onBlacklistChange,
   onDelete,
+  onQuotaConfig,
   onStatusChange,
+  showAccessControls = true,
+  showBlacklistControls = true,
+  showQuotaColumn = true,
+  showQuotaConfig = false,
   updatingBlacklistIds,
+  updatingQuotaIds = new Set(),
   updatingStatusIds,
 }: UsersTableProps) {
   return (
     <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
       <div className="custom-scrollbar overflow-x-auto">
-        <table className="w-full min-w-[980px] border-collapse text-left">
+        <table className="w-full min-w-[900px] border-collapse text-left">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
               <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
@@ -34,9 +46,11 @@ export function UsersTable({
               <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
                 状态
               </th>
-              <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
-                资源分配 (配额)
-              </th>
+              {showQuotaColumn ? (
+                <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
+                  资源分配 (配额)
+                </th>
+              ) : null}
               <th className="px-8 py-6 text-[10px] font-black tracking-widest text-slate-500 uppercase">
                 最近登录
               </th>
@@ -50,8 +64,9 @@ export function UsersTable({
               const deleted = item.status === 'deleted';
               const statusBusy = updatingStatusIds.has(item.id);
               const blacklistBusy = updatingBlacklistIds.has(item.id);
+              const quotaBusy = updatingQuotaIds.has(item.id);
               const deleting = deletingIds.has(item.id);
-              const rowBusy = statusBusy || blacklistBusy || deleting;
+              const rowBusy = statusBusy || blacklistBusy || quotaBusy || deleting;
               const nextStatus = getNextStatus(item.status);
 
               return (
@@ -103,42 +118,63 @@ export function UsersTable({
                       </span>
                     </div>
                   </td>
-                  <td className="px-8 py-6">
-                    <QuotaBadge credits={item.credits} totalQuota={item.totalQuota} />
-                  </td>
+                  {showQuotaColumn ? (
+                    <td className="px-8 py-6">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <QuotaBadge credits={item.credits} totalQuota={item.totalQuota} />
+                        {showQuotaConfig && onQuotaConfig ? (
+                          <button
+                            aria-label={`额度配置 ${item.displayName}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black tracking-widest text-slate-500 uppercase transition-all hover:border-blue-100 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={deleted || rowBusy}
+                            onClick={() => onQuotaConfig(item)}
+                            title="额度配置"
+                            type="button"
+                          >
+                            <Settings2 size={13} />
+                            额度配置
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  ) : null}
                   <td className="px-8 py-6 text-sm whitespace-nowrap text-slate-500">
                     {item.lastLoginAt ? formatDateTime(item.lastLoginAt) : '暂无记录'}
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <div className="flex translate-x-0 items-center justify-end gap-1 opacity-100 transition-all duration-300 md:translate-x-3 md:opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100">
-                      <button
-                        aria-label={`${item.status === 'active' ? '限制访问' : '恢复访问'} ${item.displayName}`}
-                        className={`rounded-xl p-2.5 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                          item.status === 'active'
-                            ? 'text-amber-400 hover:bg-amber-50'
-                            : 'text-green-500 hover:bg-green-50'
-                        }`}
-                        disabled={deleted || rowBusy}
-                        onClick={() => onStatusChange(item, nextStatus)}
-                        title={item.status === 'active' ? '限制访问' : '恢复访问'}
-                        type="button"
-                      >
-                        <Ban size={18} />
-                      </button>
-                      <button
-                        aria-label={`${item.isBlacklisted ? '撤回黑名单' : '加入黑名单'} ${item.displayName}`}
-                        className={`rounded-xl p-2.5 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                          item.isBlacklisted
-                            ? 'text-blue-500 hover:bg-blue-50'
-                            : 'text-red-500 hover:bg-red-50'
-                        }`}
-                        disabled={deleted || rowBusy}
-                        onClick={() => onBlacklistChange(item, !item.isBlacklisted)}
-                        title={item.isBlacklisted ? '撤回黑名单' : '加入黑名单'}
-                        type="button"
-                      >
-                        {item.isBlacklisted ? <Shield size={18} /> : <ShieldBan size={18} />}
-                      </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {showAccessControls ? (
+                        <button
+                          aria-label={`${item.status === 'active' ? '限制访问' : '恢复访问'} ${item.displayName}`}
+                          className={`rounded-xl p-2.5 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                            item.status === 'active'
+                              ? 'text-amber-400 hover:bg-amber-50'
+                              : 'text-green-500 hover:bg-green-50'
+                          }`}
+                          disabled={deleted || rowBusy}
+                          onClick={() => onStatusChange(item, nextStatus)}
+                          title={item.status === 'active' ? '限制访问' : '恢复访问'}
+                          type="button"
+                        >
+                          <Ban size={18} />
+                        </button>
+                      ) : null}
+                      {showBlacklistControls ? (
+                        <button
+                          aria-label={`${item.isBlacklisted ? '撤回黑名单' : '加入黑名单'} ${item.displayName}`}
+                          className={`rounded-xl p-2.5 transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                            item.isBlacklisted
+                              ? 'text-blue-500 hover:bg-blue-50'
+                              : 'text-red-500 hover:bg-red-50'
+                          }`}
+                          disabled={deleted || rowBusy}
+                          onClick={() => onBlacklistChange(item, !item.isBlacklisted)}
+                          title={item.isBlacklisted ? '撤回黑名单' : '加入黑名单'}
+                          type="button"
+                        >
+                          {item.isBlacklisted ? <Shield size={18} /> : <ShieldBan size={18} />}
+                        </button>
+                      ) : null}
                       <button
                         aria-label={`${deleted ? '用户已删除' : deleting ? '正在删除' : '删除用户'} ${item.displayName}`}
                         className="rounded-xl p-2.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"

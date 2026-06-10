@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AdminAuditModule } from '../modules/admin-audit/admin-audit.module.js';
 import { AdminOperationsModule } from '../modules/admin-operations/admin-operations.module.js';
 import { AdminResourcesModule } from '../modules/admin-resources/admin-resources.module.js';
 import { AiModule } from '../modules/ai/ai.module.js';
@@ -14,6 +15,7 @@ import { TrpcService } from './trpc.service.js';
     AiModule,
     SimulationsModule,
     CommentsModule,
+    AdminAuditModule,
     AdminResourcesModule,
     AdminOperationsModule,
   ],

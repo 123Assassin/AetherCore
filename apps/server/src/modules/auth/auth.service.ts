@@ -12,10 +12,15 @@ import {
 } from '@package/auth';
 
 import type { TRPCContext } from '../../trpc/context.js';
-import { AuthRepository, type AuthUserRow, type WeChatAccountRow } from './auth.repository.js';
+import {
+  AuthRepository,
+  type AuthUserRow,
+  type SystemAuthConfigRow,
+  type WeChatAccountRow,
+} from './auth.repository.js';
 
-const ADMIN_SESSION_TTL_SECONDS = 2 * 60 * 60;
-const USER_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_ADMIN_IDLE_TIMEOUT_MINUTES = 120;
+const DEFAULT_USER_IDLE_TIMEOUT_MINUTES = 7 * 24 * 60;
 const WECHAT_STATE_TTL_SECONDS = 10 * 60;
 const DEFAULT_MOCK_USER_EMAIL = 'dev.user@aethercore.local';
 const DEFAULT_MOCK_USER_NAME = 'AetherCore Dev User';
@@ -275,7 +280,8 @@ export class AuthService {
     }
 
     const token = createToken();
-    const expiresAt = expiresFromNow(ADMIN_SESSION_TTL_SECONDS);
+    const ttlSeconds = await this.getSessionTtlSeconds('admin');
+    const expiresAt = expiresFromNow(ttlSeconds);
 
     await this.authRepository.createSession({
       userId: user.id,
@@ -288,9 +294,9 @@ export class AuthService {
       adminSessionKey(token),
       serializeSessionPayload({ userId: user.id, role: 'admin' }),
       'EX',
-      ADMIN_SESSION_TTL_SECONDS
+      ttlSeconds
     );
-    setCookie(context, getAdminCookieName(), token, ADMIN_SESSION_TTL_SECONDS);
+    setCookie(context, getAdminCookieName(), token, ttlSeconds);
 
     return {
       success: true,
@@ -341,7 +347,6 @@ export class AuthService {
       throw new AuthServiceError('UNAUTHORIZED', 'Admin session required');
     }
 
-    await this.writeAdminPasswordAudit(user, context);
     await this.revokeAdminSessions(user.id);
     clearCookie(context, getAdminCookieName());
 
@@ -380,7 +385,7 @@ export class AuthService {
       return null;
     }
 
-    return this.resolveSession(token, false);
+    return this.resolveSession(token, false, context);
   }
 
   async resolveAdminSession(context: TRPCContext): Promise<AdminSession | null> {
@@ -390,7 +395,7 @@ export class AuthService {
       return null;
     }
 
-    return this.resolveSession(token, true);
+    return this.resolveSession(token, true, context);
   }
 
   async getProfile(session: UserSession): Promise<MeProfile> {
@@ -421,11 +426,20 @@ export class AuthService {
     };
   }
 
-  private async resolveSession(token: string, admin: true): Promise<AdminSession | null>;
-  private async resolveSession(token: string, admin: false): Promise<UserSession | null>;
   private async resolveSession(
     token: string,
-    admin: boolean
+    admin: true,
+    context: TRPCContext
+  ): Promise<AdminSession | null>;
+  private async resolveSession(
+    token: string,
+    admin: false,
+    context: TRPCContext
+  ): Promise<UserSession | null>;
+  private async resolveSession(
+    token: string,
+    admin: boolean,
+    context: TRPCContext
   ): Promise<AdminSession | UserSession | null> {
     const payload = await this.getSessionPayload(token, admin);
 
@@ -450,6 +464,8 @@ export class AuthService {
       return null;
     }
 
+    await this.refreshSessionExpiration(token, admin, user.id, context);
+
     if (admin) {
       return {
         token,
@@ -473,6 +489,44 @@ export class AuthService {
     }
   }
 
+  private async refreshSessionExpiration(
+    token: string,
+    admin: boolean,
+    userId: string,
+    context: TRPCContext
+  ): Promise<void> {
+    const ttlSeconds = await this.getSessionTtlSeconds(admin ? 'admin' : 'user');
+    const expiresAt = expiresFromNow(ttlSeconds);
+    const key = admin ? adminSessionKey(token) : sessionKey(token);
+    const role = admin ? 'admin' : 'user';
+
+    await Promise.allSettled([
+      this.authRepository.updateSessionExpiration(token, expiresAt),
+      this.sessionStore.set(key, serializeSessionPayload({ userId, role }), 'EX', ttlSeconds),
+    ]);
+    setCookie(context, admin ? getAdminCookieName() : getUserCookieName(), token, ttlSeconds);
+  }
+
+  private async getSessionTtlSeconds(role: 'admin' | 'user'): Promise<number> {
+    let config: SystemAuthConfigRow | null = null;
+
+    try {
+      config = await this.authRepository.getSystemAuthConfig();
+    } catch {
+      config = null;
+    }
+
+    const minutes =
+      role === 'admin' ? config?.adminIdleTimeoutMinutes : config?.webIdleTimeoutMinutes;
+
+    return (
+      normalizeIdleTimeoutMinutes(
+        minutes,
+        role === 'admin' ? DEFAULT_ADMIN_IDLE_TIMEOUT_MINUTES : DEFAULT_USER_IDLE_TIMEOUT_MINUTES
+      ) * 60
+    );
+  }
+
   private async deleteSession(token: string, admin: boolean): Promise<void> {
     await Promise.allSettled([
       this.sessionStore.del(admin ? adminSessionKey(token) : sessionKey(token)),
@@ -485,23 +539,6 @@ export class AuthService {
 
     await this.authRepository.deleteSessionsByUserId(userId);
     await Promise.allSettled(tokens.map((token) => this.sessionStore.del(adminSessionKey(token))));
-  }
-
-  private async writeAdminPasswordAudit(user: AuthUserRow, context: TRPCContext): Promise<void> {
-    try {
-      await this.authRepository.createSystemAuditLog({
-        actorType: 'admin',
-        actorId: user.id,
-        action: 'admin.password.change',
-        resourceType: 'admin_user',
-        resourceId: user.id,
-        ip: getIp(context),
-        userAgent: getUserAgent(context),
-        metadata: { email: user.email },
-      });
-    } catch {
-      // Audit writes are best-effort so a completed password update is not reported as failed.
-    }
   }
 
   private async storeWeChatStateBestEffort(state: string): Promise<void> {
@@ -665,7 +702,8 @@ export class AuthService {
     context: TRPCContext
   ): Promise<MockLoginResult> {
     const token = createToken();
-    const expiresAt = expiresFromNow(USER_SESSION_TTL_SECONDS);
+    const ttlSeconds = await this.getSessionTtlSeconds('user');
+    const expiresAt = expiresFromNow(ttlSeconds);
 
     await this.authRepository.createSession({
       userId: user.id,
@@ -678,9 +716,9 @@ export class AuthService {
       sessionKey(token),
       serializeSessionPayload({ userId: user.id, role: 'user' }),
       'EX',
-      USER_SESSION_TTL_SECONDS
+      ttlSeconds
     );
-    setCookie(context, getUserCookieName(), token, USER_SESSION_TTL_SECONDS);
+    setCookie(context, getUserCookieName(), token, ttlSeconds);
 
     return {
       success: true,
@@ -767,6 +805,14 @@ function createToken(bytes = 32): string {
 
 function expiresFromNow(ttlSeconds: number): Date {
   return new Date(Date.now() + ttlSeconds * 1000);
+}
+
+function normalizeIdleTimeoutMinutes(value: unknown, fallback: number): number {
+  if (!Number.isInteger(value) || Number(value) <= 0) {
+    return fallback;
+  }
+
+  return Number(value);
 }
 
 function getUserCookieName(): string {

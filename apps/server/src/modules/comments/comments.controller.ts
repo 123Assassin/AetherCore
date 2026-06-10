@@ -13,11 +13,12 @@ type StreamRequest = TRPCContext['req'] & {
 
 type StreamReply = TRPCContext['res'] & {
   code: (statusCode: number) => StreamReply;
+  getHeader?: (name: string) => number | string | string[] | undefined;
   send: (payload: unknown) => void;
   raw: {
     end: () => void;
     write: (chunk: string) => boolean;
-    writeHead: (statusCode: number, headers: Record<string, string>) => void;
+    writeHead: (statusCode: number, headers: Record<string, string | string[]>) => void;
   };
 };
 
@@ -65,13 +66,7 @@ export class CommentsController {
       return;
     }
 
-    reply.raw.writeHead(200, {
-      ...getCorsHeaders(request),
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'X-Accel-Buffering': 'no',
-    });
+    reply.raw.writeHead(200, getStreamHeaders(request, reply));
 
     try {
       const result = await this.commentsService.generateSingleStream(
@@ -175,6 +170,36 @@ function sendJsonError(
 
 function sendStreamEvent(reply: StreamReply, event: CommentSingleGenerateStreamEvent): void {
   reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+}
+
+function getStreamHeaders(
+  request: StreamRequest,
+  reply: StreamReply
+): Record<string, string | string[]> {
+  const headers: Record<string, string | string[]> = {
+    ...getCorsHeaders(request),
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'X-Accel-Buffering': 'no',
+  };
+  const setCookie = readReplyHeader(reply, 'Set-Cookie');
+
+  if (setCookie) {
+    headers['Set-Cookie'] = setCookie;
+  }
+
+  return headers;
+}
+
+function readReplyHeader(reply: StreamReply, name: string): string | string[] | null {
+  const value = reply.getHeader?.(name) ?? reply.getHeader?.(name.toLowerCase());
+
+  if (typeof value === 'string' || Array.isArray(value)) {
+    return value;
+  }
+
+  return typeof value === 'number' ? String(value) : null;
 }
 
 function mapStreamError(error: unknown): { code: string; message: string } {

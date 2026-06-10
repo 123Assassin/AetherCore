@@ -28,6 +28,7 @@ export const simulationApps = pgTable('simulation_apps', {
   thumbnail: varchar('thumbnail', { length: 500 }),
   isable: boolean('isable').notNull().default(true),
   topics: jsonb('topics').$type<unknown[] | null>(),
+  subjects: jsonb('subjects').$type<{ subject: string; category: string }[] | null>(),
   sampleLearningGoals: jsonb('sample_learning_goals').$type<unknown[] | null>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

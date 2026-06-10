@@ -11,6 +11,7 @@ type Row = {
   categoryName: string;
   parentCategoryId: string | null;
   parentCategoryName: string | null;
+  subjects: { subject: string; category: string }[] | null;
   src: string | null;
   thumbnail: string | null;
   isable: boolean;
@@ -61,15 +62,36 @@ test('filters returns subject category and grade options', async () => {
       categories: [{ id: 'physics-motion', name: '运动' }],
     },
     {
+      name: '地理',
+      categories: [{ id: '地理-地球科学', name: '地球科学' }],
+    },
+    {
       name: '数学',
       categories: [{ id: 'math', name: '数学' }],
     },
   ]);
   assert.deepEqual(result.categories, [
     { id: 'physics-motion', name: '运动', subject: '物理' },
+    { id: '地理-地球科学', name: '地球科学', subject: '地理' },
     { id: 'math', name: '数学', subject: '数学' },
   ]);
   assert.deepEqual(result.grades, ['中学', '高中', '大学']);
+});
+
+test('list items expose subject assignments and filter by any assignment', async () => {
+  const repository = new FakeSimulationsRepository();
+  const service = new SimulationsService(repository.asRepository());
+
+  const result = await service.listPublic({ subjects: ['地理'] });
+
+  assert.deepEqual(
+    result.items.map((item) => item.id),
+    ['sim-enabled']
+  );
+  assert.deepEqual(result.items[0]?.subjects, [
+    { subject: '物理', category: { id: 'physics-motion', name: '运动' } },
+    { subject: '地理', category: { id: '地理-地球科学', name: '地球科学' } },
+  ]);
 });
 
 test('setEnabled updates a simulation enabled flag', async () => {
@@ -202,6 +224,10 @@ class FakeSimulationsRepository {
       categoryName: '运动',
       parentCategoryId: 'physics',
       parentCategoryName: '物理',
+      subjects: [
+        { subject: '物理', category: '运动' },
+        { subject: '地理', category: '地球科学' },
+      ],
       isable: true,
       grades: ['中学', '高中'],
       topics: ['能量'],
@@ -214,6 +240,7 @@ class FakeSimulationsRepository {
       categoryName: '运动',
       parentCategoryId: 'physics',
       parentCategoryName: '物理',
+      subjects: [{ subject: '物理', category: '运动' }],
       isable: false,
       grades: ['高中'],
     }),
@@ -224,6 +251,7 @@ class FakeSimulationsRepository {
       categoryName: '数学',
       parentCategoryId: null,
       parentCategoryName: null,
+      subjects: null,
       isable: true,
       grades: ['大学'],
     }),
@@ -305,6 +333,7 @@ function createRow(input: {
   categoryName: string;
   parentCategoryId: string | null;
   parentCategoryName: string | null;
+  subjects?: { subject: string; category: string }[] | null;
   isable: boolean;
   grades: string[];
   topics?: unknown[] | null;
@@ -319,6 +348,7 @@ function createRow(input: {
     categoryName: input.categoryName,
     parentCategoryId: input.parentCategoryId,
     parentCategoryName: input.parentCategoryName,
+    subjects: input.subjects ?? null,
     src: `${input.id}.html`,
     thumbnail: `${input.id}.png`,
     isable: input.isable,

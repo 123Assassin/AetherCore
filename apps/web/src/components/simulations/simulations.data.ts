@@ -45,14 +45,29 @@ function uniqueText(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+export function getSimulationSubjectLabels(item: SimulationItem) {
+  const subjects = Array.isArray(item.subjects) ? item.subjects : [];
+  const labels = uniqueText(subjects.map((subject) => subject.subject));
+
+  return labels.length > 0 ? labels : uniqueText([item.subject]);
+}
+
+export function getSimulationTopics(item: SimulationItem) {
+  return uniqueText(unknownValueToText(item.topics));
+}
+
+export function getSimulationLearningGoals(item: SimulationItem) {
+  return uniqueText(unknownValueToText(item.sampleLearningGoals));
+}
+
 export function getSimulationDescription(item: SimulationItem) {
-  const learningGoals = uniqueText(unknownValueToText(item.sampleLearningGoals));
+  const learningGoals = getSimulationLearningGoals(item);
 
   if (learningGoals.length > 0) {
     return learningGoals.slice(0, 2).join('；');
   }
 
-  const topics = uniqueText(unknownValueToText(item.topics));
+  const topics = getSimulationTopics(item);
 
   if (topics.length > 0) {
     return `关联主题：${topics.slice(0, 3).join('、')}`;

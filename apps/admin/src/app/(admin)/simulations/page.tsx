@@ -6,7 +6,7 @@ import type {
   SimulationItem,
   SimulationListResult,
 } from '@package/shared';
-import { LayoutGrid, List as ListIcon, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SimulationCard } from '../../../components/simulations/simulation-card';
@@ -211,24 +211,6 @@ export default function AdminSimulationsPage() {
               当前查询条件下共有 {listLoading ? '...' : result.total} 个结果
             </p>
           </div>
-          <div className="flex w-max rounded-2xl border border-slate-200/50 bg-slate-100 p-1.5 shadow-inner">
-            <button
-              aria-label="卡片视图"
-              className="text-primary rounded-xl border border-slate-200/50 bg-white p-2.5 shadow-md"
-              type="button"
-            >
-              <LayoutGrid size={20} />
-            </button>
-            <button
-              aria-disabled="true"
-              aria-label="列表视图暂不可用"
-              className="cursor-not-allowed rounded-xl p-2.5 text-slate-400 opacity-60"
-              disabled
-              type="button"
-            >
-              <ListIcon size={20} />
-            </button>
-          </div>
         </div>
 
         {error ? (
@@ -352,6 +334,8 @@ function mergeToggledItems(
 }
 
 function matchesListInput(item: SimulationItem, input: AdminSimulationListInput): boolean {
+  const subjects = getSimulationSubjectAssignments(item);
+
   if (input.isable !== undefined && item.isable !== input.isable) {
     return false;
   }
@@ -360,14 +344,18 @@ function matchesListInput(item: SimulationItem, input: AdminSimulationListInput)
     return false;
   }
 
-  if (input.subjects && input.subjects.length > 0 && !input.subjects.includes(item.subject)) {
+  if (
+    input.subjects &&
+    input.subjects.length > 0 &&
+    !subjects.some((subject) => input.subjects?.includes(subject.subject))
+  ) {
     return false;
   }
 
   if (
     input.categoryIds &&
     input.categoryIds.length > 0 &&
-    !input.categoryIds.includes(item.category.id)
+    !subjects.some((subject) => input.categoryIds?.includes(subject.category.id))
   ) {
     return false;
   }
@@ -381,6 +369,12 @@ function matchesListInput(item: SimulationItem, input: AdminSimulationListInput)
   }
 
   return true;
+}
+
+function getSimulationSubjectAssignments(item: SimulationItem) {
+  return Array.isArray(item.subjects) && item.subjects.length > 0
+    ? item.subjects
+    : [{ subject: item.subject, category: item.category }];
 }
 
 function matchesSearch(item: SimulationItem, query: string): boolean {

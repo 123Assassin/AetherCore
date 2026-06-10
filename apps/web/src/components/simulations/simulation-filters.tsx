@@ -1,12 +1,14 @@
-import type { SimulationFilters } from '@package/shared';
+import type { SimulationFilters, SimulationSubjectOption } from '@package/shared';
 import { CheckSquare, Plus } from 'lucide-react';
+
+import { isSubjectFilterChecked } from './simulation-filters.data';
 
 type SimulationFiltersProps = {
   disabled?: boolean;
   filters: SimulationFilters;
-  onToggleCategory: (categoryId: string) => void;
+  onToggleCategory: (subject: SimulationSubjectOption, categoryId: string) => void;
   onToggleGrade: (grade: string) => void;
-  onToggleSubject: (subject: string) => void;
+  onToggleSubject: (subject: SimulationSubjectOption) => void;
   selectedCategoryIds: string[];
   selectedGrades: string[];
   selectedSubjects: string[];
@@ -69,7 +71,10 @@ export function SimulationFiltersPanel({
         </h2>
         <div className="space-y-4">
           {filters.subjects.map((subject) => {
-            const subjectChecked = isSelected(selectedSubjects, subject.name);
+            const subjectChecked = isSubjectFilterChecked(subject, {
+              selectedCategoryIds,
+              selectedSubjects,
+            });
 
             return (
               <div className="space-y-2" key={subject.name}>
@@ -78,7 +83,7 @@ export function SimulationFiltersPanel({
                     checked={subjectChecked}
                     className="sr-only"
                     disabled={disabled}
-                    onChange={() => onToggleSubject(subject.name)}
+                    onChange={() => onToggleSubject(subject)}
                     type="checkbox"
                   />
                   <FilterBox checked={subjectChecked} />
@@ -105,7 +110,7 @@ export function SimulationFiltersPanel({
                             checked={categoryChecked}
                             className="sr-only"
                             disabled={disabled}
-                            onChange={() => onToggleCategory(category.id)}
+                            onChange={() => onToggleCategory(subject, category.id)}
                             type="checkbox"
                           />
                           <SmallFilterBox checked={categoryChecked} />

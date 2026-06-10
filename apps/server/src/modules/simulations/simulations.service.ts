@@ -22,6 +22,11 @@ export type SimulationFilterCategoryOption = {
   subject: string;
 };
 
+export type SimulationSubjectAssignment = {
+  subject: string;
+  category: SimulationCategoryOption;
+};
+
 export type SimulationFilters = {
   subjects: SimulationSubjectOption[];
   categories: SimulationFilterCategoryOption[];
@@ -32,6 +37,7 @@ export type SimulationItem = {
   id: string;
   name: string;
   subject: string;
+  subjects: SimulationSubjectAssignment[];
   category: SimulationCategoryOption;
   grades: string[];
   thumbnail: string | null;
@@ -139,20 +145,23 @@ export class SimulationsService {
 
     for (const row of rows) {
       const item = toSimulationItem(row);
-      const subject = subjectsByName.get(item.subject) ?? {
-        name: item.subject,
-        categories: [],
-      };
 
-      if (!subject.categories.some((category) => category.id === item.category.id)) {
-        subject.categories.push(item.category);
+      for (const assignment of item.subjects) {
+        const subject = subjectsByName.get(assignment.subject) ?? {
+          name: assignment.subject,
+          categories: [],
+        };
+
+        if (!subject.categories.some((category) => category.id === assignment.category.id)) {
+          subject.categories.push(assignment.category);
+        }
+
+        subjectsByName.set(assignment.subject, subject);
+        categoriesById.set(assignment.category.id, {
+          ...assignment.category,
+          subject: assignment.subject,
+        });
       }
-
-      subjectsByName.set(item.subject, subject);
-      categoriesById.set(item.category.id, {
-        ...item.category,
-        subject: item.subject,
-      });
 
       for (const grade of item.grades) {
         gradeNames.add(grade);
@@ -273,11 +282,17 @@ function filterRows(
   return rows.filter((row) => {
     const item = toSimulationItem(row);
 
-    if (input.subjects.length > 0 && !input.subjects.includes(item.subject)) {
+    if (
+      input.subjects.length > 0 &&
+      !item.subjects.some((assignment) => input.subjects.includes(assignment.subject))
+    ) {
       return false;
     }
 
-    if (input.categoryIds.length > 0 && !input.categoryIds.includes(item.category.id)) {
+    if (
+      input.categoryIds.length > 0 &&
+      !item.subjects.some((assignment) => input.categoryIds.includes(assignment.category.id))
+    ) {
       return false;
     }
 
@@ -309,16 +324,23 @@ function toListResult(
 }
 
 function toSimulationItem(row: SimulationRepositoryRow): SimulationItem {
-  const subject = row.parentCategoryName ?? row.categoryName;
+  const fallbackSubject = row.parentCategoryName ?? row.categoryName;
+  const fallbackCategory = {
+    id: row.categoryId,
+    name: row.categoryName,
+  };
+  const subjects = normalizeSubjectAssignments(row.subjects, fallbackSubject, fallbackCategory);
+  const primarySubject = subjects[0] ?? {
+    subject: fallbackSubject,
+    category: fallbackCategory,
+  };
 
   return {
     id: row.id,
     name: row.name,
-    subject,
-    category: {
-      id: row.categoryId,
-      name: row.categoryName,
-    },
+    subject: primarySubject.subject,
+    subjects,
+    category: primarySubject.category,
     grades: row.grades,
     thumbnail: row.thumbnail,
     src: row.src,
@@ -341,6 +363,43 @@ function matchesSearch(item: SimulationItem, query: string): boolean {
     .toLowerCase();
 
   return searchable.includes(normalizedQuery);
+}
+
+function normalizeSubjectAssignments(
+  value: { subject: string; category: string }[] | null,
+  fallbackSubject: string,
+  fallbackCategory: SimulationCategoryOption
+): SimulationSubjectAssignment[] {
+  const seen = new Set<string>();
+  const assignments: SimulationSubjectAssignment[] = [];
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const subject = item.subject.trim();
+      const categoryName = item.category.trim();
+
+      if (!subject || !categoryName) {
+        continue;
+      }
+
+      const category =
+        subject === fallbackSubject && categoryName === fallbackCategory.name
+          ? fallbackCategory
+          : { id: `${subject}-${categoryName}`, name: categoryName };
+      const key = `${subject}\0${category.id}`;
+
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      assignments.push({ subject, category });
+    }
+  }
+
+  return assignments.length > 0
+    ? assignments
+    : [{ subject: fallbackSubject, category: fallbackCategory }];
 }
 
 function normalizeStringArray(value: string[] | undefined): string[] {

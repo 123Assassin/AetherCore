@@ -5,7 +5,7 @@ import type {
   AdminSystemAuditItem,
   AdminSystemAuditListInput,
 } from '@package/shared';
-import { Download } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AuditLogTable } from '../../../../components/security/audit-log-table';
@@ -24,6 +24,7 @@ export default function AdminSystemAuditPage() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<AdminSystemAuditItem | null>(null);
   const requestSequence = useRef(0);
 
   const fetchAuditLogs = useCallback(
@@ -165,8 +166,14 @@ export default function AdminSystemAuditPage() {
           </p>
         ) : null}
 
-        {!loading && items.length > 0 ? <AuditLogTable items={items} /> : null}
+        {!loading && items.length > 0 ? (
+          <AuditLogTable items={items} onViewDetails={setSelectedItem} />
+        ) : null}
       </section>
+
+      {selectedItem ? (
+        <AuditDetailDialog item={selectedItem} onClose={() => setSelectedItem(null)} />
+      ) : null}
 
       {exportOpen ? (
         <ExportCsvDialog
@@ -229,4 +236,87 @@ function triggerCsvDownload(result: AdminAuditExportResult): boolean {
   }
 
   return true;
+}
+
+function AuditDetailDialog({ item, onClose }: { item: AdminSystemAuditItem; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900">审计日志详情</h2>
+            <p className="mt-1 font-mono text-xs text-slate-400">{item.logId}</p>
+          </div>
+          <button
+            aria-label="关闭"
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" size={20} />
+          </button>
+        </div>
+
+        <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-6 py-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <DetailField label="发生时间" value={formatAuditTimestamp(item.timestamp)} />
+            <DetailField label="事件级别" value={item.level === 0 ? '告警' : '信息'} />
+            <DetailField label="日志类型" value={String(item.logType)} />
+            <DetailField label="API 路由" value={getDetailString(item.details, 'apiRoute')} />
+            <DetailField label="操作模块" value={getDetailString(item.details, 'module')} />
+            <DetailField label="操作账号" value={getDetailString(item.details, 'actorAccount')} />
+            <DetailField label="操作人ID" value={getDetailString(item.details, 'actorId')} />
+          </div>
+
+          <div className="mt-5">
+            <div className="mb-2 text-xs font-bold tracking-wider text-slate-400 uppercase">
+              事件内容
+            </div>
+            <pre className="max-h-[420px] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 whitespace-pre-wrap text-slate-100">
+              {formatJson(item.details)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <div className="text-xs font-bold text-slate-400">{label}</div>
+      <div className="mt-1 font-mono text-sm font-bold break-all text-slate-700">
+        {value || '未记录'}
+      </div>
+    </div>
+  );
+}
+
+function formatAuditTimestamp(value: number): string {
+  if (!Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return new Date(value * 1000).toLocaleString('zh-CN', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function getDetailString(details: Record<string, unknown>, key: string): string | null {
+  const value = details[key];
+
+  return typeof value === 'string' && value ? value : null;
+}
+
+function formatJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return '详情无法显示';
+  }
 }

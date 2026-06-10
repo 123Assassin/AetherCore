@@ -15,6 +15,7 @@ import type { AuthService } from '../modules/auth/auth.service.js';
 import type { CommentsService } from '../modules/comments/comments.service.js';
 import type { SimulationsService } from '../modules/simulations/simulations.service.js';
 import type { TRPCContext } from './context.js';
+import type { AdminAuditService } from '../modules/admin-audit/admin-audit.service.js';
 import { createAdminOperationsRouter } from './routers/admin-operations.router.js';
 import { createAdminResourcesRouter } from './routers/admin-resources.router.js';
 import { createAiRouter } from './routers/ai.router.js';
@@ -84,12 +85,17 @@ export const createAppRouter = (
   simulationsService: SimulationsService,
   commentsService: CommentsService,
   adminResourcesService: AdminResourcesService,
-  adminOperationsService = {} as AdminOperationsService
+  adminOperationsService = {} as AdminOperationsService,
+  adminAuditService?: AdminAuditService | undefined
 ) =>
   createTRPCRouter({
     health: healthRouter,
     auth: createAuthRouter(authService, { createTRPCRouter, publicProcedure }),
-    adminAuth: createAdminAuthRouter(authService, { createTRPCRouter, publicProcedure }),
+    adminAuth: createAdminAuthRouter(authService, {
+      adminAuditService,
+      createTRPCRouter,
+      publicProcedure,
+    }),
     me: createMeRouter(authService, { createTRPCRouter, publicProcedure }),
     ai: createAiRouter(authService, aiService, { createTRPCRouter, publicProcedure }),
     comments: createCommentsRouter(authService, commentsService, {
@@ -101,14 +107,17 @@ export const createAppRouter = (
       publicProcedure,
     }),
     adminSimulations: createAdminSimulationsRouter(authService, simulationsService, {
+      adminAuditService,
       createTRPCRouter,
       publicProcedure,
     }),
     adminResources: createAdminResourcesRouter(authService, adminResourcesService, {
+      adminAuditService,
       createTRPCRouter,
       publicProcedure,
     }),
     adminOperations: createAdminOperationsRouter(authService, adminOperationsService, {
+      adminAuditService,
       createTRPCRouter,
       publicProcedure,
     }),
