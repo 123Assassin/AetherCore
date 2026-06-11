@@ -1,4 +1,6 @@
 const absoluteUrlPattern = /^[a-z][a-z\d+\-.]*:/i;
+const adaptedSimulationAppRouteBase = '/phetsims-apps';
+const adaptedSimulationAppSuffix = '.html';
 const simulationThumbnailRouteBase = '/simulation-thumbnails';
 const defaultSimulationAppPort = '80';
 
@@ -46,10 +48,7 @@ export function resolveSimulationAppBaseUrl(options: SimulationAppHostOptions = 
   return `http://${hostname}:${port}`;
 }
 
-export function resolveSimulationAppUrl(
-  src: string | null | undefined,
-  options: SimulationAppHostOptions = {}
-): string | null {
+export function resolveSimulationAppUrl(src: string | null | undefined): string | null {
   const trimmedSrc = src?.trim();
 
   if (!trimmedSrc) {
@@ -64,12 +63,18 @@ export function resolveSimulationAppUrl(
     return trimmedSrc;
   }
 
-  const sourceDataId = trimmedSrc.endsWith('_en.html')
-    ? trimmedSrc.slice(0, -'_en.html'.length)
-    : trimmedSrc;
-  const source = `${sourceDataId}/${trimmedSrc}`;
+  const sourceId = resolveSimulationSourceId(trimmedSrc);
+  const source = `${sourceId}${adaptedSimulationAppSuffix}`;
 
-  return resolveSimulationAssetUrl(source, resolveSimulationAppBaseUrl(options));
+  return resolveSimulationAssetUrl(source, adaptedSimulationAppRouteBase);
+}
+
+function resolveSimulationSourceId(src: string) {
+  if (src.endsWith('_en.html')) {
+    return src.slice(0, -'_en.html'.length);
+  }
+
+  return src.endsWith('.html') ? src.slice(0, -'.html'.length) : src;
 }
 
 function readCurrentHostname(): string | null {

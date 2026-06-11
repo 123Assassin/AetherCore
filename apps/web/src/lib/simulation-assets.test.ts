@@ -49,9 +49,6 @@ test('resolveSimulationAppBaseUrl uses the current host with the configured simu
   );
 });
 
-test('resolveSimulationAppUrl opens simulations through host and port', () => {
-  assert.equal(
-    resolveSimulationAppUrl('ph-scale_en.html', { hostname: 'vps.example.com', port: '8080' }),
-    'http://vps.example.com:8080/ph-scale/ph-scale_en.html'
-  );
+test('resolveSimulationAppUrl opens bundled simulations by source id', () => {
+  assert.equal(resolveSimulationAppUrl('ph-scale_en.html'), '/phetsims-apps/ph-scale.html');
 });
