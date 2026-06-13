@@ -292,9 +292,47 @@ Server 不需要对公网暴露。
 
 ### 8. 更新部署
 
+项目提供了部署脚本 `scripts/deploy.sh`，用于包装当前生产 `docker compose` 命令。
+
+全量更新：
+
 ```bash
 git pull
-docker compose --env-file .env --profile app up -d --build
+./scripts/deploy.sh
+```
+
+也可以显式写成：
+
+```bash
+./scripts/deploy.sh all
+```
+
+只更新指定服务：
+
+```bash
+./scripts/deploy.sh web
+./scripts/deploy.sh admin
+./scripts/deploy.sh server
+./scripts/deploy.sh web admin
+```
+
+如果只调整了 Web 端代码或根目录 `phetsims_apps` 里的仿真静态文件，通常只需要：
+
+```bash
+git pull
+./scripts/deploy.sh web
+```
+
+使用其他环境文件：
+
+```bash
+./scripts/deploy.sh --env-file .env.production web
+```
+
+预览将要执行的命令，不真正部署：
+
+```bash
+./scripts/deploy.sh --dry-run web
 ```
 
 ### 9. 停止服务
@@ -307,12 +345,26 @@ docker compose --env-file .env --profile app down
 
 ### 10. 重新执行数据库初始化
 
-如果更新后需要重新跑迁移和种子数据：
+如果 `apps/db-init`、`apps/db-init/data.json`、`apps/db-init/grade.json`、`packages/db` schema 或迁移文件有调整，需要重新构建并执行 `db-init`：
 
 ```bash
-docker compose --env-file .env --profile app up --force-recreate db-init
-docker compose --env-file .env --profile app up -d server web admin
+git pull
+./scripts/deploy.sh db-init
 ```
+
+这个命令会先执行：
+
+```bash
+docker compose --env-file .env --profile app up --build --force-recreate db-init
+```
+
+然后重新启动应用服务：
+
+```bash
+docker compose --env-file .env --profile app up -d --build server web admin
+```
+
+`db-init` 不会删除 PostgreSQL 持久化目录 `/home/ubuntu/data/pgsql`。它会按当前初始化逻辑执行迁移和种子数据；其中仿真资源 seed 会重建仿真相关表数据，适合 `data.json`、`grade.json` 或仿真字段映射变化后的更新。
 
 ## 常见问题
 
