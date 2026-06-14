@@ -28,6 +28,9 @@ export function EngineTable({ deletingId, items, onDelete, onEdit }: EngineTable
                 Model
               </th>
               <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
+                类别
+              </th>
+              <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
                 状态
               </th>
               <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase">
@@ -68,6 +71,11 @@ export function EngineTable({ deletingId, items, onDelete, onEdit }: EngineTable
                   <td className="px-6 py-4">
                     <span className="text-sm whitespace-nowrap text-slate-500">
                       {item.modelName || providerLabels[item.provider]}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-black tracking-widest whitespace-nowrap text-slate-600 uppercase">
+                      {categoryLabels[item.category]}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -133,4 +141,9 @@ const providerLabels: Record<AdminModelEngineItem['provider'], string> = {
   custom: '模型 API 调用',
   gemini: 'Gemini',
   openai: 'OpenAI',
+};
+
+const categoryLabels: Record<AdminModelEngineItem['category'], string> = {
+  reasoning: '推理引擎',
+  vision: '视觉引擎',
 };

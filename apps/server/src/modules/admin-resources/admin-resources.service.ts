@@ -27,6 +27,7 @@ import {
 export type { AdminAgentKey } from '@package/shared';
 export type AdminResourceStatus = 'enabled' | 'disabled';
 export type AdminModelEngineProvider = 'openai' | 'gemini' | 'custom';
+export type AdminModelEngineCategory = 'reasoning' | 'vision';
 
 export type AdminResourceListInput = {
   page?: number;
@@ -127,6 +128,7 @@ export type AdminModelEngineItem = {
   id: string;
   name: string;
   provider: AdminModelEngineProvider;
+  category: AdminModelEngineCategory;
   apiBaseUrl: string;
   apiKeyMasked: string;
   modelName: string | null;
@@ -139,6 +141,7 @@ export type AdminModelEngineItem = {
 export type AdminModelEngineCreateInput = {
   name: string;
   provider?: AdminModelEngineProvider;
+  category?: AdminModelEngineCategory;
   apiBaseUrl: string;
   apiKey: string;
   modelName?: string | null;
@@ -195,8 +198,10 @@ const DEFAULT_AGENT_TOP_P = 0.9;
 const DEFAULT_AGENT_MAX_TOKENS = 2000;
 const DEFAULT_STATUS = 'enabled';
 const DEFAULT_MODEL_ENGINE_PROVIDER = 'custom';
+const DEFAULT_MODEL_ENGINE_CATEGORY = 'reasoning';
 const ADMIN_AGENT_KEYS = adminAgentKeys;
 const ADMIN_MODEL_ENGINE_PROVIDERS = ['openai', 'gemini', 'custom'] as const;
+const ADMIN_MODEL_ENGINE_CATEGORIES = ['reasoning', 'vision'] as const;
 const ADMIN_RESOURCE_STATUSES = ['enabled', 'disabled'] as const;
 const AGENT_KEY_UNIQUE_CONSTRAINTS = ['ai_agents_key_unique', 'uniq_ai_agents_key_grade_subject'];
 const ENGINE_NAME_UNIQUE_CONSTRAINTS = ['model_engines_name_unique'];
@@ -573,8 +578,17 @@ export class AdminResourcesService {
   private async validateAgentReferences(input: AdminAgentSaveData): Promise<void> {
     validateAgentClassification(input.key, input.grade, input.subject);
 
-    if (!(await this.adminResourcesRepository.findEngineById(input.engineId))) {
+    const engine = await this.adminResourcesRepository.findEngineById(input.engineId);
+
+    if (!engine) {
       throw new AdminResourcesServiceError('NOT_FOUND', 'Engine not found');
+    }
+
+    if (engine.category !== 'reasoning') {
+      throw new AdminResourcesServiceError(
+        'BAD_REQUEST',
+        'Agent engine must be a reasoning engine'
+      );
     }
 
     if (input.promptId && !(await this.adminResourcesRepository.findPromptById(input.promptId))) {
@@ -804,6 +818,7 @@ function normalizeEngineCreateInput(input: AdminModelEngineCreateInput): AdminEn
   return {
     name: requireTrimmedMax(input.name, 'Engine name', 100, 'Engine name is required'),
     provider: normalizeProvider(input.provider ?? DEFAULT_MODEL_ENGINE_PROVIDER),
+    category: normalizeEngineCategory(input.category ?? DEFAULT_MODEL_ENGINE_CATEGORY),
     apiBaseUrl: normalizeApiBaseUrl(input.apiBaseUrl),
     apiKeyCiphertext: encryptApiKey(requireTrimmed(input.apiKey, 'Engine apiKey is required')),
     modelName: trimNullable(input.modelName),
@@ -820,6 +835,7 @@ function normalizeEngineUpdateInput(
       ? {}
       : { name: requireTrimmedMax(input.name, 'Engine name', 100, 'Engine name is required') }),
     ...(input.provider === undefined ? {} : { provider: normalizeProvider(input.provider) }),
+    ...(input.category === undefined ? {} : { category: normalizeEngineCategory(input.category) }),
     ...(input.apiBaseUrl === undefined
       ? {}
       : { apiBaseUrl: normalizeApiBaseUrl(input.apiBaseUrl) }),
@@ -899,6 +915,7 @@ function toEngineItem(row: AdminEngineRepositoryRow): AdminModelEngineItem {
     id: row.id,
     name: row.name,
     provider: row.provider,
+    category: row.category,
     apiBaseUrl: row.apiBaseUrl,
     apiKeyMasked: maskApiKey(decryptApiKey(row.apiKeyCiphertext)),
     modelName: row.modelName,
@@ -1023,6 +1040,16 @@ function normalizeProvider(value: string): AdminModelEngineProvider {
   }
 
   return provider as AdminModelEngineProvider;
+}
+
+function normalizeEngineCategory(value: string): AdminModelEngineCategory {
+  const category = requireTrimmed(value, 'Engine category is required');
+
+  if (!ADMIN_MODEL_ENGINE_CATEGORIES.includes(category as AdminModelEngineCategory)) {
+    throw new AdminResourcesServiceError('BAD_REQUEST', 'Engine category is invalid');
+  }
+
+  return category as AdminModelEngineCategory;
 }
 
 function normalizeApiBaseUrl(value: string): string {

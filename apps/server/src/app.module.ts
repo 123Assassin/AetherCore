@@ -6,6 +6,7 @@ import { AiModule } from './modules/ai/ai.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CommentsModule } from './modules/comments/comments.module.js';
 import { SimulationsModule } from './modules/simulations/simulations.module.js';
+import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { TrpcModule } from './trpc/trpc.module.js';
 
 @Module({
@@ -14,6 +15,7 @@ import { TrpcModule } from './trpc/trpc.module.js';
     AiModule,
     SimulationsModule,
     CommentsModule,
+    UploadsModule,
     AdminResourcesModule,
     AdminOperationsModule,
     TrpcModule,

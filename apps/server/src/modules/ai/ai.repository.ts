@@ -15,7 +15,7 @@ import {
 import type { AiAgentKey, ConversationCategory, MessageRole } from '@package/db/schema';
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 
-import type { AiAgentRuntimeConfig } from './ai-agent-runtime.js';
+import type { AiAgentRuntimeConfig, AiEngineRuntimeConfig } from './ai-agent-runtime.js';
 
 export type AiConversationRow = typeof aiConversations.$inferSelect;
 export type AiMessageRow = typeof aiMessages.$inferSelect;
@@ -248,6 +248,30 @@ export class AiRepository {
           }
         : null,
     };
+  }
+
+  async findFirstEnabledVisionEngine(): Promise<AiEngineRuntimeConfig | null> {
+    const [engine] = await this.database
+      .select({
+        id: modelEngines.id,
+        name: modelEngines.name,
+        apiBaseUrl: modelEngines.apiBaseUrl,
+        apiKeyCiphertext: modelEngines.apiKeyCiphertext,
+        modelName: modelEngines.modelName,
+        status: modelEngines.status,
+      })
+      .from(modelEngines)
+      .where(
+        and(
+          eq(modelEngines.category, 'vision'),
+          eq(modelEngines.status, 'enabled'),
+          isNull(modelEngines.deletedAt)
+        )
+      )
+      .orderBy(asc(modelEngines.name))
+      .limit(1);
+
+    return engine ?? null;
   }
 
   async saveChatExchange(input: ChatExchangeInput): Promise<ChatExchangeResult> {

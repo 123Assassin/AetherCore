@@ -59,10 +59,13 @@ function collectAssistantResponse(events: AiStreamEvent[]) {
 
 function formatInspirationRequest(values: InspirationFormValues) {
   const context = values.context.trim();
+  const imageNote =
+    values.uploadedImages.length > 0 ? `已上传图片：${values.uploadedImages.length} 张` : null;
 
   return [
     `请为我精讲 **${values.topic.trim()}**。`,
     `授课对象：${values.grade} · ${values.subject}`,
+    imageNote,
     context ? `课堂情境：${context}` : null,
   ]
     .filter(Boolean)
@@ -267,6 +270,7 @@ export default function InspirationPage() {
             ...(trimmedContext ? { context: trimmedContext } : {}),
             subject: values.subject,
             topic: trimmedTopic,
+            ...(values.uploadedImages.length > 0 ? { uploadedImages: values.uploadedImages } : {}),
           });
           const assistantResponse = collectAssistantResponse(result.events);
 
@@ -314,6 +318,7 @@ export default function InspirationPage() {
         grade: item.grade,
         subject: item.subject,
         topic: item.topic,
+        uploadedImages: [],
       };
 
       setFormValues(nextValues);

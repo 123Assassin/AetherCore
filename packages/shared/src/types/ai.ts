@@ -15,6 +15,14 @@ export type AiStreamEvent =
   | { type: 'done'; messageId: string }
   | { type: 'error'; code: string; message: string };
 
+export type UploadedImageInput = {
+  data?: string;
+  mimeType: string;
+  name: string;
+  size?: number;
+  url?: string;
+};
+
 export type AiChatCreateInput = {
   category?: AiConversationCategory;
   title?: string;

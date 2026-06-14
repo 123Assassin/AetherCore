@@ -1,10 +1,10 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { commentGradeOptions } from './comment-tags.data';
+import { COMMENT_GRADES } from './index.js';
 
-test('comment grade options expose first through ninth grade', () => {
-  assert.deepEqual(commentGradeOptions, [
+test('comment grades expose detailed first through ninth grade options', () => {
+  assert.deepEqual(COMMENT_GRADES, [
     '一年级',
     '二年级',
     '三年级',

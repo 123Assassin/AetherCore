@@ -18,6 +18,9 @@ import { users } from './users.js';
 export const modelEngineProviders = ['openai', 'gemini', 'custom'] as const;
 export type ModelEngineProvider = (typeof modelEngineProviders)[number];
 
+export const modelEngineCategories = ['reasoning', 'vision'] as const;
+export type ModelEngineCategory = (typeof modelEngineCategories)[number];
+
 export const aiResourceStatuses = ['enabled', 'disabled'] as const;
 export type AiResourceStatus = (typeof aiResourceStatuses)[number];
 
@@ -30,6 +33,10 @@ export const modelEngines = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     name: varchar('name', { length: 100 }).notNull().unique(),
     provider: varchar('provider', { length: 50 }).$type<ModelEngineProvider>().notNull(),
+    category: varchar('category', { length: 20 })
+      .$type<ModelEngineCategory>()
+      .notNull()
+      .default('reasoning'),
     apiBaseUrl: text('api_base_url').notNull(),
     apiKeyCiphertext: text('api_key_ciphertext').notNull(),
     modelName: varchar('model_name', { length: 100 }),
@@ -44,6 +51,7 @@ export const modelEngines = pgTable(
   },
   (table) => [
     check('model_engines_provider_check', sql`${table.provider} in ('openai', 'gemini', 'custom')`),
+    check('model_engines_category_check', sql`${table.category} in ('reasoning', 'vision')`),
     check('model_engines_status_check', sql`${table.status} in ('enabled', 'disabled')`),
   ]
 );

@@ -109,15 +109,12 @@ export function ExcelUploadDropzone({
   }
 
   return (
-    <section
-      aria-label="上传批量评语表格"
-      className="flex flex-1 flex-col items-center justify-center p-8 text-center md:p-12"
-    >
+    <section aria-label="上传批量评语表格" className="flex flex-1 flex-col p-8 text-center">
       <label
-        className={`group flex w-full max-w-xl cursor-pointer flex-col items-center justify-center rounded-[2.5rem] border border-slate-200 p-10 transition-all md:p-16 ${
+        className={`group flex min-h-[420px] w-full flex-1 cursor-pointer flex-col items-center justify-center rounded-[3rem] border-4 border-dashed p-8 transition-all md:p-16 ${
           isDragging
             ? 'border-emerald-500 bg-emerald-50/50'
-            : 'hover:border-emerald-300 hover:bg-slate-50/50'
+            : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/70'
         } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
         htmlFor={inputId}
         onDragLeave={handleDragLeave}
@@ -133,13 +130,13 @@ export function ExcelUploadDropzone({
           onChange={handleInputChange}
           type="file"
         />
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-emerald-50 shadow-inner shadow-emerald-100/50 transition-transform group-hover:scale-110">
-          <UploadCloud className="h-10 w-10 text-emerald-500" />
+        <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-emerald-50 shadow-inner shadow-emerald-100/50 transition-transform group-hover:scale-105">
+          <UploadCloud className="h-12 w-12 text-emerald-500" />
         </div>
-        <h3 className="mb-2 text-xl font-black tracking-tight text-slate-700">
-          {uploading ? '正在创建队列' : '点击或拖拽上传表格'}
+        <h3 className="mb-3 text-xl font-black tracking-tight text-slate-800">
+          {uploading ? '正在创建队列' : '点击或将本地文件拖拽至此处'}
         </h3>
-        <p className="max-w-[260px] text-sm leading-relaxed font-medium text-slate-400">
+        <p className="max-w-[280px] text-sm leading-relaxed font-medium text-slate-400">
           支持 .xlsx 格式文件
           <br />
           请确保表格内容符合模板格式

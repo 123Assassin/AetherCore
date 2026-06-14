@@ -93,6 +93,7 @@ export function AgentFormDialog({
   const [form, setForm] = useState<AgentFormState>(defaultFormState);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<FocusableDialogElement | null>(null);
+  const reasoningEngines = engines.filter((engine) => engine.category === 'reasoning');
 
   useEffect(() => {
     if (!open) {
@@ -357,7 +358,7 @@ export function AgentFormDialog({
                     value={form.engineId}
                   >
                     <option value="">请选择模型引擎</option>
-                    {engines.map((engine) => (
+                    {reasoningEngines.map((engine) => (
                       <option key={engine.id} value={engine.id}>
                         {engine.name} / {getEngineProviderLabel(engine.provider)}
                       </option>

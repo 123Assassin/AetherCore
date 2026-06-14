@@ -1,10 +1,6 @@
-import {
-  getDefaultWebSubjectForGrade,
-  getWebSubjectsForGrade,
-  normalizeWebSubjectForGrade,
-  webGradeOptions,
-  webSubjectsByGrade,
-} from '../../lib/web-grades';
+import type { UploadedImageInput } from '@package/shared';
+
+import { webGradeOptions } from '../../lib/web-grades';
 
 export const teachingModes = ['variant', 'knowledge'] as const;
 
@@ -25,6 +21,8 @@ type TeachingGenerateBaseInput = {
   subject: string;
   stage: string;
   prompt: string;
+  textbookVersion: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 export type TeachingGenerateInput =
@@ -43,6 +41,8 @@ export type TeachingFormValues = {
   mode: TeachingMode;
   prompt: string;
   level: TeachingLevel;
+  textbookVersion: string;
+  uploadedImages: UploadedImageInput[];
 };
 
 export type TeachingLevelOption<TLevel extends TeachingLevel = TeachingLevel> = {
@@ -59,20 +59,53 @@ export type TeachingExampleCard = {
   content: string;
 };
 
-export const teachingSubjectOptions = Array.from(new Set(Object.values(webSubjectsByGrade).flat()));
+export const teachingSubjectOptions = [
+  '数学',
+  '语文',
+  // '英语',
+  // '道德与法治',
+  // '科学',
+  // '历史',
+  // '地理',
+  // '生物',
+  // '物理',
+  // '化学',
+  // '体育与健康',
+  // '音乐',
+  // '美术',
+  // '信息技术',
+  // '综合实践活动',
+  // '劳动',
+  // '心理健康',
+  // '安全教育',
+] as const;
+
+type TeachingSubjectOption = (typeof teachingSubjectOptions)[number];
 
 export const teachingStageOptions = webGradeOptions;
 
+function isTeachingSubjectOption(subject: string): subject is TeachingSubjectOption {
+  return teachingSubjectOptions.includes(subject as TeachingSubjectOption);
+}
+
 export function getTeachingSubjectOptions(stage: string) {
-  return getWebSubjectsForGrade(stage);
+  void stage;
+
+  return teachingSubjectOptions;
 }
 
 export function getDefaultTeachingSubjectForStage(stage: string) {
-  return getDefaultWebSubjectForGrade(stage);
+  void stage;
+
+  return teachingSubjectOptions[0];
 }
 
 export function normalizeTeachingSubjectForStage(stage: string, subject: string) {
-  return normalizeWebSubjectForGrade(stage, subject);
+  void stage;
+
+  const trimmedSubject = subject.trim();
+
+  return isTeachingSubjectOption(trimmedSubject) ? trimmedSubject : teachingSubjectOptions[0];
 }
 
 export const teachingModeOptions: Array<{

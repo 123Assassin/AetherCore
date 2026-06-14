@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { ConversationCategory } from '@package/db/schema';
-import { normalizeAdminAgentGradeClassification, WEB_AGENT_MAPPING } from '@package/shared';
+import {
+  normalizeAdminAgentGradeClassification,
+  type UploadedImageInput,
+  WEB_AGENT_MAPPING,
+} from '@package/shared';
 
 import {
   AiAgentRuntimeError,
+  generateTextWithEngineRuntime,
   generateTextWithAgentRuntime,
   streamTextWithAgentRuntime,
   type AiAgentModelCall,
@@ -55,6 +60,7 @@ export type AiInspirationGenerateInput = {
   subject: string;
   topic: string;
   context?: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 export type AiInspirationFollowUpInput = {
@@ -77,6 +83,8 @@ type AiTeachingGenerateBaseInput = {
   subject: string;
   stage: string;
   prompt: string;
+  textbookVersion?: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 export type AiTeachingGenerateInput =
@@ -210,8 +218,9 @@ export class AiService {
       agentKey,
       agentClassification
     );
+    const uploadedImages = readUploadedImagesFromPayload(input.payload);
     const generated = runtimeConfig
-      ? await this.generateWithAgentRuntime(runtimeConfig, content)
+      ? await this.generateWithAgentRuntime(runtimeConfig, content, uploadedImages)
       : createMockGeneration(category, content, input.payload, startedAt);
     const exchange = await this.aiRepository.saveChatExchange({
       ...(existingConversation
@@ -277,13 +286,14 @@ export class AiService {
       agentKey,
       agentClassification
     );
+    const uploadedImages = readUploadedImagesFromPayload(input.payload);
     const events: AiStreamEvent[] = [];
     const emit = async (event: AiStreamEvent) => {
       events.push(event);
       await onEvent(event);
     };
     const generated = runtimeConfig
-      ? await this.streamWithAgentRuntime(runtimeConfig, content, async (delta) => {
+      ? await this.streamWithAgentRuntime(runtimeConfig, content, uploadedImages, async (delta) => {
           await emit({ type: 'delta', content: delta });
         })
       : await this.streamMockGeneration(
@@ -341,6 +351,7 @@ export class AiService {
     const topic = requireTrimmed(input.topic, 'Inspiration topic is required');
     const context = trimOptional(input.context);
     const sessionId = trimOptional(input.sessionId);
+    const uploadedImages = normalizeUploadedImages(input.uploadedImages);
 
     return this.sendChat({
       userId: input.userId,
@@ -351,12 +362,14 @@ export class AiService {
         subject,
         topic,
         ...(context === undefined ? {} : { context }),
+        ...(uploadedImages.length > 0 ? { uploadedImages } : {}),
       }),
       payload: {
         grade,
         subject,
         topic,
         ...(context === undefined ? {} : { context }),
+        ...(uploadedImages.length > 0 ? { uploadedImages } : {}),
       },
     });
   }
@@ -380,6 +393,8 @@ export class AiService {
     const prompt = requireTrimmed(input.prompt, 'Teaching prompt is required');
     const level = requireTeachingLevel(input.level, mode);
     const sessionId = trimOptional(input.sessionId);
+    const textbookVersion = trimOptional(input.textbookVersion);
+    const uploadedImages = normalizeUploadedImages(input.uploadedImages);
 
     return this.sendChat({
       userId: input.userId,
@@ -391,6 +406,8 @@ export class AiService {
         mode,
         prompt,
         level,
+        ...(textbookVersion === undefined ? {} : { textbookVersion }),
+        ...(uploadedImages.length > 0 ? { uploadedImages } : {}),
       }),
       payload: {
         subject,
@@ -398,6 +415,8 @@ export class AiService {
         mode,
         prompt,
         level,
+        ...(textbookVersion === undefined ? {} : { textbookVersion }),
+        ...(uploadedImages.length > 0 ? { uploadedImages } : {}),
       },
     });
   }
@@ -480,40 +499,77 @@ export class AiService {
 
   private async generateWithAgentRuntime(
     runtimeConfig: AiAgentRuntimeConfig,
-    content: string
+    content: string,
+    uploadedImages: UploadedImageInput[]
   ): Promise<{ content: string; modelCall: AiAgentModelCall }> {
+    const message = await this.createMessageWithVisionExtraction(content, uploadedImages);
+    const input = { message };
+    let retriedEmptyResponse = false;
+
     try {
-      return await generateTextWithAgentRuntime(runtimeConfig, { message: content });
-    } catch (error) {
-      if (error instanceof AiAgentRuntimeError) {
-        if (error.code === 'SENSITIVE_WORD_MATCH') {
-          throw new AiServiceError('BAD_REQUEST', error.message);
+      while (true) {
+        try {
+          return await generateTextWithAgentRuntime(runtimeConfig, input);
+        } catch (error) {
+          if (!retriedEmptyResponse && isEmptyModelResponseError(error)) {
+            retriedEmptyResponse = true;
+            continue;
+          }
+
+          throw error;
         }
-
-        throw new AiServiceError('INTERNAL_SERVER_ERROR', error.message);
       }
-
-      throw error;
+    } catch (error) {
+      throwAiAgentRuntimeError(error);
     }
   }
 
   private async streamWithAgentRuntime(
     runtimeConfig: AiAgentRuntimeConfig,
     content: string,
+    uploadedImages: UploadedImageInput[],
     onDelta: (content: string) => void | Promise<void>
   ): Promise<{ content: string; modelCall: AiAgentModelCall }> {
     try {
-      return await streamTextWithAgentRuntime(runtimeConfig, { message: content }, onDelta);
+      const message = await this.createMessageWithVisionExtraction(content, uploadedImages);
+
+      return await streamTextWithAgentRuntime(runtimeConfig, { message }, onDelta);
     } catch (error) {
-      if (error instanceof AiAgentRuntimeError) {
-        if (error.code === 'SENSITIVE_WORD_MATCH') {
-          throw new AiServiceError('BAD_REQUEST', error.message);
+      throwAiAgentRuntimeError(error);
+    }
+  }
+
+  private async createMessageWithVisionExtraction(
+    content: string,
+    uploadedImages: UploadedImageInput[]
+  ): Promise<string> {
+    if (uploadedImages.length === 0) {
+      return content;
+    }
+
+    const visionEngine = await this.aiRepository.findFirstEnabledVisionEngine();
+
+    if (!visionEngine) {
+      throw new AiServiceError('BAD_REQUEST', 'Vision engine is required for image requests');
+    }
+
+    try {
+      const extracted = await generateTextWithEngineRuntime(
+        visionEngine,
+        {
+          images: uploadedImages,
+          message: createVisionExtractionMessage(content, uploadedImages),
+        },
+        {
+          maxTokens: 1200,
+          temperature: 0.1,
+          topP: 0.9,
         }
+      );
 
-        throw new AiServiceError('INTERNAL_SERVER_ERROR', error.message);
-      }
-
-      throw error;
+      return `${content}\n\n图片内容提取：\n${extracted.content}`;
+    } catch (error) {
+      throwAiAgentRuntimeError(error);
     }
   }
 
@@ -593,10 +649,15 @@ function createInspirationGenerateMessage(input: {
   subject: string;
   topic: string;
   context?: string;
+  uploadedImages?: UploadedImageInput[];
 }): string {
   const base = `请为我精讲 ${input.topic}（${input.grade} ${input.subject}）`;
+  const imageNote =
+    input.uploadedImages && input.uploadedImages.length > 0
+      ? `，已上传 ${input.uploadedImages.length} 张图片，请结合图片内容理解题目、教材截图或草图`
+      : '';
 
-  return input.context ? `${base}，${input.context}` : base;
+  return input.context ? `${base}，${input.context}${imageNote}` : `${base}${imageNote}`;
 }
 
 function createTeachingGenerateMessage(input: {
@@ -605,12 +666,37 @@ function createTeachingGenerateMessage(input: {
   mode: AiTeachingMode;
   prompt: string;
   level: AiTeachingLevel;
+  textbookVersion?: string;
+  uploadedImages?: UploadedImageInput[];
 }): string {
+  const textbookPart = input.textbookVersion ? `，教程版本：${input.textbookVersion}` : '';
+  const imagePart =
+    input.uploadedImages && input.uploadedImages.length > 0
+      ? `，已上传 ${input.uploadedImages.length} 张图片，请结合图片内容识别题干、教材或笔记信息`
+      : '';
+
   if (input.mode === 'variant') {
-    return `教学出题（原题变式）：${input.stage} ${input.subject}，层级 ${input.level}。原题：${input.prompt}`;
+    return `教学出题（原题变式）：${input.stage} ${input.subject}，层级 ${input.level}${textbookPart}${imagePart}。原题：${input.prompt}`;
   }
 
-  return `教学出题（知识点出题）：${input.stage} ${input.subject}，层级 ${input.level}。知识点：${input.prompt}`;
+  return `教学出题（知识点出题）：${input.stage} ${input.subject}，层级 ${input.level}${textbookPart}${imagePart}。知识点：${input.prompt}`;
+}
+
+function createVisionExtractionMessage(
+  content: string,
+  uploadedImages: UploadedImageInput[]
+): string {
+  const imageNames = uploadedImages.map((image, index) => `${index + 1}. ${image.name}`).join('\n');
+
+  return [
+    '请识别用户上传图片中的文字、题目、公式、图表、教材内容和关键条件。',
+    '只输出可供后续教学推理使用的客观图片内容，不要直接生成最终答案。',
+    `用户需求：${content}`,
+    `图片数量：${uploadedImages.length}`,
+    imageNames ? `图片名称：\n${imageNames}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function createTeachingAssistantContent(
@@ -655,6 +741,81 @@ function trimOptional(value: string | undefined): string | undefined {
   const trimmed = value.trim();
 
   return trimmed || undefined;
+}
+
+function normalizeUploadedImages(value: UploadedImageInput[] | undefined): UploadedImageInput[] {
+  return (value ?? [])
+    .map((image) => {
+      const data = image.data?.trim();
+      const url = image.url?.trim();
+
+      return {
+        ...(data ? { data } : {}),
+        mimeType: image.mimeType.trim(),
+        name: image.name.trim() || 'image',
+        ...(typeof image.size === 'number' ? { size: image.size } : {}),
+        ...(url ? { url } : {}),
+      };
+    })
+    .filter((image) => (image.data || image.url) && image.mimeType.startsWith('image/'));
+}
+
+function readUploadedImagesFromPayload(
+  payload: Record<string, unknown> | unknown[] | null | undefined
+): UploadedImageInput[] {
+  if (!isRecord(payload) || !Array.isArray(payload.uploadedImages)) {
+    return [];
+  }
+
+  return payload.uploadedImages.flatMap((item): UploadedImageInput[] => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const data = typeof item.data === 'string' ? item.data.trim() : '';
+    const mimeType = typeof item.mimeType === 'string' ? item.mimeType.trim() : '';
+    const url = typeof item.url === 'string' ? item.url.trim() : '';
+
+    if ((!data && !url) || !mimeType.startsWith('image/')) {
+      return [];
+    }
+
+    const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : 'image';
+    const size =
+      typeof item.size === 'number' && Number.isFinite(item.size) && item.size > 0
+        ? Math.ceil(item.size)
+        : undefined;
+
+    return [
+      {
+        ...(data ? { data } : {}),
+        mimeType,
+        name,
+        ...(size === undefined ? {} : { size }),
+        ...(url ? { url } : {}),
+      },
+    ];
+  });
+}
+
+function isEmptyModelResponseError(error: unknown): boolean {
+  return (
+    error instanceof AiAgentRuntimeError &&
+    error.code === 'INVALID_RESPONSE' &&
+    error.message === 'AI model response is empty'
+  );
+}
+
+function throwAiAgentRuntimeError(error: unknown): never {
+  if (error instanceof AiAgentRuntimeError) {
+    if (error.code === 'SENSITIVE_WORD_MATCH') {
+      throw new AiServiceError('BAD_REQUEST', error.message);
+    }
+
+    throw new AiServiceError('INTERNAL_SERVER_ERROR', error.message);
+  }
+
+  throw error;
 }
 
 function requireTeachingMode(value: string): AiTeachingMode {

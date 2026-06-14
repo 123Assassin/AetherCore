@@ -80,7 +80,7 @@ export function BatchCommentToolbar({
           type="button"
         >
           <Download className="h-4 w-4" />
-          {exporting ? '导出中...' : '导出生成结果'}
+          {exporting ? '导出中...' : '立即免费导出'}
         </button>
       </div>
     </section>

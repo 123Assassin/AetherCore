@@ -1,4 +1,4 @@
-import type { AiChatSendResult } from './ai.js';
+import type { AiChatSendResult, UploadedImageInput } from './ai.js';
 
 export type InspirationGenerateInput = {
   sessionId?: string;
@@ -6,6 +6,7 @@ export type InspirationGenerateInput = {
   subject: string;
   topic: string;
   context?: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 export type InspirationFollowUpInput = {

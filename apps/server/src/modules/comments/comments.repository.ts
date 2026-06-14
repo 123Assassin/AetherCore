@@ -452,6 +452,66 @@ export class CommentsRepository {
       return { job, row };
     });
   }
+
+  async updateRowComment(input: {
+    userId: string;
+    jobId: string;
+    rowId: string;
+    comment: string;
+  }): Promise<{ job: CommentBatchJobRow; row: CommentBatchRowRecord } | null> {
+    return this.database.transaction(async (transaction) => {
+      const now = new Date();
+      const [lockedJob] = await transaction
+        .select({ id: commentBatchJobs.id })
+        .from(commentBatchJobs)
+        .where(and(eq(commentBatchJobs.id, input.jobId), eq(commentBatchJobs.userId, input.userId)))
+        .for('update')
+        .limit(1);
+
+      if (!lockedJob) {
+        return null;
+      }
+
+      const [row] = await transaction
+        .update(commentBatchRows)
+        .set({
+          status: 'success',
+          generatedResults: [input.comment],
+          errorMessage: null,
+          updatedAt: now,
+        })
+        .where(and(eq(commentBatchRows.id, input.rowId), eq(commentBatchRows.jobId, input.jobId)))
+        .returning();
+
+      if (!row) {
+        return null;
+      }
+
+      const rows = await transaction
+        .select()
+        .from(commentBatchRows)
+        .where(eq(commentBatchRows.jobId, input.jobId));
+      const successRows = rows.filter((item) => item.status === 'success').length;
+      const failedRows = rows.filter((item) => item.status === 'error').length;
+      const status = getJobStatus(rows);
+      const [job] = await transaction
+        .update(commentBatchJobs)
+        .set({
+          status,
+          successRows,
+          failedRows,
+          updatedAt: now,
+        })
+        .where(eq(commentBatchJobs.id, input.jobId))
+        .returning();
+
+      if (!job) {
+        return null;
+      }
+
+      return { job, row };
+    });
+  }
 }
 
 function getJobStatus(rows: CommentBatchRowRecord[]): CommentBatchJobStatus {
@@ -471,7 +531,7 @@ function getJobStatus(rows: CommentBatchRowRecord[]): CommentBatchJobStatus {
 }
 
 export function isGeneratableRowStatus(status: CommentBatchRowStatus): boolean {
-  return status === 'pending' || status === 'error';
+  return status === 'pending' || status === 'error' || status === 'success';
 }
 
 function createCommentConversationTitle(nickname: string | null | undefined): string {

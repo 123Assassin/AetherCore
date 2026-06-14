@@ -1,14 +1,23 @@
 'use client';
 
-import type { CommentBatchJob, CommentBatchRow, CommentSingleGenerateInput } from '@package/shared';
+import type {
+  CommentBatchJob,
+  CommentBatchRow,
+  CommentGrade,
+  CommentSingleGenerateInput,
+} from '@package/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { deriveBatchCommentSimilarityWarnings } from '../../../../components/comments/batch-comment-similarity';
 import { BatchCommentTable } from '../../../../components/comments/batch-comment-table';
 import { BatchCommentToolbar } from '../../../../components/comments/batch-comment-toolbar';
 import { BatchImportGuide } from '../../../../components/comments/batch-import-guide';
 import { CommentModeTabs } from '../../../../components/comments/comment-mode-tabs';
 import { CommentResultList } from '../../../../components/comments/comment-result-list';
-import { defaultCommentTone } from '../../../../components/comments/comment-tags.data';
+import {
+  commentGradeOptions,
+  defaultCommentTone,
+} from '../../../../components/comments/comment-tags.data';
 import { ExcelUploadDropzone } from '../../../../components/comments/excel-upload-dropzone';
 import {
   SingleCommentForm,
@@ -59,7 +68,7 @@ type CommentHistoryState = {
 const initialFormValues: SingleCommentFormValues = {
   nickname: '',
   gender: '男',
-  grade: '小学',
+  grade: '一年级',
   tags: [],
   keywords: '',
   tone: defaultCommentTone,
@@ -69,22 +78,16 @@ const commentModes = [
   { label: '单人评语精编', mode: 'single' as const },
   { label: '批量表格导入', mode: 'batch' as const },
 ];
+const similarityDemoJobId = 'similarity-demo-job';
+const demoRegenerationLimit = 5;
 const streamPreviewIntervalMs = 24;
 const streamPreviewChunkSize = 3;
 
-function getMutationErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
+function getMutationErrorMessage() {
   return '评语生成失败，请稍后重试。';
 }
 
-function getBatchErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
+function getBatchErrorMessage(fallback: string) {
   return fallback;
 }
 
@@ -96,6 +99,73 @@ function setRowsFailed(rows: CommentBatchRow[], rowIds: Set<string>, message: st
   return rows.map((row) =>
     rowIds.has(row.id) ? { ...row, errorMessage: message, status: 'error' as const } : row
   );
+}
+
+function updateBatchRowComment(rows: CommentBatchRow[], rowId: string, comment: string) {
+  return rows.map((row) =>
+    row.id === rowId ? { ...row, comments: [comment], errorMessage: null } : row
+  );
+}
+
+function createSimilarityDemoRows(grade: CommentGrade): CommentBatchRow[] {
+  const now = new Date().toISOString();
+  const sharedComment =
+    '小林近期课堂状态稳定，能认真倾听老师讲解，积极完成学习任务。希望继续保持主动表达的习惯，在后续学习中取得更扎实的进步。';
+
+  return [
+    {
+      comments: [sharedComment],
+      createdAt: now,
+      errorMessage: null,
+      gender: '男',
+      grade,
+      id: 'similarity-demo-row-1',
+      jobId: similarityDemoJobId,
+      keywords: '课堂状态稳定，主动表达',
+      nickname: '小林',
+      rowIndex: 1,
+      status: 'success',
+      tags: ['认真', '思维活跃'],
+      updatedAt: now,
+    },
+    {
+      comments: [sharedComment.replace('小林', '小雨')],
+      createdAt: now,
+      errorMessage: null,
+      gender: '女',
+      grade,
+      id: 'similarity-demo-row-2',
+      jobId: similarityDemoJobId,
+      keywords: '课堂状态稳定，学习任务完成度高',
+      nickname: '小雨',
+      rowIndex: 2,
+      status: 'success',
+      tags: ['认真', '基础扎实'],
+      updatedAt: now,
+    },
+  ];
+}
+
+function isSimilarityDemoRow(row: CommentBatchRow) {
+  return row.jobId === similarityDemoJobId;
+}
+
+function addSetItem(values: Set<string>, item: string) {
+  const nextValues = new Set(values);
+
+  nextValues.add(item);
+
+  return nextValues;
+}
+
+function deleteSetItems(values: Set<string>, items: Iterable<string>) {
+  const nextValues = new Set(values);
+
+  for (const item of items) {
+    nextValues.delete(item);
+  }
+
+  return nextValues;
 }
 
 function downloadBase64File(contentBase64: string, mimeType: string, fileName: string) {
@@ -340,13 +410,22 @@ export default function OfficeCommentPage() {
   const [resultError, setResultError] = useState<string | null>(null);
   const [batchJob, setBatchJob] = useState<CommentBatchJob | null>(null);
   const [batchRows, setBatchRows] = useState<CommentBatchRow[]>([]);
+  const [defaultBatchGrade, setDefaultBatchGrade] = useState<CommentGrade>('一年级');
+  const [dirtyBatchRowIds, setDirtyBatchRowIds] = useState<Set<string>>(() => new Set());
+  const [savingBatchRowIds, setSavingBatchRowIds] = useState<Set<string>>(() => new Set());
+  const [demoRegenerationCount, setDemoRegenerationCount] = useState(0);
   const [batchUploading, setBatchUploading] = useState(false);
+  const [batchTemplateDownloading, setBatchTemplateDownloading] = useState(false);
   const [batchGeneratingAll, setBatchGeneratingAll] = useState(false);
   const [batchExporting, setBatchExporting] = useState(false);
   const [generatingRowId, setGeneratingRowId] = useState<string | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
   const [batchCreditRemaining, setBatchCreditRemaining] = useState<number | null>(null);
   const [exportAdOpen, setExportAdOpen] = useState(false);
+  const batchSimilarityWarnings = useMemo(
+    () => deriveBatchCommentSimilarityWarnings(batchRows, 0.85),
+    [batchRows]
+  );
 
   const persistCommentSession = useCallback(
     (state: CommentHistoryState) => {
@@ -390,6 +469,9 @@ export default function OfficeCommentPage() {
         setResultError(null);
         setBatchJob(null);
         setBatchRows([]);
+        setDirtyBatchRowIds(new Set());
+        setSavingBatchRowIds(new Set());
+        setDemoRegenerationCount(0);
         setBatchError(null);
         setBatchCreditRemaining(null);
         return;
@@ -404,6 +486,9 @@ export default function OfficeCommentPage() {
       setResultError(null);
       setBatchJob(null);
       setBatchRows([]);
+      setDirtyBatchRowIds(new Set());
+      setSavingBatchRowIds(new Set());
+      setDemoRegenerationCount(0);
       setBatchError(null);
       setBatchCreditRemaining(null);
     }, 0);
@@ -508,10 +593,10 @@ export default function OfficeCommentPage() {
             kind: 'comment',
             sessionId: result.sessionId,
           });
-        } catch (mutationError) {
+        } catch {
           previewWriter.stop();
           setComments([]);
-          setResultError(getMutationErrorMessage(mutationError));
+          setResultError(getMutationErrorMessage());
         } finally {
           setLoading(false);
         }
@@ -537,6 +622,7 @@ export default function OfficeCommentPage() {
         const contentBase64 = await readFileAsBase64(file);
         const result = await client.comments.batch.createFromUpload.mutate({
           contentBase64,
+          defaultGrade: defaultBatchGrade,
           fileName: file.name,
           fileSize: file.size,
           ...(file.type ? { mimeType: file.type } : {}),
@@ -545,10 +631,13 @@ export default function OfficeCommentPage() {
         if (batchUploadRequestRef.current === requestId) {
           setBatchJob(result.job);
           setBatchRows(result.rowPreviews);
+          setDirtyBatchRowIds(new Set());
+          setSavingBatchRowIds(new Set());
+          setDemoRegenerationCount(0);
         }
-      } catch (uploadError) {
+      } catch {
         if (batchUploadRequestRef.current === requestId) {
-          setBatchError(getBatchErrorMessage(uploadError, '批量队列创建失败，请稍后重试。'));
+          setBatchError(getBatchErrorMessage('批量队列创建失败，请稍后重试。'));
         }
       } finally {
         if (batchUploadRequestRef.current === requestId) {
@@ -556,11 +645,109 @@ export default function OfficeCommentPage() {
         }
       }
     },
-    [batchExporting, batchGeneratingAll, batchUploading, client, generatingRowId]
+    [batchExporting, batchGeneratingAll, batchUploading, client, defaultBatchGrade, generatingRowId]
+  );
+
+  const downloadBatchTemplate = useCallback(async () => {
+    if (batchTemplateDownloading) {
+      return;
+    }
+
+    setBatchTemplateDownloading(true);
+    setBatchError(null);
+
+    try {
+      const result = await client.comments.batch.template.query();
+
+      downloadBase64File(result.contentBase64, result.mimeType, result.fileName);
+    } catch {
+      setBatchError(getBatchErrorMessage('模板下载失败，请重试。'));
+    } finally {
+      setBatchTemplateDownloading(false);
+    }
+  }, [batchTemplateDownloading, client]);
+
+  const injectSimilarityDemoData = useCallback(() => {
+    if (batchUploading || batchGeneratingAll || batchExporting || generatingRowId) {
+      return;
+    }
+
+    setBatchJob(null);
+    setBatchRows(createSimilarityDemoRows(defaultBatchGrade));
+    setDirtyBatchRowIds(new Set());
+    setSavingBatchRowIds(new Set());
+    setDemoRegenerationCount(0);
+    setBatchError(null);
+    setBatchCreditRemaining(null);
+  }, [batchExporting, batchGeneratingAll, batchUploading, defaultBatchGrade, generatingRowId]);
+
+  const generateDemoBatchRow = useCallback(
+    (row: CommentBatchRow) => {
+      if (!isSimilarityDemoRow(row) || batchGeneratingAll || generatingRowId) {
+        return;
+      }
+
+      if (demoRegenerationCount >= demoRegenerationLimit) {
+        setBatchError('体验换一个次数已用完，请上传表格后继续生成。');
+        return;
+      }
+
+      runWithAdGate(async () => {
+        setGeneratingRowId(row.id);
+        setDemoRegenerationCount((currentCount) => currentCount + 1);
+        setBatchError(null);
+        setBatchRows((currentRows) =>
+          currentRows.map((currentRow) =>
+            currentRow.id === row.id
+              ? { ...currentRow, errorMessage: null, status: 'generating' as const }
+              : currentRow
+          )
+        );
+
+        try {
+          const result = await client.comments.batch.generateDemoRow.mutate({
+            gender: row.gender,
+            grade: row.grade,
+            tags: row.tags,
+            ...(row.nickname ? { nickname: row.nickname } : {}),
+            ...(row.keywords ? { keywords: row.keywords } : {}),
+          });
+
+          setBatchRows((currentRows) =>
+            currentRows.map((currentRow) =>
+              currentRow.id === row.id
+                ? {
+                    ...currentRow,
+                    comments: [result.comment],
+                    errorMessage: null,
+                    status: 'success' as const,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : currentRow
+            )
+          );
+          setDirtyBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
+          setSavingBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
+        } catch {
+          const message = getBatchErrorMessage('体验评语生成失败，请重试。');
+
+          setBatchError(message);
+          setBatchRows((currentRows) => setRowsFailed(currentRows, new Set([row.id]), message));
+        } finally {
+          setGeneratingRowId(null);
+        }
+      });
+    },
+    [batchGeneratingAll, client, demoRegenerationCount, generatingRowId, runWithAdGate]
   );
 
   const generateBatchRow = useCallback(
     (row: CommentBatchRow) => {
+      if (isSimilarityDemoRow(row)) {
+        generateDemoBatchRow(row);
+        return;
+      }
+
       if (!batchJob || batchGeneratingAll || generatingRowId) {
         return;
       }
@@ -584,9 +771,11 @@ export default function OfficeCommentPage() {
 
           setBatchJob(result.job);
           setBatchRows((currentRows) => replaceBatchRow(currentRows, result.row));
+          setDirtyBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
+          setSavingBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
           setBatchCreditRemaining(result.credit.remaining);
-        } catch (generateError) {
-          const message = getBatchErrorMessage(generateError, '该行评语生成失败，请重试。');
+        } catch {
+          const message = getBatchErrorMessage('该行评语生成失败，请重试。');
 
           setBatchError(message);
           setBatchRows((currentRows) => setRowsFailed(currentRows, new Set([row.id]), message));
@@ -595,7 +784,7 @@ export default function OfficeCommentPage() {
         }
       });
     },
-    [batchGeneratingAll, batchJob, client, generatingRowId, runWithAdGate]
+    [batchGeneratingAll, batchJob, client, generateDemoBatchRow, generatingRowId, runWithAdGate]
   );
 
   const generateAllBatchRows = useCallback(() => {
@@ -636,11 +825,13 @@ export default function OfficeCommentPage() {
 
             setBatchJob(result.job);
             setBatchRows((currentRows) => replaceBatchRow(currentRows, result.row));
+            setDirtyBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
+            setSavingBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
             setBatchCreditRemaining(result.credit.remaining);
-          } catch (generateError) {
+          } catch {
             failedRows += 1;
 
-            const message = getBatchErrorMessage(generateError, '该行评语生成失败，请重试。');
+            const message = getBatchErrorMessage('该行评语生成失败，请重试。');
 
             setBatchRows((currentRows) => setRowsFailed(currentRows, new Set([row.id]), message));
           }
@@ -656,6 +847,86 @@ export default function OfficeCommentPage() {
     });
   }, [batchGeneratingAll, batchJob, batchRows, client, generatingRowId, runWithAdGate]);
 
+  const handleBatchCommentChange = useCallback((row: CommentBatchRow, comment: string) => {
+    if (row.status !== 'success') {
+      return;
+    }
+
+    setBatchRows((currentRows) => updateBatchRowComment(currentRows, row.id, comment));
+    setDirtyBatchRowIds((currentIds) => addSetItem(currentIds, row.id));
+    setBatchError(null);
+  }, []);
+
+  const saveDirtyBatchComments = useCallback(
+    async (targetRowIds = dirtyBatchRowIds) => {
+      if (!batchJob || targetRowIds.size === 0) {
+        return true;
+      }
+
+      const rowsToSave = batchRows.filter((row) => targetRowIds.has(row.id));
+
+      if (rowsToSave.length === 0) {
+        setDirtyBatchRowIds((currentIds) => deleteSetItems(currentIds, targetRowIds));
+        return true;
+      }
+
+      setSavingBatchRowIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+
+        for (const row of rowsToSave) {
+          nextIds.add(row.id);
+        }
+
+        return nextIds;
+      });
+
+      try {
+        for (const row of rowsToSave) {
+          const comment = (row.comments[0] ?? '').trim();
+
+          if (!comment) {
+            setBatchError(`第 ${row.rowIndex} 行评语不能为空。`);
+            return false;
+          }
+
+          const result = await client.comments.batch.updateRowComment.mutate({
+            comment,
+            jobId: batchJob.id,
+            rowId: row.id,
+          });
+
+          setBatchJob(result.job);
+          setBatchRows((currentRows) => replaceBatchRow(currentRows, result.row));
+          setDirtyBatchRowIds((currentIds) => deleteSetItems(currentIds, [row.id]));
+        }
+
+        return true;
+      } catch {
+        setBatchError(getBatchErrorMessage('编辑后的评语保存失败，请重试。'));
+        return false;
+      } finally {
+        setSavingBatchRowIds((currentIds) =>
+          deleteSetItems(
+            currentIds,
+            rowsToSave.map((row) => row.id)
+          )
+        );
+      }
+    },
+    [batchJob, batchRows, client, dirtyBatchRowIds]
+  );
+
+  const handleBatchCommentBlur = useCallback(
+    (row: CommentBatchRow) => {
+      if (!dirtyBatchRowIds.has(row.id)) {
+        return;
+      }
+
+      void saveDirtyBatchComments(new Set([row.id]));
+    },
+    [dirtyBatchRowIds, saveDirtyBatchComments]
+  );
+
   const exportBatchRows = useCallback(async () => {
     const hasSuccessRow = batchRows.some((row) => row.status === 'success');
 
@@ -667,15 +938,21 @@ export default function OfficeCommentPage() {
     setBatchError(null);
 
     try {
+      const saved = await saveDirtyBatchComments();
+
+      if (!saved) {
+        return;
+      }
+
       const result = await client.comments.batch.export.query({ jobId: batchJob.id });
 
       downloadBase64File(result.contentBase64, result.mimeType, result.fileName);
-    } catch (exportError) {
-      setBatchError(getBatchErrorMessage(exportError, '批量评语导出失败，请重试。'));
+    } catch {
+      setBatchError(getBatchErrorMessage('批量评语导出失败，请重试。'));
     } finally {
       setBatchExporting(false);
     }
-  }, [batchExporting, batchJob, batchRows, client]);
+  }, [batchExporting, batchJob, batchRows, client, saveDirtyBatchComments]);
 
   const requestBatchExport = useCallback(() => {
     const hasSuccessRow = batchRows.some((row) => row.status === 'success');
@@ -703,9 +980,23 @@ export default function OfficeCommentPage() {
 
     setBatchJob(null);
     setBatchRows([]);
+    setDirtyBatchRowIds(new Set());
+    setSavingBatchRowIds(new Set());
+    setDemoRegenerationCount(0);
     setBatchError(null);
     setBatchCreditRemaining(null);
   }, [batchExporting, batchGeneratingAll, batchUploading, generatingRowId]);
+
+  const canGenerateBatchTableRow = useCallback(
+    (row: CommentBatchRow) => {
+      if (isSimilarityDemoRow(row)) {
+        return demoRegenerationCount < demoRegenerationLimit;
+      }
+
+      return Boolean(batchJob);
+    },
+    [batchJob, demoRegenerationCount]
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white p-4 md:p-6">
@@ -754,19 +1045,88 @@ export default function OfficeCommentPage() {
           ) : (
             <section className="flex min-h-[600px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {batchRows.length === 0 ? (
-                <div className="flex flex-1 flex-col lg:flex-row">
-                  <BatchImportGuide />
-                  <ExcelUploadDropzone
-                    disabled={
-                      batchUploading ||
-                      batchGeneratingAll ||
-                      batchExporting ||
-                      Boolean(generatingRowId)
-                    }
-                    error={batchError}
-                    onFileAccepted={handleBatchUpload}
-                    uploading={batchUploading}
-                  />
+                <div className="flex min-h-0 flex-1 flex-col bg-slate-50/30">
+                  <section className="border-b border-slate-100 bg-white p-8">
+                    <div className="mx-auto max-w-6xl">
+                      <div className="mb-6 flex items-start gap-4">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-600/20">
+                          1
+                        </span>
+                        <div>
+                          <h3 className="text-lg font-black tracking-tight text-slate-800">
+                            设置本批次基础信息
+                          </h3>
+                          <p className="mt-1 text-xs font-bold tracking-[0.2em] text-slate-400 uppercase">
+                            系统将为您导入的所有学生自动应用以下年级
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-5 rounded-3xl border border-slate-100 bg-slate-50 p-5 lg:flex-row lg:items-stretch">
+                        <label className="flex min-w-0 flex-1 flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                          <span className="text-xs font-black tracking-[0.18em] text-slate-400 uppercase">
+                            默认年级
+                          </span>
+                          <select
+                            aria-label="批次默认年级"
+                            className="mt-3 w-full rounded-xl border-0 bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 ring-1 ring-slate-200 transition-all outline-none hover:bg-white focus:ring-2 focus:ring-emerald-500"
+                            disabled={
+                              batchUploading ||
+                              batchGeneratingAll ||
+                              batchExporting ||
+                              Boolean(generatingRowId)
+                            }
+                            onChange={(event) => {
+                              const target = event.currentTarget as unknown as {
+                                value: CommentGrade;
+                              };
+
+                              setDefaultBatchGrade(target.value);
+                            }}
+                            value={defaultBatchGrade}
+                          >
+                            {commentGradeOptions.map((grade) => (
+                              <option key={grade} value={grade}>
+                                {grade}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/70 p-5">
+                          <p className="text-sm leading-7 font-bold text-emerald-800">
+                            无需在表格中输入年级。系统识别后会统一补充为此处设置的值。
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+                    <BatchImportGuide
+                      disabled={
+                        batchUploading ||
+                        batchGeneratingAll ||
+                        batchExporting ||
+                        batchTemplateDownloading ||
+                        Boolean(generatingRowId)
+                      }
+                      downloadingTemplate={batchTemplateDownloading}
+                      onDownloadTemplate={downloadBatchTemplate}
+                      onInjectDemoData={injectSimilarityDemoData}
+                    />
+                    <ExcelUploadDropzone
+                      disabled={
+                        batchUploading ||
+                        batchGeneratingAll ||
+                        batchExporting ||
+                        Boolean(generatingRowId)
+                      }
+                      error={batchError}
+                      onFileAccepted={handleBatchUpload}
+                      uploading={batchUploading}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="flex min-h-0 flex-1 flex-col bg-white">
@@ -800,11 +1160,16 @@ export default function OfficeCommentPage() {
                     rows={batchRows}
                   />
                   <BatchCommentTable
+                    canGenerateRow={canGenerateBatchTableRow}
                     disabled={batchUploading || batchExporting}
                     generatingAll={batchGeneratingAll}
                     generatingRowId={generatingRowId}
+                    onCommentBlur={handleBatchCommentBlur}
+                    onCommentChange={handleBatchCommentChange}
                     onGenerateRow={generateBatchRow}
                     rows={batchRows}
+                    savingRowIds={savingBatchRowIds}
+                    similarityWarnings={batchSimilarityWarnings}
                   />
                 </div>
               )}

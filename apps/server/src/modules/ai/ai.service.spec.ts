@@ -64,6 +64,8 @@ type AgentRuntimeConfig = {
   } | null;
 };
 
+type EngineRuntimeConfig = AgentRuntimeConfig['engine'];
+
 test('sendChat creates a conversation when sessionId is absent', async () => {
   const repository = new FakeAiRepository();
   const service = new AiService(repository.asRepository());
@@ -434,6 +436,28 @@ test('generateInspiration stores structured fields and returns credit and assist
   );
 });
 
+test('generateInspiration includes uploaded image metadata in the request payload', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const uploadedImages = [{ data: 'base64-image-data', mimeType: 'image/png', name: 'topic.png' }];
+
+  await service.generateInspiration({
+    userId: 'user-1',
+    grade: '三年级',
+    subject: '语文',
+    topic: '春天',
+    uploadedImages,
+  } as Parameters<AiService['generateInspiration']>[0]);
+
+  assert.match(repository.messages[0]?.content ?? '', /已上传 1 张图片/);
+  assert.deepEqual(repository.messages[0]?.payload, {
+    grade: '三年级',
+    subject: '语文',
+    topic: '春天',
+    uploadedImages,
+  });
+});
+
 test('followUpInspiration requires sessionId before persistence', async () => {
   const repository = new FakeAiRepository();
   const service = new AiService(repository.asRepository());
@@ -623,6 +647,343 @@ test('generateTeaching returns deterministic mock results for both teaching mode
       item.expectedContent
     );
   }
+});
+
+test('generateTeaching includes textbook version and uploaded image metadata', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const uploadedImages = [
+    { data: 'base64-image-data', mimeType: 'image/jpeg', name: 'question.jpg' },
+  ];
+
+  await service.generateTeaching({
+    userId: 'user-1',
+    subject: '数学',
+    stage: '七年级',
+    mode: 'variant',
+    level: 'similar',
+    prompt: '一次函数应用题',
+    textbookVersion: '人教版',
+    uploadedImages,
+  } as Parameters<AiService['generateTeaching']>[0]);
+
+  assert.match(repository.messages[0]?.content ?? '', /教程版本：人教版/);
+  assert.match(repository.messages[0]?.content ?? '', /已上传 1 张图片/);
+  assert.deepEqual(repository.messages[0]?.payload, {
+    subject: '数学',
+    stage: '七年级',
+    mode: 'variant',
+    prompt: '一次函数应用题',
+    level: 'similar',
+    textbookVersion: '人教版',
+    uploadedImages,
+  });
+});
+
+test('generateTeaching extracts uploaded image content before calling the reasoning engine', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const uploadedImages = [
+    {
+      mimeType: 'image/png',
+      name: 'question.png',
+      url: 'https://files.example.test/uploads/ai-images/question.png',
+    },
+  ];
+
+  repository.setAgentRuntimeConfig('teaching', createRuntimeConfig('teaching'));
+  repository.setVisionEngine(createVisionEngineConfig());
+
+  await withMockFetch(
+    async (url, init) => {
+      fetchCalls.push({
+        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        url: String(url),
+      });
+
+      if (fetchCalls.length === 1) {
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: '图片中是一道一次函数题：已知 y = 2x + 1，求 x = 3 时的 y 值。',
+                },
+              },
+            ],
+            usage: { prompt_tokens: 21, completion_tokens: 13, total_tokens: 34 },
+          }),
+          { status: 200 }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '模型生成的变式题' } }],
+          usage: { prompt_tokens: 11, completion_tokens: 7, total_tokens: 18 },
+        }),
+        { status: 200 }
+      );
+    },
+    async () => {
+      await service.generateTeaching({
+        userId: 'user-1',
+        subject: '数学',
+        stage: '初中',
+        mode: 'variant',
+        level: 'similar',
+        prompt: '请根据我上传的图片生成变式题',
+        textbookVersion: '人教版',
+        uploadedImages,
+      } as Parameters<AiService['generateTeaching']>[0]);
+    }
+  );
+
+  const visionMessages = fetchCalls[0]?.body.messages as Array<{ role: string; content: unknown }>;
+  const reasoningMessages = fetchCalls[1]?.body.messages as Array<{
+    role: string;
+    content: unknown;
+  }>;
+  const visionContent = visionMessages.at(-1)?.content as Array<{
+    type: string;
+    text?: string;
+    image_url?: { url: string };
+  }>;
+  const reasoningContent = reasoningMessages.at(-1)?.content;
+
+  assert.equal(fetchCalls.length, 2);
+  assert.equal(fetchCalls[0]?.url, 'https://vision.example.test/v1/chat/completions');
+  assert.equal(fetchCalls[1]?.url, 'https://model.example.test/v1/chat/completions');
+  assert.equal(fetchCalls[0]?.body.model, 'glm-5v');
+  assert.equal(fetchCalls[1]?.body.model, 'vision-model');
+  assert.deepEqual(visionContent.at(-1), {
+    type: 'image_url',
+    image_url: {
+      url: 'https://files.example.test/uploads/ai-images/question.png',
+    },
+  });
+  assert.equal(typeof reasoningContent, 'string');
+  assert.match(String(reasoningContent), /请根据我上传的图片生成变式题/);
+  assert.match(String(reasoningContent), /图片内容提取/);
+  assert.match(String(reasoningContent), /一次函数题/);
+  assert.equal(repository.modelCalls[0]?.engineId, 'engine-test');
+});
+
+test('generateTeaching rejects image requests before persistence when no vision engine is configured', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  let fetchCount = 0;
+
+  repository.setAgentRuntimeConfig('teaching', createRuntimeConfig('teaching'));
+
+  await withMockFetch(
+    async () => {
+      fetchCount += 1;
+      return new Response(JSON.stringify({ choices: [{ message: { content: '不应被调用' } }] }), {
+        status: 200,
+      });
+    },
+    async () => {
+      await assert.rejects(
+        () =>
+          service.generateTeaching({
+            userId: 'user-1',
+            subject: '数学',
+            stage: '初中',
+            mode: 'variant',
+            level: 'similar',
+            prompt: '请根据我上传的图片生成变式题',
+            uploadedImages: [
+              {
+                mimeType: 'image/png',
+                name: 'question.png',
+                url: 'https://files.example.test/uploads/ai-images/question.png',
+              },
+            ],
+          } as Parameters<AiService['generateTeaching']>[0]),
+        (error) => {
+          assert.equal(error instanceof AiServiceError, true);
+          assert.equal((error as AiServiceError).code, 'BAD_REQUEST');
+          assert.equal(
+            (error as AiServiceError).message,
+            'Vision engine is required for image requests'
+          );
+
+          return true;
+        }
+      );
+    }
+  );
+
+  assert.equal(fetchCount, 0);
+  assert.equal(repository.conversations.length, 0);
+  assert.equal(repository.messages.length, 0);
+});
+
+test('generateTeaching retries once when the model response is empty', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  let fetchCount = 0;
+
+  repository.setAgentRuntimeConfig('teaching', createRuntimeConfig('teaching'));
+
+  await withMockFetch(
+    async () => {
+      fetchCount += 1;
+
+      if (fetchCount === 1) {
+        return new Response(JSON.stringify({ choices: [{ message: { content: '   ' } }] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '重试后的变式题' } }],
+          usage: { prompt_tokens: 11, completion_tokens: 7, total_tokens: 18 },
+        }),
+        { status: 200 }
+      );
+    },
+    async () => {
+      const result = await service.generateTeaching({
+        userId: 'user-1',
+        subject: '数学',
+        stage: '初中',
+        mode: 'variant',
+        level: 'similar',
+        prompt: '请根据我上传的图片生成变式题',
+      } as Parameters<AiService['generateTeaching']>[0]);
+
+      assert.equal(
+        result.events[1]?.type === 'delta' ? result.events[1].content : '',
+        '重试后的变式题'
+      );
+    }
+  );
+
+  assert.equal(fetchCount, 2);
+});
+
+test('generateTeaching retries the reasoning engine after vision extraction when the response is empty', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const fetchCalls: Array<{ body: Record<string, unknown> }> = [];
+  const uploadedImages = [
+    {
+      mimeType: 'image/png',
+      name: 'question.png',
+      url: 'https://files.example.test/uploads/ai-images/question.png',
+    },
+  ];
+
+  repository.setAgentRuntimeConfig('teaching', createRuntimeConfig('teaching'));
+  repository.setVisionEngine(createVisionEngineConfig());
+
+  await withMockFetch(
+    async (_url, init) => {
+      fetchCalls.push({ body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+
+      if (fetchCalls.length === 1) {
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '图片中是一道一次函数应用题。' } }],
+            usage: { prompt_tokens: 21, completion_tokens: 8, total_tokens: 29 },
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (fetchCalls.length === 2) {
+        return new Response(JSON.stringify({ choices: [{ message: { content: '   ' } }] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '重试后的文本生成结果' } }],
+          usage: { prompt_tokens: 11, completion_tokens: 7, total_tokens: 18 },
+        }),
+        { status: 200 }
+      );
+    },
+    async () => {
+      const result = await service.generateTeaching({
+        userId: 'user-1',
+        subject: '数学',
+        stage: '初中',
+        mode: 'variant',
+        level: 'similar',
+        prompt: '请根据我上传的图片生成变式题',
+        uploadedImages,
+      } as Parameters<AiService['generateTeaching']>[0]);
+
+      assert.equal(
+        result.events[1]?.type === 'delta' ? result.events[1].content : '',
+        '重试后的文本生成结果'
+      );
+    }
+  );
+
+  const visionMessages = fetchCalls[0]?.body.messages as Array<{ content: unknown }>;
+  const firstReasoningMessages = fetchCalls[1]?.body.messages as Array<{ content: unknown }>;
+  const secondReasoningMessages = fetchCalls[2]?.body.messages as Array<{ content: unknown }>;
+
+  assert.equal(fetchCalls.length, 3);
+  assert.equal(Array.isArray(visionMessages.at(-1)?.content), true);
+  assert.equal(typeof firstReasoningMessages.at(-1)?.content, 'string');
+  assert.equal(typeof secondReasoningMessages.at(-1)?.content, 'string');
+});
+
+test('generateTeaching returns a typed error when vision extraction returns an empty response', async () => {
+  const repository = new FakeAiRepository();
+  const service = new AiService(repository.asRepository());
+  const uploadedImages = [
+    {
+      mimeType: 'image/png',
+      name: 'question.png',
+      url: 'https://files.example.test/uploads/ai-images/question.png',
+    },
+  ];
+  let fetchCount = 0;
+
+  repository.setAgentRuntimeConfig('teaching', createRuntimeConfig('teaching'));
+  repository.setVisionEngine(createVisionEngineConfig());
+
+  await withMockFetch(
+    async () => {
+      fetchCount += 1;
+      return new Response(JSON.stringify({ choices: [{ message: { content: '   ' } }] }), {
+        status: 200,
+      });
+    },
+    async () => {
+      await assert.rejects(
+        () =>
+          service.generateTeaching({
+            userId: 'user-1',
+            subject: '数学',
+            stage: '初中',
+            mode: 'variant',
+            level: 'similar',
+            prompt: '请根据我上传的图片生成变式题',
+            uploadedImages,
+          } as Parameters<AiService['generateTeaching']>[0]),
+        (error) => {
+          assert.equal(error instanceof AiServiceError, true);
+          assert.equal((error as AiServiceError).code, 'INTERNAL_SERVER_ERROR');
+          assert.equal((error as AiServiceError).message, 'AI model response is empty');
+
+          return true;
+        }
+      );
+    }
+  );
+
+  assert.equal(fetchCount, 1);
+  assert.equal(repository.messages.length, 0);
 });
 
 test('followUpTeaching rejects a non-teaching conversation before persistence', async () => {
@@ -854,6 +1215,7 @@ class FakeAiRepository {
     grade: string | null;
     subject: string | null;
   }> = [];
+  visionEngine: EngineRuntimeConfig | null = null;
   reverseMessageListOrder = false;
 
   private conversationCounter = 0;
@@ -891,6 +1253,10 @@ class FakeAiRepository {
     this.runtimeConfigs.set(key, config);
   }
 
+  setVisionEngine(engine: EngineRuntimeConfig): void {
+    this.visionEngine = engine;
+  }
+
   async findAgentRuntimeConfigByKey(
     key: ConversationCategory,
     classification?: { grade?: string | null; subject?: string | null }
@@ -902,6 +1268,10 @@ class FakeAiRepository {
     });
 
     return this.runtimeConfigs.get(key) ?? null;
+  }
+
+  async findFirstEnabledVisionEngine(): Promise<EngineRuntimeConfig | null> {
+    return this.visionEngine;
   }
 
   async createConversation(input: {
@@ -1111,4 +1481,39 @@ function restoreEnv(name: string, value: string | undefined): void {
   } else {
     process.env[name] = value;
   }
+}
+
+function createRuntimeConfig(key: ConversationCategory): AgentRuntimeConfig {
+  return {
+    agent: {
+      id: `agent-${key}`,
+      key,
+      name: '测试智能体',
+      temperature: 0.2,
+      topP: 0.8,
+      maxTokens: 512,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-test',
+      name: 'Test Engine',
+      apiBaseUrl: 'https://model.example.test/v1',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'vision-model',
+      status: 'enabled',
+    },
+    prompt: null,
+    sensitiveWordList: null,
+  };
+}
+
+function createVisionEngineConfig(): EngineRuntimeConfig {
+  return {
+    id: 'engine-vision',
+    name: 'Vision Engine',
+    apiBaseUrl: 'https://vision.example.test/v1',
+    apiKeyCiphertext: Buffer.from('vision-api-key', 'utf8').toString('base64'),
+    modelName: 'glm-5v',
+    status: 'enabled',
+  };
 }

@@ -23,3 +23,12 @@ test('getCommentCopyText removes alternate markdown fence markers', () => {
     '王同学能保持专注，作业完成质量稳定。'
   );
 });
+
+test('getCommentCopyText removes common markdown formatting syntax', () => {
+  assert.equal(
+    getCommentCopyText(
+      '## 评语建议\n1. **张三**课堂表现`稳定`。\n- 后续可以继续保持。\n> 适合直接复制。'
+    ),
+    '评语建议\n张三课堂表现稳定。\n后续可以继续保持。\n适合直接复制。'
+  );
+});
