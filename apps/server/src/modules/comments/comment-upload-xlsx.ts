@@ -14,22 +14,15 @@ type ParsedSheetRow = Record<number, string>;
 type UploadColumnMap = {
   nickname: number;
   gender: number;
-  grade: number;
+  grade: number | null;
   tags: number;
-  keywords: number;
+  keywords: number | null;
 };
 
 const eocdSignature = 0x06054b50;
 const centralDirectorySignature = 0x02014b50;
 const localFileHeaderSignature = 0x04034b50;
 const supportedCompressionMethods = new Set([0, 8]);
-const defaultColumnMap: UploadColumnMap = {
-  nickname: 0,
-  gender: 1,
-  grade: 2,
-  tags: 3,
-  keywords: 4,
-};
 const gradeNumberMap: Record<string, string> = {
   '1': '一年级',
   '2': '二年级',
@@ -213,22 +206,41 @@ function readCellValue(attributes: string, body: string, sharedStrings: string[]
 
 function resolveColumnMap(headerRow: ParsedSheetRow): UploadColumnMap {
   return {
-    nickname:
-      findHeaderColumn(headerRow, ['昵称', '姓名', '学生', '学生昵称', '学生姓名', '名字']) ??
-      defaultColumnMap.nickname,
-    gender: findHeaderColumn(headerRow, ['性别']) ?? defaultColumnMap.gender,
-    grade: findHeaderColumn(headerRow, ['年级']) ?? defaultColumnMap.grade,
-    tags: findHeaderColumn(headerRow, ['标签', '表现标签', '评价标签']) ?? defaultColumnMap.tags,
-    keywords:
-      findHeaderColumn(headerRow, [
-        '关键词',
-        '核心优缺点',
-        '评价内容',
-        '细节',
-        '个性化细节',
-        '备注',
-      ]) ?? defaultColumnMap.keywords,
+    nickname: requireHeaderColumn(
+      headerRow,
+      ['昵称', '姓名', '学生', '学生昵称', '学生姓名', '名字'],
+      'Excel 缺少昵称/姓名列。'
+    ),
+    gender: requireHeaderColumn(headerRow, ['性别'], 'Excel 缺少性别列。'),
+    grade: findHeaderColumn(headerRow, ['年级']),
+    tags: requireHeaderColumn(
+      headerRow,
+      ['标签', '表现标签', '评价标签'],
+      'Excel 缺少表现标签列。'
+    ),
+    keywords: findHeaderColumn(headerRow, [
+      '关键词',
+      '核心优缺点',
+      '评价内容',
+      '细节',
+      '个性化细节',
+      '备注',
+    ]),
   };
+}
+
+function requireHeaderColumn(
+  headerRow: ParsedSheetRow,
+  aliases: string[],
+  message: string
+): number {
+  const columnIndex = findHeaderColumn(headerRow, aliases);
+
+  if (columnIndex === null) {
+    throw new CommentUploadXlsxError(message);
+  }
+
+  return columnIndex;
 }
 
 function findHeaderColumn(headerRow: ParsedSheetRow, aliases: string[]): number | null {
@@ -244,16 +256,31 @@ function findHeaderColumn(headerRow: ParsedSheetRow, aliases: string[]): number 
 }
 
 function toCommentUploadRow(row: ParsedSheetRow, columns: UploadColumnMap): CommentUploadRowInput {
-  const nickname = trimToUndefined(row[columns.nickname]);
-  const keywords = trimToUndefined(row[columns.keywords]);
+  const nickname = requireCellText(row[columns.nickname], 'Excel 昵称/姓名列为必填项。');
+  const keywords = columns.keywords === null ? undefined : trimToUndefined(row[columns.keywords]);
+  const tags = splitTags(row[columns.tags]);
+
+  if (tags.length === 0) {
+    throw new CommentUploadXlsxError('Excel 表现标签列为必填项。');
+  }
 
   return {
-    ...(nickname === undefined ? {} : { nickname }),
+    nickname,
     gender: readGender(row[columns.gender]),
-    grade: normalizeGrade(row[columns.grade]),
-    tags: splitTags(row[columns.tags]),
+    grade: columns.grade === null ? '' : normalizeGrade(row[columns.grade]),
+    tags,
     ...(keywords === undefined ? {} : { keywords }),
   };
+}
+
+function requireCellText(value: string | undefined, message: string): string {
+  const trimmed = trimToUndefined(value);
+
+  if (!trimmed) {
+    throw new CommentUploadXlsxError(message);
+  }
+
+  return trimmed;
 }
 
 function readGender(value: string | undefined): '男' | '女' {
@@ -293,9 +320,9 @@ function hasParsedRowContent(row: ParsedSheetRow, columns: UploadColumnMap): boo
   return Boolean(
     trimToUndefined(row[columns.nickname]) ||
     trimToUndefined(row[columns.gender]) ||
-    trimToUndefined(row[columns.grade]) ||
+    (columns.grade !== null && trimToUndefined(row[columns.grade])) ||
     trimToUndefined(row[columns.tags]) ||
-    trimToUndefined(row[columns.keywords])
+    (columns.keywords !== null && trimToUndefined(row[columns.keywords]))
   );
 }
 

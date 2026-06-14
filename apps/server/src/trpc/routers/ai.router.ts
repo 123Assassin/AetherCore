@@ -22,6 +22,7 @@ type InspirationGenerateInput = {
   subject: string;
   topic: string;
   context?: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 type InspirationFollowUpInput = {
@@ -42,6 +43,8 @@ type TeachingGenerateBaseInput = {
   subject: string;
   stage: string;
   prompt: string;
+  textbookVersion?: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 type TeachingGenerateInput =
@@ -57,6 +60,14 @@ type TeachingGenerateInput =
 type TeachingFollowUpInput = {
   sessionId: string;
   message: string;
+};
+
+type UploadedImageInput = {
+  data?: string;
+  mimeType: string;
+  name: string;
+  size?: number;
+  url?: string;
 };
 
 export function createAiRouter(authService: AuthService, aiService: AiService, tools: RouterTools) {
@@ -253,6 +264,7 @@ function parseInspirationGenerateInput(input: unknown): InspirationGenerateInput
   const subject = parseRequiredString(input.subject, 'AI inspiration generate requires subject');
   const topic = parseRequiredString(input.topic, 'AI inspiration generate requires topic');
   const context = parseOptionalString(input.context, 'context');
+  const uploadedImages = parseOptionalUploadedImages(input.uploadedImages);
 
   return {
     ...(sessionId === undefined ? {} : { sessionId }),
@@ -260,6 +272,7 @@ function parseInspirationGenerateInput(input: unknown): InspirationGenerateInput
     subject,
     topic,
     ...(context === undefined ? {} : { context }),
+    ...(uploadedImages === undefined ? {} : { uploadedImages }),
   };
 }
 
@@ -285,12 +298,16 @@ function parseTeachingGenerateInput(input: unknown): TeachingGenerateInput {
   const mode = parseTeachingMode(input.mode);
   const prompt = parseRequiredString(input.prompt, 'AI teaching generate requires prompt');
   const level = parseTeachingLevel(input.level, mode);
+  const textbookVersion = parseOptionalString(input.textbookVersion, 'textbookVersion');
+  const uploadedImages = parseOptionalUploadedImages(input.uploadedImages);
 
   const baseInput = {
     ...(sessionId === undefined ? {} : { sessionId }),
     subject,
     stage,
     prompt,
+    ...(textbookVersion === undefined ? {} : { textbookVersion }),
+    ...(uploadedImages === undefined ? {} : { uploadedImages }),
   };
 
   if (mode === 'variant') {
@@ -420,6 +437,48 @@ function parseOptionalPayload(
   }
 
   return value;
+}
+
+function parseOptionalUploadedImages(value: unknown): UploadedImageInput[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throwInvalidInput('AI uploadedImages must be an array');
+  }
+
+  const uploadedImages = value.flatMap((item): UploadedImageInput[] => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const data = typeof item.data === 'string' ? item.data.trim() : '';
+    const mimeType = typeof item.mimeType === 'string' ? item.mimeType.trim() : '';
+    const url = typeof item.url === 'string' ? item.url.trim() : '';
+
+    if ((!data && !url) || !mimeType.startsWith('image/')) {
+      return [];
+    }
+
+    const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : 'image';
+    const size =
+      typeof item.size === 'number' && Number.isFinite(item.size) && item.size > 0
+        ? Math.ceil(item.size)
+        : undefined;
+
+    return [
+      {
+        ...(data ? { data } : {}),
+        mimeType,
+        name,
+        ...(size === undefined ? {} : { size }),
+        ...(url ? { url } : {}),
+      },
+    ];
+  });
+
+  return uploadedImages.length > 0 ? uploadedImages : undefined;
 }
 
 function parseOptionalLimit(value: unknown): number | undefined {

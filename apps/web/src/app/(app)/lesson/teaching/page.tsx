@@ -1,8 +1,16 @@
 'use client';
 
 import type { AiStreamEvent } from '@package/shared';
-import { RefreshCw, Sparkles } from 'lucide-react';
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image as ImageIcon, Plus, RefreshCw, Sparkles, X } from 'lucide-react';
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { GenerationAdOverlay } from '../../../../components/sponsor/ad-system';
 import {
@@ -27,6 +35,7 @@ import {
 import { TransformationLevelSelector } from '../../../../components/teaching/transformation-level-selector';
 import { useChatHistory } from '../../../../contexts/chat-history-context';
 import { useAiGenerationAdGate } from '../../../../hooks/use-ai-generation-ad-gate';
+import { readUploadedImages, type UploadedImageFileList } from '../../../../lib/uploaded-images';
 import { useTrpcClient } from '../../../../trpc/provider';
 
 type TeachingHistoryState = {
@@ -37,12 +46,23 @@ type TeachingHistoryState = {
   suggestions: string[];
 };
 
+type ImageFileInputElement = {
+  click: () => void;
+};
+
+type ImageFileInputTarget = {
+  files?: UploadedImageFileList | null;
+  value: string;
+};
+
 const initialFormValues: TeachingFormValues = {
   level: 'similar',
   mode: 'variant',
   prompt: '',
   stage: '小学',
   subject: getDefaultTeachingSubjectForStage('小学'),
+  textbookVersion: '人教版',
+  uploadedImages: [],
 };
 
 function getMutationErrorMessage(error: unknown, fallback: string) {
@@ -87,6 +107,8 @@ function createGenerateInput(values: TeachingFormValues, prompt: string): Teachi
     prompt,
     stage: values.stage,
     subject: values.subject,
+    textbookVersion: values.textbookVersion,
+    ...(values.uploadedImages.length > 0 ? { uploadedImages: values.uploadedImages } : {}),
   };
 
   if (values.mode === 'variant') {
@@ -113,7 +135,10 @@ function createGenerateInput(values: TeachingFormValues, prompt: string): Teachi
 }
 
 function formatUserMessage(values: TeachingFormValues, prompt: string) {
-  return `${teachingModeCopy[values.mode].userMessageLabel}（${values.stage} · ${values.subject}）\n${prompt}`;
+  const imageNote =
+    values.uploadedImages.length > 0 ? `\n已上传图片：${values.uploadedImages.length} 张` : '';
+
+  return `${teachingModeCopy[values.mode].userMessageLabel}（${values.stage} · ${values.subject} · ${values.textbookVersion}）${imageNote}\n${prompt}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -170,6 +195,8 @@ export default function OfficeTeachingPage() {
   const { currentSessionIds, sessions, setCurrentSessionId, upsertSession } = useChatHistory();
   const { adMode, adOpen, closeAdGate, runWithAdGate } = useAiGenerationAdGate();
   const nextMessageId = useRef(0);
+  const fileInputRef = useRef<ImageFileInputElement | null>(null);
+  const formValuesRef = useRef<TeachingFormValues>(initialFormValues);
   const appliedSessionIdRef = useRef<string | null | undefined>(undefined);
   const currentHistorySessionId = currentSessionIds.teaching;
   const activeHistorySession = useMemo(
@@ -181,8 +208,19 @@ export default function OfficeTeachingPage() {
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
+  const submitDisabled = loading || imageUploading;
+  const submitLabel = loading
+    ? teachingModeCopy[formValues.mode].loadingLabel
+    : teachingModeCopy[formValues.mode].submitLabel;
+  const visibleSubmitLabel = imageUploading && !loading ? '图片上传中...' : submitLabel;
+
+  useEffect(() => {
+    formValuesRef.current = formValues;
+  }, [formValues]);
 
   const createMessage = useCallback(
     (role: TeachingMessage['role'], content: string): TeachingMessage => {
@@ -231,21 +269,25 @@ export default function OfficeTeachingPage() {
     const timeoutId = setTimeout(() => {
       if (!currentHistorySessionId || !state) {
         nextMessageId.current = 0;
+        formValuesRef.current = initialFormValues;
         setFormValues(initialFormValues);
         setMessages([]);
         setSessionId(undefined);
         setSuggestions([]);
         setFormError(null);
+        setImageUploadError(null);
         setResultError(null);
         return;
       }
 
       nextMessageId.current = getMaxMessageIndex(state.messages);
+      formValuesRef.current = state.formValues;
       setFormValues(state.formValues);
       setMessages(state.messages);
       setSessionId(state.sessionId);
       setSuggestions(state.suggestions);
       setFormError(null);
+      setImageUploadError(null);
       setResultError(null);
     }, 0);
 
@@ -254,10 +296,15 @@ export default function OfficeTeachingPage() {
 
   const handleFormChange = useCallback(
     (nextValues: TeachingFormValues) => {
+      formValuesRef.current = nextValues;
       setFormValues(nextValues);
 
       if (formError && nextValues.prompt.trim()) {
         setFormError(null);
+      }
+
+      if (imageUploadError) {
+        setImageUploadError(null);
       }
 
       if (currentHistorySessionId) {
@@ -270,7 +317,15 @@ export default function OfficeTeachingPage() {
         });
       }
     },
-    [currentHistorySessionId, formError, messages, persistTeachingSession, sessionId, suggestions]
+    [
+      currentHistorySessionId,
+      formError,
+      imageUploadError,
+      messages,
+      persistTeachingSession,
+      sessionId,
+      suggestions,
+    ]
   );
 
   const handleModeChange = useCallback(
@@ -283,6 +338,7 @@ export default function OfficeTeachingPage() {
         mode,
       };
 
+      formValuesRef.current = nextValues;
       setFormValues(nextValues);
       setFormError(null);
 
@@ -308,7 +364,7 @@ export default function OfficeTeachingPage() {
         return;
       }
 
-      if (loading) {
+      if (loading || imageUploading) {
         return;
       }
 
@@ -368,7 +424,7 @@ export default function OfficeTeachingPage() {
         }
       });
     },
-    [client, createMessage, loading, persistTeachingSession, runWithAdGate]
+    [client, createMessage, imageUploading, loading, persistTeachingSession, runWithAdGate]
   );
 
   const handleExampleSelect = useCallback(
@@ -379,6 +435,7 @@ export default function OfficeTeachingPage() {
         subject: item.subject,
       };
 
+      formValuesRef.current = nextValues;
       setFormValues(nextValues);
       void generateTeaching(nextValues, item.content);
     },
@@ -391,6 +448,48 @@ export default function OfficeTeachingPage() {
       void generateTeaching(formValues);
     },
     [formValues, generateTeaching]
+  );
+
+  const handleImageUpload = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const target = event.currentTarget as unknown as ImageFileInputTarget;
+
+      setImageUploading(true);
+      setImageUploadError(null);
+
+      try {
+        const uploadedImages = await readUploadedImages(target.files);
+
+        if (uploadedImages.length === 0) {
+          return;
+        }
+
+        const latestValues = formValuesRef.current;
+
+        const nextValues = {
+          ...latestValues,
+          uploadedImages: [...latestValues.uploadedImages, ...uploadedImages],
+        };
+
+        handleFormChange(nextValues);
+      } catch {
+        setImageUploadError('图片上传失败，请稍后重试。');
+      } finally {
+        target.value = '';
+        setImageUploading(false);
+      }
+    },
+    [handleFormChange]
+  );
+
+  const removeUploadedImage = useCallback(
+    (index: number) => {
+      handleFormChange({
+        ...formValues,
+        uploadedImages: formValues.uploadedImages.filter((_, itemIndex) => itemIndex !== index),
+      });
+    },
+    [formValues, handleFormChange]
   );
 
   const handleFollowUp = useCallback(
@@ -465,8 +564,6 @@ export default function OfficeTeachingPage() {
     ]
   );
 
-  const isPromptEmpty = !formValues.prompt.trim();
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-white p-4 md:p-6">
       <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
@@ -502,6 +599,36 @@ export default function OfficeTeachingPage() {
                   <label className="text-sm font-black text-slate-700">
                     {teachingModeCopy[formValues.mode].inputLabel}
                   </label>
+                  <button
+                    aria-busy={imageUploading}
+                    aria-label={imageUploading ? '图片上传中' : '上传置入内容图片'}
+                    className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={loading || imageUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    title={imageUploading ? '图片上传中' : '上传图片'}
+                    type="button"
+                  >
+                    {imageUploading ? (
+                      <RefreshCw aria-hidden="true" className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon aria-hidden="true" className="h-4 w-4" />
+                    )}
+                  </button>
+                  {imageUploading ? (
+                    <span className="text-[11px] font-semibold text-slate-500" role="status">
+                      上传中...
+                    </span>
+                  ) : null}
+                  <input
+                    accept="image/*"
+                    className="hidden"
+                    multiple
+                    onChange={handleImageUpload}
+                    ref={(element) => {
+                      fileInputRef.current = element as unknown as ImageFileInputElement | null;
+                    }}
+                    type="file"
+                  />
                 </div>
                 <TeachingInputModeToggle
                   disabled={loading}
@@ -515,6 +642,55 @@ export default function OfficeTeachingPage() {
                 onChange={handleFormChange}
                 values={formValues}
               />
+              {formValues.uploadedImages.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {formValues.uploadedImages.map((image, index) => (
+                    <div className="group relative w-[30%]" key={`${image.name}-${index}`}>
+                      <img
+                        alt={image.name || '上传图片'}
+                        className="h-16 w-full rounded-xl border border-slate-200 object-cover shadow-sm"
+                        src={
+                          image.url ??
+                          (image.data ? `data:${image.mimeType};base64,${image.data}` : '')
+                        }
+                      />
+                      <button
+                        aria-label="移除置入内容图片"
+                        className="absolute -top-1.5 -right-1.5 z-10 rounded-full border border-slate-100 bg-white p-1 text-slate-400 shadow-md transition-colors hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={loading || imageUploading}
+                        onClick={() => removeUploadedImage(index)}
+                        type="button"
+                      >
+                        <X aria-hidden="true" className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    aria-label="继续添加置入内容图片"
+                    className="flex h-16 w-[30%] flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/30 text-slate-300 transition-all hover:border-blue-200 hover:bg-blue-50/20 hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={loading || imageUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    type="button"
+                  >
+                    {imageUploading ? (
+                      <RefreshCw aria-hidden="true" className="mb-0.5 h-5 w-5 animate-spin" />
+                    ) : (
+                      <Plus aria-hidden="true" className="mb-0.5 h-5 w-5" />
+                    )}
+                    <span className="text-[10px] font-black tracking-wider uppercase">
+                      {imageUploading ? '上传中...' : '添加'}
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+              {imageUploadError ? (
+                <div
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600"
+                  role="alert"
+                >
+                  {imageUploadError}
+                </div>
+              ) : null}
               {formError ? (
                 <div
                   className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600"
@@ -544,20 +720,16 @@ export default function OfficeTeachingPage() {
 
             <button
               className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-blue-600 py-4.5 font-black text-white shadow-2xl shadow-blue-200 transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-30 disabled:grayscale"
-              disabled={loading || isPromptEmpty}
+              disabled={submitDisabled}
               type="submit"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 opacity-0 transition-opacity group-hover:opacity-100" />
-              {loading ? (
+              {submitDisabled ? (
                 <RefreshCw className="h-5 w-5 animate-spin" />
               ) : (
                 <Sparkles className="h-5 w-5 text-blue-400" />
               )}
-              <span className="relative z-10">
-                {loading
-                  ? teachingModeCopy[formValues.mode].loadingLabel
-                  : teachingModeCopy[formValues.mode].submitLabel}
-              </span>
+              <span className="relative z-10">{visibleSubmitLabel}</span>
             </button>
           </form>
         </section>

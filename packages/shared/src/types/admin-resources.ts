@@ -9,6 +9,9 @@ export type AdminResourceStatus = (typeof adminResourceStatuses)[number];
 export const adminModelEngineProviders = ['openai', 'gemini', 'custom'] as const;
 export type AdminModelEngineProvider = (typeof adminModelEngineProviders)[number];
 
+export const adminModelEngineCategories = ['reasoning', 'vision'] as const;
+export type AdminModelEngineCategory = (typeof adminModelEngineCategories)[number];
+
 export type AdminResourceListInput = {
   page?: number;
   pageSize?: number;
@@ -108,6 +111,7 @@ export type AdminModelEngineItem = {
   id: string;
   name: string;
   provider: AdminModelEngineProvider;
+  category: AdminModelEngineCategory;
   apiBaseUrl: string;
   apiKeyMasked: string;
   modelName: string | null;
@@ -120,6 +124,7 @@ export type AdminModelEngineItem = {
 export type AdminModelEngineCreateInput = {
   name: string;
   provider?: AdminModelEngineProvider;
+  category?: AdminModelEngineCategory;
   apiBaseUrl: string;
   apiKey: string;
   modelName?: string | null;

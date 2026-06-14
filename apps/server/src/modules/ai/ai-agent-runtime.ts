@@ -12,14 +12,7 @@ export type AiAgentRuntimeConfig = {
     maxTokens: number;
     status: 'enabled' | 'disabled';
   };
-  engine: {
-    id: string;
-    name: string;
-    apiBaseUrl: string;
-    apiKeyCiphertext: string;
-    modelName: string | null;
-    status: 'enabled' | 'disabled';
-  };
+  engine: AiEngineRuntimeConfig;
   prompt: {
     id: string;
     content: string;
@@ -28,6 +21,15 @@ export type AiAgentRuntimeConfig = {
     id: string;
     words: string[];
   } | null;
+};
+
+export type AiEngineRuntimeConfig = {
+  id: string;
+  name: string;
+  apiBaseUrl: string;
+  apiKeyCiphertext: string;
+  modelName: string | null;
+  status: 'enabled' | 'disabled';
 };
 
 export type AiAgentModelCall = {
@@ -56,7 +58,8 @@ export class AiAgentRuntimeError extends Error {
       | 'REQUEST_FAILED'
       | 'INVALID_RESPONSE'
       | 'SENSITIVE_WORD_MATCH',
-    message: string
+    message: string,
+    public readonly status?: number
   ) {
     super(message);
   }
@@ -64,7 +67,31 @@ export class AiAgentRuntimeError extends Error {
 
 type ChatCompletionRequestMessage = {
   role: 'system' | 'user';
-  content: string;
+  content: string | ChatCompletionRequestContentPart[];
+};
+
+type ChatCompletionRequestContentPart =
+  | {
+      type: 'text';
+      text: string;
+    }
+  | {
+      type: 'image_url';
+      image_url: {
+        url: string;
+      };
+    };
+
+type AiAgentRuntimeInput = {
+  message: string;
+  images?: AiAgentRuntimeImageInput[];
+};
+
+export type AiAgentRuntimeImageInput = {
+  data?: string;
+  mimeType: string;
+  name?: string;
+  url?: string;
 };
 
 type ChatCompletionResponseShape = {
@@ -96,7 +123,7 @@ type ChatCompletionStreamChunkShape = {
 
 export async function generateTextWithAgentRuntime(
   config: AiAgentRuntimeConfig,
-  input: { message: string }
+  input: AiAgentRuntimeInput
 ): Promise<AiAgentGenerateTextResult> {
   ensureRuntimeConfigEnabled(config);
   ensureNoSensitiveWords(input.message, config.sensitiveWordList?.words ?? []);
@@ -111,7 +138,7 @@ export async function generateTextWithAgentRuntime(
     );
   }
 
-  const messages = createMessages(config, input.message);
+  const messages = createMessages(config.prompt?.content.trim(), input.message, input.images);
   const startedAt = Date.now();
   const response = await globalThis.fetch(toChatCompletionsUrl(config.engine.apiBaseUrl), {
     body: JSON.stringify({
@@ -132,7 +159,8 @@ export async function generateTextWithAgentRuntime(
   if (!response.ok) {
     throw new AiAgentRuntimeError(
       'REQUEST_FAILED',
-      `AI model request failed with status ${response.status}`
+      `AI model request failed with status ${response.status}`,
+      response.status
     );
   }
 
@@ -156,9 +184,77 @@ export async function generateTextWithAgentRuntime(
   };
 }
 
+export async function generateTextWithEngineRuntime(
+  engine: AiEngineRuntimeConfig,
+  input: AiAgentRuntimeInput,
+  options: {
+    maxTokens?: number;
+    systemPrompt?: string;
+    temperature?: number;
+    topP?: number;
+  } = {}
+): Promise<AiAgentGenerateTextResult> {
+  ensureEngineConfigEnabled(engine);
+
+  const modelName = engine.modelName?.trim() || engine.name.trim();
+  const apiKey = decryptEngineApiKey(engine.apiKeyCiphertext).trim();
+
+  if (!modelName || !apiKey) {
+    throw new AiAgentRuntimeError(
+      'CONFIGURATION_UNAVAILABLE',
+      'AI agent model configuration is incomplete'
+    );
+  }
+
+  const messages = createMessages(options.systemPrompt?.trim(), input.message, input.images);
+  const startedAt = Date.now();
+  const response = await globalThis.fetch(toChatCompletionsUrl(engine.apiBaseUrl), {
+    body: JSON.stringify({
+      max_tokens: options.maxTokens ?? 1200,
+      messages,
+      model: modelName,
+      temperature: options.temperature ?? 0.1,
+      top_p: options.topP ?? 0.9,
+    }),
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    method: 'POST',
+  });
+  const rawBody = await response.text();
+
+  if (!response.ok) {
+    throw new AiAgentRuntimeError(
+      'REQUEST_FAILED',
+      `AI model request failed with status ${response.status}`,
+      response.status
+    );
+  }
+
+  const parsed = parseJsonResponse(rawBody);
+  const content = readAssistantContent(parsed);
+  const usage = readUsage(parsed, messages, content);
+
+  return {
+    content,
+    modelCall: {
+      agentId: null,
+      engineId: engine.id,
+      modelName,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      totalTokens: usage.totalTokens,
+      latencyMs: Math.max(Date.now() - startedAt, 0),
+      costAmount: 0,
+      currency: 'CNY',
+    },
+  };
+}
+
 export async function streamTextWithAgentRuntime(
   config: AiAgentRuntimeConfig,
-  input: { message: string },
+  input: AiAgentRuntimeInput,
   onDelta: AiAgentStreamDeltaHandler
 ): Promise<AiAgentGenerateTextResult> {
   ensureRuntimeConfigEnabled(config);
@@ -174,7 +270,7 @@ export async function streamTextWithAgentRuntime(
     );
   }
 
-  const messages = createMessages(config, input.message);
+  const messages = createMessages(config.prompt?.content.trim(), input.message, input.images);
   const startedAt = Date.now();
   const response = await globalThis.fetch(toChatCompletionsUrl(config.engine.apiBaseUrl), {
     body: JSON.stringify({
@@ -195,7 +291,8 @@ export async function streamTextWithAgentRuntime(
   if (!response.ok) {
     throw new AiAgentRuntimeError(
       'REQUEST_FAILED',
-      `AI model request failed with status ${response.status}`
+      `AI model request failed with status ${response.status}`,
+      response.status
     );
   }
 
@@ -241,6 +338,15 @@ function ensureRuntimeConfigEnabled(config: AiAgentRuntimeConfig): void {
   }
 }
 
+function ensureEngineConfigEnabled(engine: AiEngineRuntimeConfig): void {
+  if (engine.status !== 'enabled') {
+    throw new AiAgentRuntimeError(
+      'CONFIGURATION_UNAVAILABLE',
+      'AI agent configuration is disabled'
+    );
+  }
+}
+
 function ensureNoSensitiveWords(message: string, words: string[]): void {
   const normalizedMessage = message.toLowerCase();
   const matchedWord = words
@@ -254,19 +360,69 @@ function ensureNoSensitiveWords(message: string, words: string[]): void {
 }
 
 function createMessages(
-  config: AiAgentRuntimeConfig,
-  userMessage: string
+  systemPrompt: string | undefined,
+  userMessage: string,
+  images?: AiAgentRuntimeImageInput[]
 ): ChatCompletionRequestMessage[] {
-  const systemPrompt = config.prompt?.content.trim();
   const messages: ChatCompletionRequestMessage[] = [];
+  const normalizedImages = normalizeRuntimeImages(images);
+  const text = userMessage.trim();
 
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
 
-  messages.push({ role: 'user', content: userMessage.trim() });
+  if (normalizedImages.length > 0) {
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text },
+        ...normalizedImages.map((image) => ({
+          type: 'image_url' as const,
+          image_url: {
+            url: toImageDataUrl(image),
+          },
+        })),
+      ],
+    });
+  } else {
+    messages.push({ role: 'user', content: text });
+  }
 
   return messages;
+}
+
+function normalizeRuntimeImages(
+  images: AiAgentRuntimeImageInput[] | undefined
+): AiAgentRuntimeImageInput[] {
+  return (images ?? [])
+    .map((image) => {
+      const name = image.name?.trim();
+      const data = image.data?.trim();
+      const url = image.url?.trim();
+
+      return {
+        ...(data ? { data } : {}),
+        mimeType: image.mimeType.trim(),
+        ...(name ? { name } : {}),
+        ...(url ? { url } : {}),
+      };
+    })
+    .filter((image) => (image.data || image.url) && image.mimeType.startsWith('image/'));
+}
+
+function toImageDataUrl(image: AiAgentRuntimeImageInput): string {
+  if (image.url?.trim()) {
+    return image.url.trim();
+  }
+
+  const data = image.data?.trim() ?? '';
+
+  if (data.startsWith('data:')) {
+    return data;
+  }
+
+  return `data:${image.mimeType};base64,${data}`;
 }
 
 function toChatCompletionsUrl(apiBaseUrl: string): string {
@@ -434,7 +590,7 @@ function readUsage(
   content: string
 ): { promptTokens: number; completionTokens: number; totalTokens: number } {
   const fallbackPromptTokens = estimateTextTokens(
-    messages.map((message) => message.content).join('\n')
+    messages.map((message) => contentToTokenEstimateText(message.content)).join('\n')
   );
   const fallbackCompletionTokens = estimateTextTokens(content);
   const promptTokens = readPositiveNumber(response.usage?.prompt_tokens) ?? fallbackPromptTokens;
@@ -444,6 +600,17 @@ function readUsage(
     readPositiveNumber(response.usage?.total_tokens) ?? promptTokens + completionTokens;
 
   return { promptTokens, completionTokens, totalTokens };
+}
+
+function contentToTokenEstimateText(content: ChatCompletionRequestMessage['content']): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  return content
+    .map((part) => (part.type === 'text' ? part.text : '[image]'))
+    .filter(Boolean)
+    .join('\n');
 }
 
 function readPositiveNumber(value: unknown): number | null {

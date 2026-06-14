@@ -1,3 +1,5 @@
+import type { UploadedImageInput } from '@package/shared';
+
 import {
   getDefaultWebSubjectForGrade,
   getWebSubjectsForGrade,
@@ -11,6 +13,7 @@ export type InspirationFormValues = {
   subject: string;
   topic: string;
   context: string;
+  uploadedImages: UploadedImageInput[];
 };
 
 export type FeaturedInspirationCase = InspirationFormValues & {
@@ -43,6 +46,7 @@ export const defaultInspirationFormValues: InspirationFormValues = {
   grade: '小学',
   subject: getDefaultInspirationSubjectForGrade('小学'),
   topic: '',
+  uploadedImages: [],
 };
 
 export const featuredInspirationCases: FeaturedInspirationCase[] = [
@@ -55,6 +59,7 @@ export const featuredInspirationCases: FeaturedInspirationCase[] = [
     subject: '化学',
     title: '氧化还原反应',
     topic: '氧化还原反应',
+    uploadedImages: [],
   },
   {
     context: '',
@@ -65,6 +70,7 @@ export const featuredInspirationCases: FeaturedInspirationCase[] = [
     subject: '地理',
     title: '等高线地形图',
     topic: '等高线地形图判读',
+    uploadedImages: [],
   },
   {
     context: '',
@@ -75,5 +81,6 @@ export const featuredInspirationCases: FeaturedInspirationCase[] = [
     subject: '生物',
     title: '光合作用',
     topic: '光合作用',
+    uploadedImages: [],
   },
 ];

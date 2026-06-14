@@ -1,4 +1,4 @@
-import type { AiChatSendResult } from './ai.js';
+import type { AiChatSendResult, UploadedImageInput } from './ai.js';
 
 export const teachingModes = ['variant', 'knowledge'] as const;
 
@@ -19,6 +19,8 @@ type TeachingGenerateBaseInput = {
   subject: string;
   stage: string;
   prompt: string;
+  textbookVersion?: string;
+  uploadedImages?: UploadedImageInput[];
 };
 
 export type TeachingGenerateInput =

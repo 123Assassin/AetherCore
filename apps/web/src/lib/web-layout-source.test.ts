@@ -106,7 +106,7 @@ test('single comment grade defaults to elementary without an empty placeholder',
     subjectSelectStart === -1 ? undefined : subjectSelectStart
   );
 
-  assert.match(pageSource, /grade: '小学'/);
+  assert.match(pageSource, /grade: '一年级'/);
   assert.doesNotMatch(gradeSelectSource, /<option value="">请选择<\/option>/);
 });
 
@@ -123,24 +123,96 @@ test('single comment panels use clear solid borders without dashed ring stacking
   assert.doesNotMatch(resultSource, /ring-slate-200\/60/);
 });
 
-test('batch comment import panels use clear solid borders without dashed ring stacking', () => {
+test('batch comment import uses the restored two-step xlsx workflow', () => {
   const pageSource = readSource('../app/(app)/office/comment/page.tsx');
   const dropzoneSource = readSource('../components/comments/excel-upload-dropzone.tsx');
+  const guideSource = readSource('../components/comments/batch-import-guide.tsx');
+  const toolbarSource = readSource('../components/comments/batch-comment-toolbar.tsx');
 
   assert.match(
     pageSource,
     /className="flex min-h-\[600px\] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/
   );
-  assert.match(dropzoneSource, /rounded-\[2\.5rem\] border border-slate-200/);
-  assert.doesNotMatch(dropzoneSource, /border-dashed/);
+  assert.match(pageSource, /设置本批次基础信息/);
+  assert.match(pageSource, /系统将为您导入的所有学生自动应用以下年级/);
+  assert.match(pageSource, /defaultBatchGrade/);
+  assert.match(pageSource, /commentGradeOptions\.map/);
+  assert.match(guideSource, /准备与上传表格/);
+  assert.match(guideSource, /昵称\/姓名[\s\S]*性别[\s\S]*表现标签[\s\S]*为必填项/);
+  assert.match(guideSource, /下载文件导入模板/);
+  assert.match(guideSource, /注入相似度演示数据/);
+  assert.match(dropzoneSource, /border-4 border-dashed/);
+  assert.match(dropzoneSource, /点击或将本地文件拖拽至此处/);
+  assert.match(dropzoneSource, /支持 \.xlsx 格式/);
+  assert.doesNotMatch(dropzoneSource, /Upload Now|UPLOAD NOW/);
+  assert.match(toolbarSource, /立即免费导出/);
+  assert.doesNotMatch(`${pageSource}\n${dropzoneSource}\n${guideSource}`, /默认学期|\.xls\b/);
   assert.doesNotMatch(pageSource, /rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/);
 });
 
 test('batch import guide aligns step markers with text baselines', () => {
   const source = readSource('../components/comments/batch-import-guide.tsx');
 
-  assert.match(source, /<li className="flex items-baseline gap-3">/);
+  assert.match(source, /<li className="flex items-baseline gap-4">/);
   assert.doesNotMatch(source, /<li className="flex gap-3">/);
+});
+
+test('batch upload form presets default grade before importing xlsx', () => {
+  const pageSource = readSource('../app/(app)/office/comment/page.tsx');
+
+  assert.match(pageSource, /defaultBatchGrade/);
+  assert.match(pageSource, /defaultGrade: defaultBatchGrade/);
+  assert.match(pageSource, /commentGradeOptions\.map/);
+  assert.match(pageSource, /comments\.batch\.template\.query/);
+  assert.match(pageSource, /injectSimilarityDemoData/);
+  assert.doesNotMatch(pageSource, /defaultSemester|默认学期|学期/);
+});
+
+test('comment page request errors use friendly fallback copy instead of backend messages', () => {
+  const source = readSource('../app/(app)/office/comment/page.tsx');
+  const mutationErrorStart = source.indexOf('function getMutationErrorMessage');
+  const batchErrorStart = source.indexOf('function getBatchErrorMessage');
+  const replaceBatchRowStart = source.indexOf('function replaceBatchRow');
+  const mutationErrorSource = source.slice(mutationErrorStart, batchErrorStart);
+  const batchErrorSource = source.slice(batchErrorStart, replaceBatchRowStart);
+
+  assert.match(mutationErrorSource, /评语生成失败，请稍后重试。/);
+  assert.doesNotMatch(mutationErrorSource, /error\.message/);
+  assert.match(batchErrorSource, /return fallback/);
+  assert.doesNotMatch(batchErrorSource, /error\.message/);
+});
+
+test('batch comment table exposes one editable comment and similarity warnings', () => {
+  const source = readSource('../components/comments/batch-comment-table.tsx');
+  const pageSource = readSource('../app/(app)/office/comment/page.tsx');
+
+  assert.match(source, />\s*序号\s*<\/th>/);
+  assert.match(source, />\s*生成评语内容\s*<\/th>/);
+  assert.match(source, /getCommentCopyText/);
+  assert.match(source, /<textarea/);
+  assert.match(source, /onCommentChange/);
+  assert.match(source, /onCommentBlur/);
+  assert.match(source, /similarityWarnings/);
+  assert.match(source, /canGenerateRows/);
+  assert.match(source, /canGenerateRow/);
+  assert.match(source, /align-middle/);
+  assert.match(source, /padStart\(2, '0'\)/);
+  assert.match(pageSource, /demoRegenerationLimit = 5/);
+  assert.match(pageSource, /demoRegenerationCount/);
+  assert.match(pageSource, /isSimilarityDemoRow/);
+  assert.match(pageSource, /comments\.batch\.generateDemoRow\.mutate/);
+  assert.match(pageSource, /canGenerateBatchTableRow/);
+  assert.match(source, /换一个/);
+  assert.doesNotMatch(source, /评语1|评语2|评语3/);
+});
+
+test('batch export saves dirty edited comments before downloading', () => {
+  const source = readSource('../app/(app)/office/comment/page.tsx');
+
+  assert.match(source, /dirtyBatchRowIds/);
+  assert.match(source, /updateRowComment/);
+  assert.match(source, /saveDirtyBatchComments/);
+  assert.match(source, /await saveDirtyBatchComments\(\)/);
 });
 
 test('sidebar presents the chat route as the workbench home', () => {

@@ -250,6 +250,13 @@ function parseEngineCreateInput(input: unknown): AdminModelEngineCreateInput {
             input.provider,
             'Admin engine create requires provider'
           ) as AdminModelEngineCreateInput['provider']),
+    category:
+      input.category === undefined
+        ? 'reasoning'
+        : (parseRequiredString(
+            input.category,
+            'Admin engine create requires category'
+          ) as AdminModelEngineCreateInput['category']),
     apiBaseUrl: parseRequiredString(input.apiBaseUrl, 'Admin engine create requires apiBaseUrl'),
     apiKey: parseRequiredString(input.apiKey, 'Admin engine create requires apiKey'),
     ...parseOptionalNullableStringProperty(input, 'modelName'),
@@ -267,6 +274,7 @@ function parseEngineUpdateInput(input: unknown): AdminModelEngineUpdateInput {
     id: parseRequiredString(input.id, 'Admin engine update requires id'),
     ...parseOptionalStringProperty(input, 'name'),
     ...parseOptionalStringProperty(input, 'provider'),
+    ...parseOptionalStringProperty(input, 'category'),
     ...parseOptionalStringProperty(input, 'apiBaseUrl'),
     ...parseOptionalStringProperty(input, 'apiKey'),
     ...parseOptionalNullableStringProperty(input, 'modelName'),

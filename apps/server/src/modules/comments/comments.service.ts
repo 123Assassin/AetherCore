@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { normalizeAdminAgentGradeClassification, WEB_AGENT_MAPPING } from '@package/shared';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import {
   AiAgentRuntimeError,
@@ -57,6 +59,9 @@ const COMMENT_TAGS = [
   '乐于助人',
 ] as const;
 const DEFAULT_COMMENT_TONE = '温和鼓励';
+const COMMENT_BATCH_TEMPLATE_FILE_NAME = '红笔AI_评语导入模板_v1.xlsx';
+const COMMENT_XLSX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' as const;
 
 export type CommentGender = (typeof COMMENT_GENDERS)[number];
 
@@ -91,6 +96,7 @@ export type CommentBatchCreateFromUploadInput = {
   fileName: string;
   fileSize: number;
   contentBase64?: string;
+  defaultGrade?: string;
   mimeType?: string;
   tone?: string;
   rows?: CommentUploadRowInput[];
@@ -141,6 +147,19 @@ export type CommentBatchGenerateRowResult = {
   };
 };
 
+export type CommentBatchGenerateDemoRowInput = {
+  nickname?: string;
+  gender: CommentGender;
+  grade: string;
+  tags: string[];
+  keywords?: string;
+  tone?: string;
+};
+
+export type CommentBatchGenerateDemoRowResult = {
+  comment: string;
+};
+
 export type CommentBatchGenerateAllResult = {
   job: CommentBatchJob;
   rows: CommentBatchRow[];
@@ -149,10 +168,21 @@ export type CommentBatchGenerateAllResult = {
   };
 };
 
+export type CommentBatchUpdateRowCommentResult = {
+  job: CommentBatchJob;
+  row: CommentBatchRow;
+};
+
 export type CommentBatchExportResult = {
   jobId: string;
   fileName: string;
-  mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  mimeType: typeof COMMENT_XLSX_MIME_TYPE;
+  contentBase64: string;
+};
+
+export type CommentBatchTemplateResult = {
+  fileName: string;
+  mimeType: typeof COMMENT_XLSX_MIME_TYPE;
   contentBase64: string;
 };
 
@@ -172,9 +202,20 @@ export type CommentBatchGenerateRowServiceInput = {
   rowId: string;
 };
 
+export type CommentBatchGenerateDemoRowServiceInput = CommentBatchGenerateDemoRowInput & {
+  userId: string;
+};
+
 export type CommentBatchGenerateAllServiceInput = {
   userId: string;
   jobId: string;
+};
+
+export type CommentBatchUpdateRowCommentServiceInput = {
+  userId: string;
+  jobId: string;
+  rowId: string;
+  comment: string;
 };
 
 export type CommentBatchExportServiceInput = {
@@ -261,7 +302,9 @@ export class CommentsService {
     const fileSize = normalizeFileSize(input.fileSize);
     const mimeType = trimOptionalMax(input.mimeType, 'Comment upload mimeType', 120);
     const tone = trimOptionalMax(input.tone, 'Comment tone', 40) ?? DEFAULT_COMMENT_TONE;
-    const rows = normalizeUploadRows(resolveUploadRows(input));
+    const defaultGrade =
+      input.defaultGrade === undefined ? null : normalizeGrade(input.defaultGrade);
+    const rows = normalizeUploadRows(resolveUploadRows(input), defaultGrade);
     const { job, rows: createdRows } = await this.commentsRepository.createBatch({
       userId: input.userId,
       fileName,
@@ -315,7 +358,7 @@ export class CommentsService {
       userId: input.userId,
       jobId,
       rowId,
-      generatedResults: generated.comments,
+      generatedResults: [getFirstGeneratedComment(generated.comments)],
       ...(generated.modelCall === undefined ? {} : { modelCall: generated.modelCall }),
     });
 
@@ -327,6 +370,17 @@ export class CommentsService {
       job: toBatchJob(updated.job),
       row: toBatchRow(updated.row),
       credit: { remaining: MOCK_REMAINING_CREDITS },
+    };
+  }
+
+  async generateDemoRow(
+    input: CommentBatchGenerateDemoRowServiceInput
+  ): Promise<CommentBatchGenerateDemoRowResult> {
+    const normalized = normalizeSingleInput(input);
+    const generated = await this.generateComments(normalized);
+
+    return {
+      comment: getFirstGeneratedComment(generated.comments),
     };
   }
 
@@ -344,7 +398,7 @@ export class CommentsService {
     const rowsById = new Map(batch.rows.map((row) => [row.id, row]));
 
     for (const row of batch.rows) {
-      if (!isGeneratableRowStatus(row.status)) {
+      if (row.status !== 'pending' && row.status !== 'error') {
         continue;
       }
 
@@ -361,7 +415,7 @@ export class CommentsService {
         userId: input.userId,
         jobId,
         rowId: row.id,
-        generatedResults: generated.comments,
+        generatedResults: [getFirstGeneratedComment(generated.comments)],
         ...(generated.modelCall === undefined ? {} : { modelCall: generated.modelCall }),
       });
 
@@ -377,6 +431,44 @@ export class CommentsService {
       job: toBatchJob(currentJob),
       rows: rows.map(toBatchRow),
       credit: { remaining: MOCK_REMAINING_CREDITS },
+    };
+  }
+
+  async updateRowComment(
+    input: CommentBatchUpdateRowCommentServiceInput
+  ): Promise<CommentBatchUpdateRowCommentResult> {
+    const jobId = requireTrimmed(input.jobId, 'Comment batch jobId is required');
+    const rowId = requireTrimmed(input.rowId, 'Comment batch rowId is required');
+    const comment = requireTrimmedMax(
+      input.comment,
+      'Comment row comment',
+      20_000,
+      'Comment row comment is required'
+    );
+    const updated = await this.commentsRepository.updateRowComment({
+      userId: input.userId,
+      jobId,
+      rowId,
+      comment,
+    });
+
+    if (!updated) {
+      throw new CommentsServiceError('NOT_FOUND', 'Comment batch row not found');
+    }
+
+    return {
+      job: toBatchJob(updated.job),
+      row: toBatchRow(updated.row),
+    };
+  }
+
+  async getBatchTemplate(): Promise<CommentBatchTemplateResult> {
+    const content = await readFile(join(__dirname, 'assets', COMMENT_BATCH_TEMPLATE_FILE_NAME));
+
+    return {
+      fileName: COMMENT_BATCH_TEMPLATE_FILE_NAME,
+      mimeType: COMMENT_XLSX_MIME_TYPE,
+      contentBase64: content.toString('base64'),
     };
   }
 
@@ -397,7 +489,7 @@ export class CommentsService {
     return {
       jobId,
       fileName: `红笔AI_批量评语生成结果_${formatDate(new Date())}.xlsx`,
-      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      mimeType: COMMENT_XLSX_MIME_TYPE,
       contentBase64: createXlsxBase64(rows),
     };
   }
@@ -544,19 +636,35 @@ function normalizeSingleInput(input: CommentSingleGenerateInput): NormalizedSing
   };
 }
 
-function normalizeUploadRows(rows: CommentUploadRowInput[]): CommentBatchCreateRowInput[] {
+function normalizeUploadRows(
+  rows: CommentUploadRowInput[],
+  defaultGrade: string | null
+): CommentBatchCreateRowInput[] {
   if (rows.length === 0) {
     throw new CommentsServiceError('BAD_REQUEST', 'Comment upload requires at least one row');
   }
 
-  return rows.map((row, index) => ({
-    rowIndex: index + 1,
-    nickname: trimOptionalMax(row.nickname ?? undefined, 'Comment row nickname', 100) ?? null,
-    gender: normalizeGender(row.gender),
-    grade: normalizeGrade(row.grade),
-    tags: normalizeUploadTags(row.tags),
-    keywords: trimOptionalMax(row.keywords ?? undefined, 'Comment row keywords', 1000) ?? null,
-  }));
+  return rows.map((row, index) => {
+    const tags = normalizeUploadTags(row.tags);
+
+    if (tags.length === 0) {
+      throw new CommentsServiceError('BAD_REQUEST', 'Comment row tags are required');
+    }
+
+    return {
+      rowIndex: index + 1,
+      nickname: requireTrimmedMax(
+        row.nickname ?? '',
+        'Comment row nickname',
+        100,
+        'Comment row nickname is required'
+      ),
+      gender: normalizeGender(row.gender),
+      grade: defaultGrade ?? normalizeGrade(row.grade),
+      tags,
+      keywords: trimOptionalMax(row.keywords ?? undefined, 'Comment row keywords', 1000) ?? null,
+    };
+  });
 }
 
 function normalizeGender(value: string): CommentGender {
@@ -667,7 +775,7 @@ function parseGeneratedComments(content: string): string[] {
   const lines = content
     .split(/\n+/)
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter((line) => line && !isMarkdownFenceLine(line));
   const comments = lines.some((line) => isCommentHeading(stripCommentLineMarker(line)))
     ? groupHeadingComments(lines)
     : lines.map(stripCommentLineMarker).filter(Boolean);
@@ -707,16 +815,43 @@ function stripCommentLineMarker(line: string): string {
   return line.trim().replace(/^(?:(?:[-*])\s+|\d+[.)、]\s*)/, '');
 }
 
+function isMarkdownFenceLine(line: string): boolean {
+  return /^\s*(?:`{3,}|~{3,}).*$/.test(line);
+}
+
 function createMockComments(input: NormalizedSingleInput): string[] {
   const name = input.nickname ?? '这位同学';
   const tagSummary = input.tags.length > 0 ? input.tags.join('、') : '持续成长';
-  const detail = input.keywords ? `结合${input.keywords}，` : '';
+  const detail = createMockCommentDetail(input.keywords);
 
   return [
     `${name}在${input.grade}阶段表现出${tagSummary}的特点。${detail}希望继续保持学习热情。`,
     `${name}课堂状态稳步提升，能够在${input.tone}的氛围中展现自己的优势。`,
     `${name}本学期进步清晰可见，后续可以围绕目标坚持练习，争取更稳定的发展。`,
   ];
+}
+
+function createMockCommentDetail(keywords: string | null): string {
+  if (!keywords) {
+    return '';
+  }
+
+  const connector = /[。！？!?；;，,、.]$/.test(keywords) ? '' : '，';
+
+  return `结合${keywords}${connector}`;
+}
+
+function getFirstGeneratedComment(comments: string[]): string {
+  const comment = comments[0]?.trim();
+
+  if (!comment) {
+    throw new CommentsServiceError(
+      'INTERNAL_SERVER_ERROR',
+      'Comment generation returned no result'
+    );
+  }
+
+  return comment;
 }
 
 async function emitMockCommentDeltas(
@@ -766,19 +901,9 @@ function toBatchRow(row: CommentBatchRowRecord): CommentBatchRow {
 }
 
 function createXlsxBase64(rows: CommentBatchRowRecord[]): string {
-  const header = [
-    '行号',
-    '昵称',
-    '性别',
-    '年级',
-    '表现标签',
-    '核心优缺点',
-    '评语1',
-    '评语2',
-    '评语3',
-  ];
+  const header = ['行号', '昵称', '性别', '年级', '表现标签', '核心优缺点', '评语'];
   const values = rows.map((row) => {
-    const comments = normalizeExportComments(row.generatedResults ?? []);
+    const comment = normalizeExportComment(row.generatedResults?.[0] ?? '');
 
     return [
       row.rowIndex.toString(),
@@ -787,9 +912,7 @@ function createXlsxBase64(rows: CommentBatchRowRecord[]): string {
       row.grade,
       row.tags.join('、'),
       row.keywords ?? '',
-      comments[0] ?? '',
-      comments[1] ?? '',
-      comments[2] ?? '',
+      comment,
     ];
   });
 
@@ -837,8 +960,8 @@ function createXlsxBase64(rows: CommentBatchRowRecord[]): string {
   ]);
 }
 
-function normalizeExportComments(comments: string[]): string[] {
-  return comments.slice(0, 3).map(stripMarkdownForExport);
+function normalizeExportComment(comment: string): string {
+  return stripMarkdownForExport(comment);
 }
 
 function stripMarkdownForExport(value: string): string {

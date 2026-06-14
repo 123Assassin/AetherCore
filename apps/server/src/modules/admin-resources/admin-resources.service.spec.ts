@@ -259,6 +259,45 @@ test('creating engine in test runtime uses test encryption key and masks respons
   });
 });
 
+test('creating engine preserves the selected engine category', async () => {
+  const repository = new FakeAdminResourcesRepository();
+  const service = new AdminResourcesService(repository.asRepository());
+
+  await withEnv({ AETHERCORE_ENGINE_API_KEY_SECRET: undefined, NODE_ENV: 'test' }, async () => {
+    const result = await service.createEngine({
+      name: 'Vision Engine',
+      provider: 'custom',
+      apiBaseUrl: 'https://vision.example.com/v1',
+      apiKey: 'sk-vision-secret-123456',
+      category: 'vision',
+    } as never);
+
+    assert.equal((result as { category?: string }).category, 'vision');
+    assert.equal((repository.engines.at(-1) as { category?: string }).category, 'vision');
+  });
+});
+
+test('creating an agent rejects vision engines because agents bind reasoning engines only', async () => {
+  const repository = new FakeAdminResourcesRepository();
+  repository.engines.push({
+    ...repository.engines[0]!,
+    id: 'engine-vision',
+    name: 'Vision Engine',
+    category: 'vision',
+  } as never);
+  const service = new AdminResourcesService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.createAgent({
+        key: 'chat',
+        name: 'Chat Agent',
+        engineId: 'engine-vision',
+      }),
+    serviceError('BAD_REQUEST', 'Agent engine must be a reasoning engine')
+  );
+});
+
 test('creating agent conflicts when a soft-deleted row owns the key', async () => {
   const repository = new FakeAdminResourcesRepository();
   repository.agents.push({
@@ -392,6 +431,7 @@ class FakeAdminResourcesRepository {
       id: 'engine-1',
       name: 'OpenAI',
       provider: 'openai',
+      category: 'reasoning',
       apiBaseUrl: 'https://api.openai.com/v1',
       apiKeyCiphertext: Buffer.from('sk-test-secret-abcdef', 'utf8').toString('base64'),
       modelName: 'gpt-4.1',

@@ -8,6 +8,7 @@ import {
   sensitiveWordLists,
   type AiAgentKey,
   type AiResourceStatus,
+  type ModelEngineCategory,
   type ModelEngineProvider,
 } from '@package/db/schema';
 import { and, asc, eq, isNull } from 'drizzle-orm';
@@ -46,6 +47,7 @@ export type AdminSensitiveWordListSaveData = {
 export type AdminEngineSaveData = {
   name: string;
   provider: ModelEngineProvider;
+  category: ModelEngineCategory;
   apiBaseUrl: string;
   apiKeyCiphertext: string;
   modelName: string | null;

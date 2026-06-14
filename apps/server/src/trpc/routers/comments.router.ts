@@ -9,8 +9,10 @@ import {
   CommentsServiceError,
   type CommentsService,
   type CommentBatchCreateFromUploadInput,
+  type CommentBatchGenerateDemoRowServiceInput,
   type CommentBatchGenerateAllServiceInput,
   type CommentBatchGenerateRowServiceInput,
+  type CommentBatchUpdateRowCommentServiceInput,
   type CommentBatchExportServiceInput,
   type CommentSingleGenerateInput,
   type CommentUploadRowInput,
@@ -43,6 +45,11 @@ export function createCommentsRouter(
         }),
     }),
     batch: tools.createTRPCRouter({
+      template: tools.publicProcedure.query(async ({ ctx }) => {
+        await requireUserSession(authService, ctx);
+
+        return mapServiceError(() => commentsService.getBatchTemplate());
+      }),
       createFromUpload: tools.publicProcedure
         .input(parseCreateFromUploadInput)
         .mutation(async ({ ctx, input }) => {
@@ -67,6 +74,18 @@ export function createCommentsRouter(
             })
           );
         }),
+      generateDemoRow: tools.publicProcedure
+        .input(parseGenerateDemoRowInput)
+        .mutation(async ({ ctx, input }) => {
+          const session = await requireAiUserSession(authService, ctx);
+
+          return mapServiceError(() =>
+            commentsService.generateDemoRow({
+              userId: session.user.id,
+              ...input,
+            })
+          );
+        }),
       generateAll: tools.publicProcedure
         .input(parseGenerateAllInput)
         .mutation(async ({ ctx, input }) => {
@@ -74,6 +93,18 @@ export function createCommentsRouter(
 
           return mapServiceError(() =>
             commentsService.generateAll({
+              userId: session.user.id,
+              ...input,
+            })
+          );
+        }),
+      updateRowComment: tools.publicProcedure
+        .input(parseUpdateRowCommentInput)
+        .mutation(async ({ ctx, input }) => {
+          const session = await requireUserSession(authService, ctx);
+
+          return mapServiceError(() =>
+            commentsService.updateRowComment({
               userId: session.user.id,
               ...input,
             })
@@ -124,6 +155,7 @@ function parseCreateFromUploadInput(input: unknown): CommentBatchCreateFromUploa
   const mimeType = parseOptionalString(input.mimeType, 'mimeType');
   const tone = parseOptionalString(input.tone, 'tone');
   const contentBase64 = parseOptionalString(input.contentBase64, 'contentBase64');
+  const defaultGrade = parseOptionalString(input.defaultGrade, 'defaultGrade');
   const rows = parseOptionalUploadRows(input.rows, 'rows');
   const previewRows = parseOptionalUploadRows(input.previewRows, 'previewRows');
 
@@ -131,6 +163,7 @@ function parseCreateFromUploadInput(input: unknown): CommentBatchCreateFromUploa
     fileName: parseRequiredString(input.fileName, 'Comment upload fileName is required'),
     fileSize: parseRequiredNumber(input.fileSize, 'Comment upload fileSize is required'),
     ...(contentBase64 === undefined ? {} : { contentBase64 }),
+    ...(defaultGrade === undefined ? {} : { defaultGrade }),
     ...(mimeType === undefined ? {} : { mimeType }),
     ...(tone === undefined ? {} : { tone }),
     ...(rows === undefined ? {} : { rows }),
@@ -148,6 +181,41 @@ function parseGenerateRowInput(
   return {
     jobId: parseRequiredString(input.jobId, 'Comment batch jobId is required'),
     rowId: parseRequiredString(input.rowId, 'Comment batch rowId is required'),
+  };
+}
+
+function parseGenerateDemoRowInput(
+  input: unknown
+): Omit<CommentBatchGenerateDemoRowServiceInput, 'userId'> {
+  if (!isRecord(input)) {
+    throwInvalidInput('Comment batch generateDemoRow input must be an object');
+  }
+
+  const nickname = parseOptionalString(input.nickname, 'nickname');
+  const keywords = parseOptionalString(input.keywords, 'keywords');
+  const tone = parseOptionalString(input.tone, 'tone');
+
+  return {
+    ...(nickname === undefined ? {} : { nickname }),
+    gender: parseRequiredString(input.gender, 'Comment gender is required') as '男' | '女',
+    grade: parseRequiredString(input.grade, 'Comment grade is required'),
+    tags: parseRequiredStringArray(input.tags, 'Comment tags must be an array'),
+    ...(keywords === undefined ? {} : { keywords }),
+    ...(tone === undefined ? {} : { tone }),
+  };
+}
+
+function parseUpdateRowCommentInput(
+  input: unknown
+): Omit<CommentBatchUpdateRowCommentServiceInput, 'userId'> {
+  if (!isRecord(input)) {
+    throwInvalidInput('Comment batch updateRowComment input must be an object');
+  }
+
+  return {
+    jobId: parseRequiredString(input.jobId, 'Comment batch jobId is required'),
+    rowId: parseRequiredString(input.rowId, 'Comment batch rowId is required'),
+    comment: parseRequiredString(input.comment, 'Comment batch row comment is required'),
   };
 }
 

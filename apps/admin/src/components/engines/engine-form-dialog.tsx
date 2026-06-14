@@ -1,6 +1,10 @@
 'use client';
 
-import type { AdminModelEngineCreateInput, AdminModelEngineItem } from '@package/shared';
+import {
+  adminModelEngineCategories,
+  type AdminModelEngineCreateInput,
+  type AdminModelEngineItem,
+} from '@package/shared';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
@@ -19,10 +23,12 @@ type EngineFormDialogProps = {
 };
 
 type EngineStatus = NonNullable<AdminModelEngineCreateInput['status']>;
+type EngineCategory = NonNullable<AdminModelEngineCreateInput['category']>;
 
 type EngineFormState = {
   apiBaseUrl: string;
   apiKey: string;
+  category: EngineCategory;
   modelName: string;
   name: string;
   status: EngineStatus;
@@ -50,6 +56,7 @@ type UrlConstructor = new (url: string) => {
 const defaultFormState: EngineFormState = {
   apiBaseUrl: '',
   apiKey: '',
+  category: 'reasoning',
   modelName: '',
   name: '',
   status: 'enabled',
@@ -126,6 +133,7 @@ export function EngineFormDialog({
       ...(apiKey ? { apiKey } : {}),
       modelName: modelName || null,
       name,
+      category: form.category,
       status: form.status,
     });
   }
@@ -242,6 +250,28 @@ export function EngineFormDialog({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="space-y-2">
+              <span className="text-sm font-bold text-slate-700">引擎类别</span>
+              <select
+                className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
+                onChange={(event) => {
+                  const value = readControlValue(event.currentTarget) as EngineCategory;
+
+                  setForm((current) => ({
+                    ...current,
+                    category: value,
+                  }));
+                }}
+                value={form.category}
+              >
+                {adminModelEngineCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {categoryLabels[category]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-2">
               <span className="text-sm font-bold text-slate-700">Model Name</span>
               <input
                 className="focus:border-primary w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm transition-colors outline-none"
@@ -308,6 +338,7 @@ function toFormState(engine: AdminModelEngineItem): EngineFormState {
   return {
     apiBaseUrl: engine.apiBaseUrl,
     apiKey: '',
+    category: engine.category,
     modelName: engine.modelName ?? '',
     name: engine.name,
     status: engine.status,
@@ -391,3 +422,8 @@ function readControlValue(target: EventTarget): string {
 
   return typeof value === 'string' ? value : '';
 }
+
+const categoryLabels: Record<EngineCategory, string> = {
+  reasoning: '推理引擎',
+  vision: '视觉引擎',
+};

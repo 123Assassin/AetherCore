@@ -292,6 +292,28 @@ test('createFromUpload accepts file metadata and returns mock row previews', asy
   assert.equal(repository.rows.length, 3);
 });
 
+test('getBatchTemplate returns the server-side xlsx template', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  const result = await (
+    service as unknown as {
+      getBatchTemplate: () => Promise<{
+        contentBase64: string;
+        fileName: string;
+        mimeType: string;
+      }>;
+    }
+  ).getBatchTemplate();
+
+  assert.equal(result.fileName, '红笔AI_评语导入模板_v1.xlsx');
+  assert.equal(
+    result.mimeType,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  assert.equal(Buffer.from(result.contentBase64, 'base64').subarray(0, 2).toString(), 'PK');
+});
+
 test('createFromUpload parses uploaded xlsx rows instead of mock previews', async () => {
   const repository = new FakeCommentsRepository();
   const service = new CommentsService(repository.asRepository());
@@ -315,6 +337,31 @@ test('createFromUpload parses uploaded xlsx rows instead of mock previews', asyn
   assert.equal(result.rowPreviews[0]?.grade, '一年级');
   assert.deepEqual(result.rowPreviews[4]?.tags, ['乐于分享']);
   assert.equal(repository.rows.length, 5);
+});
+
+test('createFromUpload applies the batch default grade to every imported row', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  const result = await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 4096,
+    contentBase64: createTestXlsxBase64([
+      ['昵称', '性别', '年级', '标签', '关键词'],
+      ['小一', '男', '1', '思维活跃', '课堂发言积极'],
+      ['小二', '女', '2', '团结协作', '小组合作主动'],
+    ]),
+    defaultGrade: '五年级',
+  } as never);
+
+  assert.deepEqual(
+    result.rowPreviews.map((row) => row.grade),
+    ['五年级', '五年级']
+  );
+  assert.deepEqual(
+    repository.rows.map((row) => row.grade),
+    ['五年级', '五年级']
+  );
 });
 
 test('createFromUpload accepts freeform tags from uploaded xlsx rows', async () => {
@@ -341,6 +388,116 @@ test('createFromUpload accepts freeform tags from uploaded xlsx rows', async () 
   assert.deepEqual(result.rowPreviews[0]?.tags, ['学习认真']);
   assert.deepEqual(result.rowPreviews[4]?.tags, ['成绩退步']);
   assert.equal(repository.rows.length, 5);
+});
+
+test('createFromUpload maps required headers by name regardless of column order', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  const result = await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 4096,
+    contentBase64: createTestXlsxBase64([
+      ['核心优缺点', '表现标签', '性别', '姓名'],
+      [
+        '学习态度端正，但近期在数学计算上略显粗心，需要加强练习。',
+        '思维活跃, 基础扎实, 团结协作',
+        '男',
+        '张小明',
+      ],
+      [
+        '性格文静，但在课堂发言时不够自信，建议多鼓励其表达。',
+        '书写工整, 乐于助人',
+        '女',
+        '李小华',
+      ],
+    ]),
+    defaultGrade: '三年级',
+  } as never);
+
+  assert.equal(result.rowPreviews[0]?.nickname, '张小明');
+  assert.equal(result.rowPreviews[0]?.gender, '男');
+  assert.equal(result.rowPreviews[0]?.grade, '三年级');
+  assert.deepEqual(result.rowPreviews[0]?.tags, ['思维活跃', '基础扎实', '团结协作']);
+  assert.equal(
+    result.rowPreviews[0]?.keywords,
+    '学习态度端正，但近期在数学计算上略显粗心，需要加强练习。'
+  );
+  assert.equal(result.rowPreviews[1]?.nickname, '李小华');
+  assert.deepEqual(result.rowPreviews[1]?.tags, ['书写工整', '乐于助人']);
+});
+
+test('createFromUpload rejects xlsx rows without a nickname', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.createFromUpload({
+        userId: 'user-1',
+        fileName: 'comments.xlsx',
+        fileSize: 4096,
+        contentBase64: createTestXlsxBase64([
+          ['昵称', '性别', '年级', '标签', '关键词'],
+          ['', '男', '二年级', '学习认真', '继续保持学习热情'],
+        ]),
+      }),
+    serviceError('BAD_REQUEST', 'Excel 昵称/姓名列为必填项。')
+  );
+  assert.equal(repository.rows.length, 0);
+});
+
+test('createFromUpload rejects xlsx without a recognized nickname header', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.createFromUpload({
+        userId: 'user-1',
+        fileName: 'comments.xlsx',
+        fileSize: 4096,
+        contentBase64: createTestXlsxBase64([
+          ['测试字段', '性别', '表现标签', '核心优缺点'],
+          [
+            '张小明',
+            '男',
+            '思维活跃, 基础扎实, 团结协作',
+            '学习态度端正，但近期在数学计算上略显粗心，需要加强练习。',
+          ],
+          [
+            '李小华',
+            '女',
+            '书写工整, 乐于助人',
+            '性格文静，但在课堂发言时不够自信，建议多鼓励其表达。',
+          ],
+        ]),
+        defaultGrade: '三年级',
+      } as never),
+    serviceError('BAD_REQUEST', 'Excel 缺少昵称/姓名列。')
+  );
+  assert.equal(repository.rows.length, 0);
+});
+
+test('createFromUpload rejects xlsx rows without performance tags', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  await assert.rejects(
+    () =>
+      service.createFromUpload({
+        userId: 'user-1',
+        fileName: 'comments.xlsx',
+        fileSize: 4096,
+        contentBase64: createTestXlsxBase64([
+          ['昵称', '性别', '年级', '标签', '关键词'],
+          ['小王', '男', '二年级', '', '继续保持学习热情'],
+        ]),
+      }),
+    serviceError('BAD_REQUEST', 'Excel 表现标签列为必填项。')
+  );
+  assert.equal(repository.rows.length, 0);
 });
 
 test('createFromUpload rejects zero-byte files before persistence', async () => {
@@ -376,7 +533,211 @@ test('generateRow updates the row status to success', async () => {
 
   assert.equal(result.row.status, 'success');
   assert.equal(repository.rows[0]?.status, 'success');
-  assert.equal((repository.rows[0]?.generatedResults as string[] | undefined)?.length, 3);
+  assert.equal((repository.rows[0]?.generatedResults as string[] | undefined)?.length, 1);
+  assert.deepEqual(result.row.comments, [
+    '小林在三年级阶段表现出思维活跃、乐于分享的特点。结合课堂发言更主动，数学进步明显，希望继续保持学习热情。',
+  ]);
+});
+
+test('generateRow avoids duplicate punctuation when uploaded keywords already end with punctuation', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+    rows: [
+      {
+        nickname: '张小明',
+        gender: '男',
+        grade: '一年级',
+        tags: ['思维活跃', '基础扎实', '团结协作'],
+        keywords: '学习态度端正，但近期在数学计算上略显粗心，需要加强练习。',
+      },
+    ],
+  });
+
+  const result = await service.generateRow({
+    userId: 'user-1',
+    jobId: 'job-1',
+    rowId: 'row-1',
+  });
+
+  assert.deepEqual(result.row.comments, [
+    '张小明在一年级阶段表现出思维活跃、基础扎实、团结协作的特点。结合学习态度端正，但近期在数学计算上略显粗心，需要加强练习。希望继续保持学习热情。',
+  ]);
+  assert.doesNotMatch(result.row.comments[0] ?? '', /。，/);
+});
+
+test('generateRow can regenerate a successful row and replace its comment', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+  const row = repository.rows.find((item) => item.id === 'row-1');
+
+  assert.ok(row);
+  row.status = 'success';
+  row.generatedResults = ['旧评语'];
+  await service.generateRow({
+    userId: 'user-1',
+    jobId: 'job-1',
+    rowId: 'row-1',
+  });
+
+  assert.notDeepEqual(row.generatedResults, ['旧评语']);
+  assert.equal(row.generatedResults?.length, 1);
+});
+
+test('generateRow keeps model markdown in saved batch comments for frontend sanitization', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+
+  repository.setAgentRuntimeConfig('comment', {
+    agent: {
+      id: 'agent-comment',
+      key: 'comment',
+      name: '学生评语智能体',
+      temperature: 0.3,
+      topP: 0.9,
+      maxTokens: 600,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-dsv4',
+      name: 'DSv4',
+      apiBaseUrl: 'https://model.example.test/v1/chat/completions',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'deepseek-chat',
+      status: 'enabled',
+    },
+    prompt: {
+      id: 'prompt-comment',
+      content: '你只输出学生评语列表。',
+    },
+    sensitiveWordList: null,
+  });
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+
+  await withMockFetch(
+    async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  '```markdown\n1. **小林课堂表达更主动**，能够结合问题清晰说明自己的想法。\n2. 小林学习状态稳定。\n```',
+              },
+            },
+          ],
+        }),
+        { status: 200 }
+      ),
+    async () => {
+      const result = await service.generateRow({
+        userId: 'user-1',
+        jobId: 'job-1',
+        rowId: 'row-1',
+      });
+
+      assert.deepEqual(result.row.comments, [
+        '**小林课堂表达更主动**，能够结合问题清晰说明自己的想法。',
+      ]);
+      assert.deepEqual(repository.rows[0]?.generatedResults, [
+        '**小林课堂表达更主动**，能够结合问题清晰说明自己的想法。',
+      ]);
+    }
+  );
+});
+
+test('generateDemoRow calls the model and returns one comment without persistence', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  const fetchCalls: Array<{ url: string; body: Record<string, unknown> }> = [];
+
+  repository.setAgentRuntimeConfig('comment', {
+    agent: {
+      id: 'agent-comment',
+      key: 'comment',
+      name: '学生评语智能体',
+      temperature: 0.3,
+      topP: 0.9,
+      maxTokens: 600,
+      status: 'enabled',
+    },
+    engine: {
+      id: 'engine-dsv4',
+      name: 'DSv4',
+      apiBaseUrl: 'https://model.example.test/v1/chat/completions',
+      apiKeyCiphertext: Buffer.from('test-api-key', 'utf8').toString('base64'),
+      modelName: 'deepseek-chat',
+      status: 'enabled',
+    },
+    prompt: {
+      id: 'prompt-comment',
+      content: '你只输出学生评语列表。',
+    },
+    sensitiveWordList: null,
+  });
+
+  await withMockFetch(
+    async (url, init) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      fetchCalls.push({ url: String(url), body });
+
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  '1. 小林课堂表达更主动，能够结合问题清晰说明自己的想法。\n2. 小林学习状态稳定。',
+              },
+            },
+          ],
+        }),
+        { status: 200 }
+      );
+    },
+    async () => {
+      const result = await (
+        service as unknown as {
+          generateDemoRow: (input: {
+            gender: '男';
+            grade: string;
+            keywords?: string;
+            nickname?: string;
+            tags: string[];
+            userId: string;
+          }) => Promise<{ comment: string }>;
+        }
+      ).generateDemoRow({
+        userId: 'user-1',
+        nickname: '小林',
+        gender: '男',
+        grade: '一年级',
+        tags: ['思维活跃'],
+        keywords: '课堂表达主动',
+      });
+
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(fetchCalls[0]?.url, 'https://model.example.test/v1/chat/completions');
+      assert.equal(result.comment, '小林课堂表达更主动，能够结合问题清晰说明自己的想法。');
+      assert.equal(repository.singleCalls, 0);
+      assert.equal(repository.jobs.length, 0);
+      assert.equal(repository.rows.length, 0);
+      assert.equal(repository.messages.length, 0);
+      assert.equal(repository.modelCalls.length, 0);
+    }
+  );
 });
 
 test('generateAll returns completed aggregate after multiple row generations', async () => {
@@ -401,6 +762,94 @@ test('generateAll returns completed aggregate after multiple row generations', a
     result.rows.every((row) => row.status === 'success'),
     true
   );
+});
+
+test('generateAll skips successful rows while generating pending and error rows', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+  const firstRow = repository.rows.find((item) => item.id === 'row-1');
+  const secondRow = repository.rows.find((item) => item.id === 'row-2');
+
+  assert.ok(firstRow);
+  assert.ok(secondRow);
+  firstRow.status = 'success';
+  firstRow.generatedResults = ['保留已编辑评语'];
+  secondRow.status = 'error';
+  secondRow.errorMessage = '上一轮失败';
+
+  const result = await service.generateAll({
+    userId: 'user-1',
+    jobId: 'job-1',
+  });
+
+  assert.deepEqual(firstRow.generatedResults, ['保留已编辑评语']);
+  assert.equal(result.rows.find((row) => row.id === 'row-2')?.comments.length, 1);
+  assert.equal(result.rows.find((row) => row.id === 'row-3')?.comments.length, 1);
+});
+
+test('updateRowComment saves a manually edited single comment', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+
+  const result = await (
+    service as unknown as {
+      updateRowComment: (input: {
+        userId: string;
+        jobId: string;
+        rowId: string;
+        comment: string;
+      }) => Promise<{ row: { comments: string[] } }>;
+    }
+  ).updateRowComment({
+    userId: 'user-1',
+    jobId: 'job-1',
+    rowId: 'row-1',
+    comment: '  手动编辑后的评语  ',
+  });
+
+  assert.deepEqual(result.row.comments, ['手动编辑后的评语']);
+  assert.deepEqual(repository.rows[0]?.generatedResults, ['手动编辑后的评语']);
+});
+
+test('updateRowComment rejects empty manual comments before persistence', async () => {
+  const repository = new FakeCommentsRepository();
+  const service = new CommentsService(repository.asRepository());
+  await service.createFromUpload({
+    userId: 'user-1',
+    fileName: 'comments.xlsx',
+    fileSize: 2048,
+  });
+
+  await assert.rejects(
+    () =>
+      (
+        service as unknown as {
+          updateRowComment: (input: {
+            userId: string;
+            jobId: string;
+            rowId: string;
+            comment: string;
+          }) => Promise<unknown>;
+        }
+      ).updateRowComment({
+        userId: 'user-1',
+        jobId: 'job-1',
+        rowId: 'row-1',
+        comment: '   ',
+      }),
+    serviceError('BAD_REQUEST', 'Comment row comment is required')
+  );
+  assert.equal(repository.manualUpdateCalls, 0);
 });
 
 test('exportBatch returns an Excel base64 payload', async () => {
@@ -431,7 +880,7 @@ test('exportBatch returns an Excel base64 payload', async () => {
   assert.equal(Buffer.from(result.contentBase64, 'base64').subarray(0, 2).toString(), 'PK');
 });
 
-test('exportBatch writes three plain-text comment columns', async () => {
+test('exportBatch writes one plain-text comment column', async () => {
   const repository = new FakeCommentsRepository();
   const service = new CommentsService(repository.asRepository());
   await service.createFromUpload({
@@ -448,7 +897,7 @@ test('exportBatch writes three plain-text comment columns', async () => {
 
   assert.ok(row);
   row.generatedResults = [
-    '**第一条评语**\n- 课堂表现稳定',
+    '```markdown\n**第一条评语**\n- 课堂表现稳定\n```',
     '```markdown\n第二条评语\n```',
     '`第三条评语`',
   ];
@@ -459,12 +908,13 @@ test('exportBatch writes three plain-text comment columns', async () => {
   });
   const workbook = Buffer.from(result.contentBase64, 'base64').toString('utf8');
 
-  assert.match(workbook, /评语1/);
-  assert.match(workbook, /评语2/);
-  assert.match(workbook, /评语3/);
+  assert.match(workbook, /评语/);
+  assert.doesNotMatch(workbook, /评语1/);
+  assert.doesNotMatch(workbook, /评语2/);
+  assert.doesNotMatch(workbook, /评语3/);
   assert.match(workbook, /第一条评语\s*课堂表现稳定/);
-  assert.match(workbook, /第二条评语/);
-  assert.match(workbook, /第三条评语/);
+  assert.doesNotMatch(workbook, /第二条评语/);
+  assert.doesNotMatch(workbook, /第三条评语/);
   assert.doesNotMatch(workbook, /\*\*|```|`|- 课堂表现稳定/);
 });
 
@@ -564,6 +1014,7 @@ class FakeCommentsRepository {
     subject: string | null;
   }> = [];
   readonly modelCalls: ModelCallInput[] = [];
+  manualUpdateCalls = 0;
 
   asRepository(): CommentsRepository {
     return this as unknown as CommentsRepository;
@@ -733,6 +1184,33 @@ class FakeCommentsRepository {
     if (input.modelCall) {
       this.modelCalls.push(input.modelCall);
     }
+
+    return { job, row };
+  }
+
+  async updateRowComment(input: {
+    jobId: string;
+    rowId: string;
+    comment: string;
+  }): Promise<{ job: JobRow; row: BatchRow } | null> {
+    this.manualUpdateCalls += 1;
+
+    const job = this.jobs.find((item) => item.id === input.jobId);
+    const row = this.rows.find((item) => item.id === input.rowId && item.jobId === input.jobId);
+
+    if (!job || !row) {
+      return null;
+    }
+
+    row.status = 'success';
+    row.generatedResults = [input.comment];
+    row.errorMessage = null;
+    row.updatedAt = new Date('2026-05-20T00:02:00.000Z');
+    job.successRows = this.rows.filter(
+      (item) => item.jobId === job.id && item.status === 'success'
+    ).length;
+    job.status = job.successRows === job.totalRows ? 'completed' : 'running';
+    job.updatedAt = row.updatedAt;
 
     return { job, row };
   }
