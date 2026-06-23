@@ -8,4 +8,4 @@ coverage
 source
 .DS_Store
 .playwright-mcp
-uploads/
+/uploads/
